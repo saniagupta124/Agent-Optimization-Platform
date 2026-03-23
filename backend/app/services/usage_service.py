@@ -142,7 +142,7 @@ def get_usage_summary(
     t_members = count_team_members(db, user) if scope == "team" else 1
 
     potential_savings, raw_recs = get_top_recommendations_for_scope(
-        db, user, scope, limit=3
+        db, user, scope, limit=3, period_days=period_days
     )
     top_changes = [
         TopChangeItem(

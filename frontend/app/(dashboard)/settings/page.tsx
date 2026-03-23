@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { deleteAccount, getProfile, updateProfile, UserProfile } from "../../lib/api";
 
 export default function SettingsPage() {
@@ -12,7 +13,6 @@ export default function SettingsPage() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState("");
-  const [organization, setOrganization] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -26,7 +26,6 @@ export default function SettingsPage() {
       .then((p) => {
         setProfile(p);
         setName(p.name);
-        setOrganization(p.organization_name);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -40,10 +39,7 @@ export default function SettingsPage() {
     setError("");
 
     try {
-      const updated = await updateProfile(token, {
-        name,
-        organization_name: organization,
-      });
+      const updated = await updateProfile(token, { name });
       setProfile(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -140,21 +136,27 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div id="organization" className="scroll-mt-24">
-            <label htmlFor="org" className="mb-1.5 block text-sm font-medium text-gray-300">
-              Organization
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-400">
+              Team
             </label>
-            <input
-              id="org"
-              type="text"
-              value={organization}
-              onChange={(e) => setOrganization(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-              placeholder="e.g. Acme Labs"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Use the same name across teammates to unlock <strong className="font-medium text-gray-400">Team</strong> spend on the dashboard.
-            </p>
+            {profile?.organization_name ? (
+              <div className="flex items-center gap-3">
+                <span className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300">
+                  {profile.organization_name}
+                </span>
+                <Link href="/team" className="text-xs text-orange-400 hover:text-orange-300">
+                  Manage →
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">Not in a team</span>
+                <Link href="/team" className="text-xs text-orange-400 hover:text-orange-300">
+                  Join or create →
+                </Link>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

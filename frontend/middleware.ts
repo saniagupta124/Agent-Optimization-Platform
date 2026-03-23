@@ -6,5 +6,7 @@ export const config = {
     "/agents/:path*",
     "/outliers/:path*",
     "/settings/:path*",
+    "/team",
+    "/team/:path*",
   ],
 };

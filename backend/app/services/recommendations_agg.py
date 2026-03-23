@@ -12,6 +12,7 @@ def get_top_recommendations_for_scope(
     user: User,
     scope: str,
     limit: int = 3,
+    period_days: int = 30,
 ) -> tuple[float, list[dict]]:
     """
     Returns (sum of estimated_savings for top `limit` recs, full list for those recs).
@@ -24,7 +25,7 @@ def get_top_recommendations_for_scope(
     agents = db.query(Agent).filter(Agent.id.in_(agent_ids)).all()
     combined: list[dict] = []
     for agent in agents:
-        opt = get_optimizations(db, agent)
+        opt = get_optimizations(db, agent, period_days=period_days)
         for rec in opt.get("recommendations", []):
             combined.append(
                 {
@@ -35,6 +36,16 @@ def get_top_recommendations_for_scope(
             )
 
     combined.sort(key=lambda x: -float(x.get("estimated_savings_usd", 0)))
-    top = combined[:limit]
+
+    # Deduplicate: keep only the highest-savings entry per recommendation type
+    seen_types: set[str] = set()
+    deduped: list[dict] = []
+    for rec in combined:
+        rec_type = rec.get("type", "unknown")
+        if rec_type not in seen_types:
+            seen_types.add(rec_type)
+            deduped.append(rec)
+
+    top = deduped[:limit]
     total = sum(float(r.get("estimated_savings_usd", 0)) for r in top)
     return round(total, 2), top

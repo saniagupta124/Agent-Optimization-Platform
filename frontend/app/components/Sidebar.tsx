@@ -56,7 +56,7 @@ const NAV_ITEMS = [
   },
   {
     label: "Team",
-    href: "/settings#organization",
+    href: "/team",
     activeMatch: "team" as const,
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -90,9 +90,9 @@ function navActive(
     case "agents":
       return pathname.startsWith("/agents");
     case "team":
-      return pathname === "/settings" && hash === "#organization";
+      return pathname.startsWith("/team");
     case "settings":
-      return pathname === "/settings" && hash !== "#organization";
+      return pathname === "/settings";
     default:
       return false;
   }

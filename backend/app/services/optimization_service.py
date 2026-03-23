@@ -11,8 +11,8 @@ CHEAP_ALTERNATIVES = {
 }
 
 
-def get_optimizations(db: Session, agent: Agent) -> dict:
-    since_30d = datetime.utcnow() - timedelta(days=30)
+def get_optimizations(db: Session, agent: Agent, period_days: int = 30) -> dict:
+    since_30d = datetime.utcnow() - timedelta(days=period_days)
 
     requests = (
         db.query(Request)

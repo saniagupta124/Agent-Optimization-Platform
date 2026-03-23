@@ -24,7 +24,19 @@ function fmtPct(n: number | null): string {
   return `${sign}${n.toFixed(1)}%`;
 }
 
-function TrendVsLastMo({ pct }: { pct: number | null | undefined }) {
+function fmtDollars(n: number): string {
+  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
+  if (n >= 100) return `$${n.toFixed(0)}`;
+  return `$${n.toFixed(2)}`;
+}
+
+function changeToneClass(n: number): string {
+  if (n > 0) return "text-amber-500";
+  if (n < 0) return "text-emerald-400";
+  return "text-zinc-500";
+}
+
+function TrendBadge({ pct, label }: { pct: number | null | undefined; label: string }) {
   if (pct == null || Number.isNaN(pct)) {
     return <span className="text-sm text-zinc-500">—</span>;
   }
@@ -32,48 +44,18 @@ function TrendVsLastMo({ pct }: { pct: number | null | undefined }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 text-sm font-medium tabular-nums text-orange-300 sm:text-base">
       {up ? (
-        <svg
-          className="h-4 w-4 shrink-0 text-orange-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          stroke="currentColor"
-          aria-hidden
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M4.5 15.75l7.5-7.5 7.5 7.5"
-          />
+        <svg className="h-4 w-4 shrink-0 text-orange-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
         </svg>
       ) : (
-        <svg
-          className="h-4 w-4 shrink-0 text-emerald-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          stroke="currentColor"
-          aria-hidden
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-          />
+        <svg className="h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
       )}
       <span className="whitespace-nowrap">{fmtPct(pct)}</span>
-      <span className="whitespace-nowrap font-normal text-orange-300/90">
-        vs last mo
-      </span>
+      <span className="whitespace-nowrap font-normal text-orange-300/90">{label}</span>
     </span>
   );
-}
-
-function changeToneClass(n: number): string {
-  if (n > 0) return "text-amber-500";
-  if (n < 0) return "text-emerald-400";
-  return "text-zinc-500";
 }
 
 function severityLabel(s: string): "High" | "Med" | "Low" {
@@ -84,12 +66,8 @@ function severityLabel(s: string): "High" | "Med" | "Low" {
 }
 
 function severityBadgeClass(label: "High" | "Med" | "Low"): string {
-  if (label === "High") {
-    return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
-  }
-  if (label === "Low") {
-    return "bg-zinc-800/90 text-zinc-400 ring-1 ring-zinc-700";
-  }
+  if (label === "High") return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
+  if (label === "Low") return "bg-zinc-800/90 text-zinc-400 ring-1 ring-zinc-700";
   return "bg-amber-950/55 text-amber-200/95 ring-1 ring-amber-900/50";
 }
 
@@ -106,20 +84,13 @@ function KpiCard({
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] shadow-sm">
-      <div
-        className={`h-[3px] w-full ${accent === "orange" ? "bg-amber-500" : "bg-blue-500"}`}
-        aria-hidden
-      />
+      <div className={`h-[3px] w-full ${accent === "orange" ? "bg-amber-500" : "bg-blue-500"}`} aria-hidden />
       <div className="px-4 pb-4 pt-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          {label}
-        </p>
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
         <div className="mt-2 text-3xl font-semibold leading-none tracking-tight text-white tabular-nums sm:text-[2rem]">
           {value}
         </div>
-        {subline && (
-          <div className="mt-2.5 text-sm leading-relaxed text-zinc-500">{subline}</div>
-        )}
+        {subline && <div className="mt-2.5 text-sm leading-relaxed text-zinc-500">{subline}</div>}
       </div>
     </div>
   );
@@ -135,7 +106,6 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
 
   const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [glance, setGlance] = useState<UsageSummary | null>(null);
   const [breakdown, setBreakdown] = useState<DashboardUsageBreakdown | null>(null);
   const [timeline, setTimeline] = useState<UsageTimeline | null>(null);
   const [agents, setAgents] = useState<AgentWithStats[]>([]);
@@ -151,19 +121,18 @@ export default function Dashboard() {
       getUsageBreakdown(token, days, scope),
       getUsageTimeline(token, Math.max(days, 35), scope),
       getAgents(token, scope),
-      getUsageSummary(token, 14, scope),
     ])
-      .then(([s, b, t, a, g]) => {
+      .then(([s, b, t, a]) => {
         setSummary(s);
         setBreakdown(b);
         setTimeline(t);
         setAgents(a);
-        setGlance(g);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [token, days, scope]);
 
+  /* ---- Chart model: changes with breakdownTab ---- */
   const chartModel = useMemo(() => {
     const points = timeline?.points ?? [];
     const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
@@ -178,23 +147,29 @@ export default function Dashboard() {
         weekTotals.push(sl.reduce((s, p) => s + p.cost_usd, 0));
       }
     }
-    const top = [...agents]
-      .sort((a, b) => b.total_cost_7d - a.total_cost_7d)
-      .slice(0, 4);
-    const sumCost = top.reduce((s, a) => s + a.total_cost_7d, 0) || 1;
-    const props =
-      top.length >= 1
-        ? top.map((a) => a.total_cost_7d / sumCost)
-        : [0.25, 0.25, 0.25, 0.25];
-    while (props.length < 4) props.push(0);
-    const labels =
-      top.length >= 1 ? top.map((a) => a.name) : ["A", "B", "C", "D"];
+
+    let slices: { label: string; proportion: number }[];
+
+    if (breakdownTab === "member") {
+      // Proportions from top 4 agents by 7d cost
+      const top = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4);
+      const sumCost = top.reduce((s, a) => s + a.total_cost_7d, 0) || 1;
+      slices = top.map((a) => ({ label: a.name, proportion: a.total_cost_7d / sumCost }));
+    } else {
+      // Proportions from top 4 tools/endpoints by cost
+      const tools = [...(breakdown?.by_endpoint ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
+      const sumCost = tools.reduce((s, t) => s + t.total_cost_usd, 0) || 1;
+      slices = tools.map((t) => ({ label: t.label, proportion: t.total_cost_usd / sumCost }));
+    }
+
+    while (slices.length < 4) slices.push({ label: "—", proportion: 0 });
+
     return {
       weekTotals,
-      props: props.slice(0, 4),
-      labels: labels.slice(0, 4),
+      props: slices.slice(0, 4).map((s) => s.proportion),
+      labels: slices.slice(0, 4).map((s) => s.label),
     };
-  }, [timeline, agents]);
+  }, [timeline, agents, breakdown, breakdownTab]);
 
   const maxBarVal = useMemo(() => {
     let m = 1e-9;
@@ -214,9 +189,7 @@ export default function Dashboard() {
     let list = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d);
     if (q) {
       list = list.filter(
-        (a) =>
-          a.name.toLowerCase().includes(q) ||
-          a.purpose.toLowerCase().includes(q)
+        (a) => a.name.toLowerCase().includes(q) || a.purpose.toLowerCase().includes(q)
       );
     }
     return list;
@@ -235,14 +208,8 @@ export default function Dashboard() {
     [agents]
   );
 
-  const maxMemberCost = Math.max(
-    ...sortedAgents.map((a) => a.total_cost_7d),
-    1e-9
-  );
-  const maxToolCost = Math.max(
-    ...sortedTools.map((r) => r.total_cost_usd),
-    1e-9
-  );
+  const maxMemberCost = Math.max(...sortedAgents.map((a) => a.total_cost_7d), 1e-9);
+  const maxToolCost = Math.max(...sortedTools.map((r) => r.total_cost_usd), 1e-9);
 
   const teamAvailable = summary?.team_view_available ?? false;
 
@@ -253,13 +220,12 @@ export default function Dashboard() {
     );
   }, [displayMax]);
 
+  const periodLabel = `vs prev ${days}d`;
+
   return (
     <div className="relative mx-auto max-w-6xl px-4 py-8 pb-16 sm:px-6 lg:px-8 lg:py-10">
       {error && (
-        <div
-          className="relative mb-8 rounded-xl border border-red-500/20 bg-red-950/40 px-5 py-4 text-sm text-red-200"
-          role="alert"
-        >
+        <div className="relative mb-8 rounded-xl border border-red-500/20 bg-red-950/40 px-5 py-4 text-sm text-red-200" role="alert">
           <p className="font-medium text-red-100">Couldn&apos;t load data</p>
           <p className="mt-1 text-red-200/80">{error}</p>
         </div>
@@ -274,17 +240,13 @@ export default function Dashboard() {
             What it cost, what changed, and where your budget goes
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-zinc-600">
-              Scope
-            </span>
+            <span className="text-xs font-medium uppercase tracking-wide text-zinc-600">Scope</span>
             <div className="inline-flex rounded-full border border-zinc-800 bg-[#1c1c1c] p-0.5">
               <button
                 type="button"
                 onClick={() => setScope("me")}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                  scope === "me"
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
+                  scope === "me" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 My workspace
@@ -293,15 +255,9 @@ export default function Dashboard() {
                 type="button"
                 disabled={!teamAvailable}
                 onClick={() => teamAvailable && setScope("team")}
-                title={
-                  teamAvailable
-                    ? "Organization-wide agents"
-                    : "Set organization in Settings"
-                }
+                title={teamAvailable ? "Organization-wide agents" : "Set organization in Settings"}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                  scope === "team"
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
+                  scope === "team" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
                 } ${!teamAvailable ? "cursor-not-allowed opacity-40" : ""}`}
               >
                 Team
@@ -313,18 +269,8 @@ export default function Dashboard() {
         <div className="flex w-full flex-col gap-3 sm:max-w-xl lg:max-w-none lg:flex-1 lg:flex-row lg:items-center lg:justify-end lg:gap-4">
           <div className="flex w-full min-w-0 flex-1 items-stretch overflow-hidden rounded-2xl border border-zinc-800 bg-[#1c1c1c] lg:max-w-md">
             <span className="flex w-11 shrink-0 items-center justify-center bg-sky-500">
-              <svg
-                className="h-5 w-5 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-                />
+              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
               </svg>
             </span>
             <input
@@ -344,9 +290,7 @@ export default function Dashboard() {
                   type="button"
                   onClick={() => setDays(d)}
                   className={`rounded-xl px-3 py-2 text-base font-medium transition ${
-                    days === d
-                      ? "bg-zinc-800 text-white"
-                      : "text-zinc-500 hover:text-zinc-300"
+                    days === d ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   {d}d
@@ -363,17 +307,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Hero */}
+      {/* Hero — uses period-specific summary data */}
       <section className="mb-10 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-6 sm:p-9">
         {loading || !summary ? (
           <div className="space-y-4">
             <div className="h-10 w-full max-w-xl animate-pulse rounded-lg bg-zinc-800" />
             <div className="grid gap-4 sm:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-40 animate-pulse rounded-2xl bg-zinc-800/80"
-                />
+                <div key={i} className="h-40 animate-pulse rounded-2xl bg-zinc-800/80" />
               ))}
             </div>
           </div>
@@ -382,9 +323,9 @@ export default function Dashboard() {
             <p className="text-[1.375rem] font-medium leading-snug text-zinc-200 sm:text-[1.5rem] lg:text-[1.625rem]">
               You spent{" "}
               <span className="font-semibold tabular-nums text-white">
-                ${summary.monthly_cost_usd.toFixed(2)}
+                ${summary.current_total_cost_usd.toFixed(2)}
               </span>{" "}
-              the last month. You could save{" "}
+              in the last {days} days. You could save{" "}
               <span className="font-semibold tabular-nums text-orange-400">
                 ${summary.potential_savings_usd.toFixed(2)}
               </span>
@@ -392,14 +333,11 @@ export default function Dashboard() {
             </p>
             {summary.top_changes.length > 0 && (
               <p className="mt-4 text-base leading-relaxed text-zinc-500">
-                3 changes across your agents, ranked by estimated monthly impact.
+                Top changes across your agents, ranked by estimated monthly impact.
               </p>
             )}
 
-            <div
-              id="recommendations"
-              className="mt-8 scroll-mt-28 border-t border-zinc-800/80 pt-8"
-            >
+            <div id="recommendations" className="mt-8 scroll-mt-28 border-t border-zinc-800/80 pt-8">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {summary.top_changes.length === 0 ? (
                   <p className="col-span-full text-base text-zinc-500">
@@ -410,7 +348,7 @@ export default function Dashboard() {
                     const sev = severityLabel(ch.severity);
                     return (
                       <div
-                        key={`${ch.agent_id}-${ch.rank}`}
+                        key={`${ch.agent_id}-${ch.type}-${ch.rank}`}
                         className="flex flex-col rounded-2xl border border-zinc-800/80 bg-[#121212] p-5"
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -423,7 +361,8 @@ export default function Dashboard() {
                             {sev}
                           </span>
                         </div>
-                        <p className="mt-3 line-clamp-5 flex-1 text-sm leading-relaxed text-zinc-500">
+                        <p className="mt-2 text-xs font-medium text-zinc-600">{ch.agent_name}</p>
+                        <p className="mt-2 line-clamp-5 flex-1 text-sm leading-relaxed text-zinc-500">
                           {ch.description}
                         </p>
                         <p className="mt-5 text-base font-semibold tabular-nums text-orange-400">
@@ -439,7 +378,7 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Spend breakdown — title outside card */}
+      {/* Spend breakdown */}
       <div className="mb-2">
         <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
           Spend breakdown
@@ -457,7 +396,7 @@ export default function Dashboard() {
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            By team member
+            By agent
           </button>
           <button
             type="button"
@@ -468,7 +407,7 @@ export default function Dashboard() {
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            By tool spend
+            By tool / feature
           </button>
         </div>
 
@@ -478,6 +417,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
+            {/* Stacked bar chart — changes with breakdownTab */}
             <div className="relative px-2 pb-2 pt-4 sm:px-5">
               <div className="flex gap-2">
                 <div className="flex w-11 flex-col justify-between py-0.5 text-right text-xs font-medium tabular-nums text-zinc-500 sm:w-12 sm:text-sm">
@@ -505,10 +445,7 @@ export default function Dashboard() {
                       >
                         {chartModel.props.map((p, si) => {
                           const raw = weekTotal * p;
-                          const h = Math.max(
-                            3,
-                            Math.round((raw / displayMax) * CHART_H)
-                          );
+                          const h = Math.max(3, Math.round((raw / displayMax) * CHART_H));
                           const hex = CHART_HEX[si];
                           return (
                             <div
@@ -517,10 +454,7 @@ export default function Dashboard() {
                               style={{
                                 height: `${h}px`,
                                 backgroundColor: hex,
-                                boxShadow:
-                                  hex === "#FFF35C"
-                                    ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
-                                    : undefined,
+                                boxShadow: hex === "#FFF35C" ? "inset 0 0 0 1px rgba(0,0,0,0.15)" : undefined,
                               }}
                               title={`${chartModel.labels[si]}: $${raw.toFixed(2)}`}
                             />
@@ -531,17 +465,25 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div className="mt-2 flex pl-10 text-xs font-medium text-zinc-500 sm:pl-14 sm:text-sm">
-                {["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map(
-                  (w, i) => (
-                    <div key={w} className="flex-1 text-center">
-                      {w}
+              {/* Legend */}
+              <div className="mt-3 flex flex-wrap items-center gap-4 pl-14">
+                {chartModel.labels.map((lbl, i) =>
+                  lbl !== "—" ? (
+                    <div key={lbl} className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CHART_HEX[i] }} />
+                      <span className="text-xs text-zinc-400">{lbl}</span>
                     </div>
-                  )
+                  ) : null
                 )}
+              </div>
+              <div className="mt-2 flex pl-10 text-xs font-medium text-zinc-500 sm:pl-14 sm:text-sm">
+                {["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map((w) => (
+                  <div key={w} className="flex-1 text-center">{w}</div>
+                ))}
               </div>
             </div>
 
+            {/* Rows — per-item cost share, not global pct */}
             <ul className="space-y-0 border-t border-zinc-800/90 px-3 py-4 sm:px-5">
               {breakdownTab === "member" ? (
                 sortedAgents.length === 0 ? (
@@ -553,6 +495,8 @@ export default function Dashboard() {
                     const topIdx = topFourAgents.findIndex((x) => x.id === a.id);
                     const colorIdx = topIdx >= 0 ? topIdx % 4 : i % 4;
                     const dot = CHART_HEX[colorIdx];
+                    const totalCost = agents.reduce((s, x) => s + x.total_cost_7d, 0) || 1;
+                    const share = (a.total_cost_7d / totalCost) * 100;
                     return (
                       <li
                         key={a.id}
@@ -565,26 +509,24 @@ export default function Dashboard() {
                           />
                           <div className="min-w-0">
                             <p className="text-base font-medium text-white">{a.name}</p>
-                            <p className="text-sm text-zinc-500">
-                              {a.purpose || "Support Agent"}
-                            </p>
+                            <p className="text-sm text-zinc-500">{a.purpose || "Agent"}</p>
                           </div>
                         </div>
                         <div className="min-w-0 flex-1 px-0 sm:px-2">
                           <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
                             <div
                               className="h-full rounded-full bg-blue-500"
-                              style={{
-                                width: `${Math.min(100, (a.total_cost_7d / maxMemberCost) * 100)}%`,
-                              }}
+                              style={{ width: `${Math.min(100, (a.total_cost_7d / maxMemberCost) * 100)}%` }}
                             />
                           </div>
                         </div>
-                        <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[12rem] sm:flex-row sm:items-center sm:justify-end sm:gap-6">
+                        <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
                           <span className="text-base font-semibold tabular-nums text-white">
                             ${a.total_cost_7d.toFixed(2)}
                           </span>
-                          <TrendVsLastMo pct={summary?.cost_change_pct} />
+                          <span className="text-sm tabular-nums text-zinc-500">
+                            {share.toFixed(1)}% of total
+                          </span>
                         </div>
                       </li>
                     );
@@ -606,27 +548,25 @@ export default function Dashboard() {
                         style={{ backgroundColor: CHART_HEX[i % 4] }}
                       />
                       <div className="min-w-0">
-                        <p className="truncate font-mono text-base text-white">
-                          {row.label}
-                        </p>
-                        <p className="text-sm text-zinc-500">Tool / feature</p>
+                        <p className="truncate font-mono text-base text-white">{row.label}</p>
+                        <p className="text-sm text-zinc-500">{row.request_count.toLocaleString()} requests</p>
                       </div>
                     </div>
                     <div className="min-w-0 flex-1 px-0 sm:px-2">
                       <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
                         <div
                           className="h-full rounded-full bg-blue-500"
-                          style={{
-                            width: `${Math.min(100, (row.total_cost_usd / maxToolCost) * 100)}%`,
-                          }}
+                          style={{ width: `${Math.min(100, (row.total_cost_usd / maxToolCost) * 100)}%` }}
                         />
                       </div>
                     </div>
-                    <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[12rem] sm:flex-row sm:items-center sm:justify-end sm:gap-6">
+                    <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
                       <span className="text-base font-semibold tabular-nums text-white">
                         ${row.total_cost_usd.toFixed(2)}
                       </span>
-                      <TrendVsLastMo pct={summary?.cost_change_pct} />
+                      <span className="text-sm tabular-nums text-zinc-500">
+                        {row.share_of_cost_pct.toFixed(1)}% of total
+                      </span>
                     </div>
                   </li>
                 ))
@@ -636,49 +576,41 @@ export default function Dashboard() {
         )}
       </section>
 
+      {/* KPI cards — use period-specific summary, not hardcoded 14d */}
       <section>
         <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500">
-          At a glance — Last 14 days
+          At a glance — Last {days} days
         </p>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-          {loading || !glance ? (
+          {loading || !summary ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-36 animate-pulse rounded-2xl border border-zinc-800/80 bg-zinc-900/30"
-              />
+              <div key={i} className="h-36 animate-pulse rounded-2xl border border-zinc-800/80 bg-zinc-900/30" />
             ))
           ) : (
             <>
               <KpiCard
                 accent="orange"
                 label="Total Cost"
-                value={`$${glance.current_total_cost_usd.toFixed(2)}`}
+                value={fmtDollars(summary.current_total_cost_usd)}
                 subline={
                   <span>
-                    <span
-                      className={`font-semibold tabular-nums ${changeToneClass(
-                        glance.cost_change_pct ?? 0
-                      )}`}
-                    >
-                      {fmtPct(glance.cost_change_pct)}
+                    <span className={`font-semibold tabular-nums ${changeToneClass(summary.cost_change_pct ?? 0)}`}>
+                      {fmtPct(summary.cost_change_pct)}
                     </span>{" "}
-                    vs prev 14d
+                    {periodLabel}
                   </span>
                 }
               />
               <KpiCard
                 accent="blue"
                 label="Avg tokens/req"
-                value={glance.avg_tokens_per_request.toLocaleString(undefined, {
-                  maximumFractionDigits: 0,
-                })}
+                value={summary.avg_tokens_per_request.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 subline="Larger prompts cost more"
               />
               <KpiCard
                 accent="blue"
                 label="Avg tool calls/req"
-                value={glance.avg_tool_calls_per_request.toFixed(2)}
+                value={summary.avg_tool_calls_per_request.toFixed(2)}
                 subline="Tools, retrieval, sub-calls"
               />
               <KpiCard
@@ -686,7 +618,7 @@ export default function Dashboard() {
                 label="Stability"
                 value={
                   <>
-                    {glance.stability_score.toFixed(0)}
+                    {summary.stability_score.toFixed(0)}
                     <span className="text-xl font-medium text-zinc-500">%</span>
                   </>
                 }
@@ -695,8 +627,8 @@ export default function Dashboard() {
               <KpiCard
                 accent="blue"
                 label="Month to date"
-                value={`$${glance.monthly_cost_usd.toFixed(2)}`}
-                subline={`${glance.cost_budget_utilization_pct.toFixed(0)}% of monthly budget`}
+                value={fmtDollars(summary.monthly_cost_usd)}
+                subline={`${summary.cost_budget_utilization_pct.toFixed(0)}% of monthly budget`}
               />
             </>
           )}

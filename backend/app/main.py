@@ -6,6 +6,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.ingestion import router as ingestion_router
 from app.api.routes.metrics import router as metrics_router
 from app.api.routes.subscription import router as subscription_router
+from app.api.routes.team import router as team_router
 from app.api.routes.usage import router as usage_router
 from app.db.base import Base
 from app.db.schema import ensure_schema
@@ -29,6 +30,7 @@ app.include_router(ingestion_router)
 app.include_router(metrics_router)
 app.include_router(agents_router)
 app.include_router(subscription_router)
+app.include_router(team_router)
 app.include_router(usage_router)
 
 

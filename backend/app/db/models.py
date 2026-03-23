@@ -7,6 +7,21 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
+class Team(Base):
+    __tablename__ = "teams"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    name: Mapped[str] = mapped_column(String, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+
+    members = relationship("User", back_populates="team")
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -17,11 +32,15 @@ class User(Base):
     name: Mapped[str] = mapped_column(String)
     password_hash: Mapped[str] = mapped_column(String)
     organization_name: Mapped[str] = mapped_column(String, default="")
+    team_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, default=None
+    )
     plan_tier: Mapped[str] = mapped_column(String, default="free", index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
 
+    team = relationship("Team", back_populates="members")
     agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
 
 

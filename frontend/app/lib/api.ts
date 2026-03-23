@@ -381,6 +381,46 @@ export function getOptimizations(token: string, agentId: string) {
   );
 }
 
+// ---------- Team ----------
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  agent_count: number;
+  total_cost_7d: number;
+  total_requests_7d: number;
+  plan_tier: string;
+}
+
+export interface TeamOverview {
+  team_name: string;
+  team_id: string;
+  members: TeamMember[];
+}
+
+export interface TeamInfo {
+  id: string;
+  name: string;
+  member_count: number;
+}
+
+export function getTeamOverview(token: string) {
+  return fetchJSON<TeamOverview>("/team/members", token);
+}
+
+export function createTeam(token: string, body: { name: string; password: string }) {
+  return postJSON<TeamInfo>("/team/create", body, token);
+}
+
+export function joinTeam(token: string, body: { name: string; password: string }) {
+  return postJSON<TeamInfo>("/team/join", body, token);
+}
+
+export function leaveTeam(token: string) {
+  return postJSON<{ ok: boolean }>("/team/leave", {}, token);
+}
+
 // ---------- Profile ----------
 
 export function getProfile(token: string) {
