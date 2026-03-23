@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AgentWithStats,
   DashboardUsageBreakdown,
@@ -13,6 +13,10 @@ import {
   UsageSummary,
   UsageTimeline,
 } from "../lib/api";
+import type { UsageBreakdownRow } from "../lib/api";
+
+/** Mockup chart palette */
+const CHART_HEX = ["#F0655D", "#FFF35C", "#705DF0", "#82F0C1"] as const;
 
 function fmtPct(n: number | null): string {
   if (n === null || Number.isNaN(n)) return "—";
@@ -20,80 +24,103 @@ function fmtPct(n: number | null): string {
   return `${sign}${n.toFixed(1)}%`;
 }
 
-function fmtChange(n: number): string {
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(1)}%`;
+function TrendVsLastMo({ pct }: { pct: number | null | undefined }) {
+  if (pct == null || Number.isNaN(pct)) {
+    return <span className="text-sm text-zinc-500">—</span>;
+  }
+  const up = pct >= 0;
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 text-sm font-medium tabular-nums text-orange-300 sm:text-base">
+      {up ? (
+        <svg
+          className="h-4 w-4 shrink-0 text-orange-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4.5 15.75l7.5-7.5 7.5 7.5"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="h-4 w-4 shrink-0 text-emerald-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+          stroke="currentColor"
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+          />
+        </svg>
+      )}
+      <span className="whitespace-nowrap">{fmtPct(pct)}</span>
+      <span className="whitespace-nowrap font-normal text-orange-300/90">
+        vs last mo
+      </span>
+    </span>
+  );
 }
 
 function changeToneClass(n: number): string {
-  if (n > 0) return "text-amber-300";
+  if (n > 0) return "text-amber-500";
   if (n < 0) return "text-emerald-400";
   return "text-zinc-500";
 }
 
-function SectionHeader({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight text-zinc-100">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="mt-0.5 max-w-2xl text-sm leading-relaxed text-zinc-500">
-            {subtitle}
-          </p>
-        )}
-      </div>
-      {children}
-    </div>
-  );
+function severityLabel(s: string): "High" | "Med" | "Low" {
+  const u = s.toLowerCase();
+  if (u.includes("high") || u.includes("critical")) return "High";
+  if (u.includes("low")) return "Low";
+  return "Med";
+}
+
+function severityBadgeClass(label: "High" | "Med" | "Low"): string {
+  if (label === "High") {
+    return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
+  }
+  if (label === "Low") {
+    return "bg-zinc-800/90 text-zinc-400 ring-1 ring-zinc-700";
+  }
+  return "bg-amber-950/55 text-amber-200/95 ring-1 ring-amber-900/50";
 }
 
 function KpiCard({
   label,
-  hint,
   value,
-  footer,
+  subline,
   accent,
 }: {
   label: string;
-  hint?: string;
   value: React.ReactNode;
-  footer?: React.ReactNode;
-  accent: "violet" | "sky" | "emerald" | "teal" | "amber";
+  subline?: React.ReactNode;
+  accent: "orange" | "blue";
 }) {
-  const bar = {
-    violet: "from-violet-500 to-fuchsia-500",
-    sky: "from-sky-400 to-cyan-400",
-    emerald: "from-emerald-400 to-teal-400",
-    teal: "from-teal-400 to-cyan-500",
-    amber: "from-amber-400 to-orange-400",
-  }[accent];
-
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-900/40 p-5 shadow-lg shadow-black/20 ring-1 ring-white/[0.04] transition hover:border-white/[0.1] hover:bg-zinc-900/55">
+    <div className="overflow-hidden rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] shadow-sm">
       <div
-        className={`absolute left-0 top-0 h-1 w-full bg-gradient-to-r ${bar} opacity-90`}
+        className={`h-[3px] w-full ${accent === "orange" ? "bg-amber-500" : "bg-blue-500"}`}
         aria-hidden
       />
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-        {label}
-      </p>
-      <div className="mt-2 text-[2rem] font-semibold leading-none tracking-tight text-white tabular-nums sm:text-[2.125rem]">
-        {value}
+      <div className="px-4 pb-4 pt-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          {label}
+        </p>
+        <div className="mt-2 text-3xl font-semibold leading-none tracking-tight text-white tabular-nums sm:text-[2rem]">
+          {value}
+        </div>
+        {subline && (
+          <div className="mt-2.5 text-sm leading-relaxed text-zinc-500">{subline}</div>
+        )}
       </div>
-      {hint && (
-        <p className="mt-2 text-xs leading-snug text-zinc-500">{hint}</p>
-      )}
-      {footer && <div className="mt-3 text-xs">{footer}</div>}
     </div>
   );
 }
@@ -101,15 +128,15 @@ function KpiCard({
 export default function Dashboard() {
   const { data: session } = useSession();
   const token = (session as any)?.accessToken as string | undefined;
-  const myUserId = (session as any)?.userId as string | undefined;
-  const firstName = session?.user?.name?.split(" ")[0];
 
   const [scope, setScope] = useState<"me" | "team">("me");
-  const [days, setDays] = useState(7);
+  const [days, setDays] = useState(30);
+  const [breakdownTab, setBreakdownTab] = useState<"member" | "tool">("member");
+  const [search, setSearch] = useState("");
+
   const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [breakdown, setBreakdown] = useState<DashboardUsageBreakdown | null>(
-    null
-  );
+  const [glance, setGlance] = useState<UsageSummary | null>(null);
+  const [breakdown, setBreakdown] = useState<DashboardUsageBreakdown | null>(null);
   const [timeline, setTimeline] = useState<UsageTimeline | null>(null);
   const [agents, setAgents] = useState<AgentWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,115 +149,115 @@ export default function Dashboard() {
     Promise.all([
       getUsageSummary(token, days, scope),
       getUsageBreakdown(token, days, scope),
-      getUsageTimeline(token, Math.max(days, 14), scope),
+      getUsageTimeline(token, Math.max(days, 35), scope),
       getAgents(token, scope),
+      getUsageSummary(token, 14, scope),
     ])
-      .then(([s, b, t, a]) => {
+      .then(([s, b, t, a, g]) => {
         setSummary(s);
         setBreakdown(b);
         setTimeline(t);
         setAgents(a);
+        setGlance(g);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [token, days, scope]);
 
-  const b = summary?.behavioral;
+  const chartModel = useMemo(() => {
+    const points = timeline?.points ?? [];
+    const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
+    const numWeeks = 5;
+    const weekTotals: number[] = [];
+    if (!sorted.length) {
+      for (let w = 0; w < numWeeks; w++) weekTotals.push(0);
+    } else {
+      const chunk = Math.max(1, Math.ceil(sorted.length / numWeeks));
+      for (let w = 0; w < numWeeks; w++) {
+        const sl = sorted.slice(w * chunk, (w + 1) * chunk);
+        weekTotals.push(sl.reduce((s, p) => s + p.cost_usd, 0));
+      }
+    }
+    const top = [...agents]
+      .sort((a, b) => b.total_cost_7d - a.total_cost_7d)
+      .slice(0, 4);
+    const sumCost = top.reduce((s, a) => s + a.total_cost_7d, 0) || 1;
+    const props =
+      top.length >= 1
+        ? top.map((a) => a.total_cost_7d / sumCost)
+        : [0.25, 0.25, 0.25, 0.25];
+    while (props.length < 4) props.push(0);
+    const labels =
+      top.length >= 1 ? top.map((a) => a.name) : ["A", "B", "C", "D"];
+    return {
+      weekTotals,
+      props: props.slice(0, 4),
+      labels: labels.slice(0, 4),
+    };
+  }, [timeline, agents]);
 
-  const maxDailyCost =
-    timeline && timeline.points.length
-      ? Math.max(...timeline.points.map((p) => p.cost_usd), 1e-9)
-      : 1;
+  const maxBarVal = useMemo(() => {
+    let m = 1e-9;
+    for (const w of chartModel.weekTotals) {
+      for (let i = 0; i < 4; i++) {
+        m = Math.max(m, w * chartModel.props[i]);
+      }
+    }
+    return m;
+  }, [chartModel]);
 
-  const DAILY_CHART_BAR_MAX_PX = 104;
-  const periodLabel =
-    days === 7 ? "last week" : days === 14 ? "last 2 weeks" : "last 30 days";
+  const displayMax = Math.max(100, maxBarVal * 1.08);
+  const CHART_H = 160;
+
+  const sortedAgents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d);
+    if (q) {
+      list = list.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.purpose.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [agents, search]);
+
+  const toolRows: UsageBreakdownRow[] = breakdown?.by_endpoint ?? [];
+  const sortedTools = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = [...toolRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
+    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
+    return rows;
+  }, [toolRows, search]);
+
+  const topFourAgents = useMemo(
+    () => [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4),
+    [agents]
+  );
+
+  const maxMemberCost = Math.max(
+    ...sortedAgents.map((a) => a.total_cost_7d),
+    1e-9
+  );
+  const maxToolCost = Math.max(
+    ...sortedTools.map((r) => r.total_cost_usd),
+    1e-9
+  );
 
   const teamAvailable = summary?.team_view_available ?? false;
-  const scopeLabel =
-    scope === "team" ? "Team (organization)" : "My workspace";
+
+  const yTickLabels = useMemo(() => {
+    const n = displayMax;
+    return [n, n * 0.75, n * 0.5, n * 0.25, 0].map((v) =>
+      v >= 100 ? `$${Math.round(v)}` : `$${v.toFixed(0)}`
+    );
+  }, [displayMax]);
 
   return (
     <div className="relative mx-auto max-w-6xl px-4 py-8 pb-16 sm:px-6 lg:px-8 lg:py-10">
-      <div
-        className="pointer-events-none absolute inset-x-0 -top-24 h-48 bg-gradient-to-b from-violet-500/[0.07] to-transparent blur-3xl"
-        aria-hidden
-      />
-
-      <header className="relative mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-sm font-medium text-violet-400/90">
-            {firstName ? `Hi, ${firstName}` : "Welcome"}
-          </p>
-          <h1 className="mt-1 bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
-            Spend & savings
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-zinc-400">
-            Built for small teams: see your burn, estimated savings, and where
-            infrastructure spend goes — {scopeLabel}.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-xl border border-white/[0.08] bg-zinc-900/60 p-1 shadow-inner shadow-black/30">
-            <button
-              type="button"
-              onClick={() => setScope("me")}
-              className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${
-                scope === "me"
-                  ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
-            >
-              My workspace
-            </button>
-            <button
-              type="button"
-              disabled={!teamAvailable}
-              onClick={() => {
-                if (teamAvailable) setScope("team");
-              }}
-              title={
-                teamAvailable
-                  ? "All agents for users in your organization"
-                  : "Add a company name in Settings to enable team view"
-              }
-              className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${
-                scope === "team"
-                  ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
-                  : "text-zinc-500 hover:text-zinc-300"
-              } ${!teamAvailable ? "cursor-not-allowed opacity-40" : ""}`}
-            >
-              Team
-            </button>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-zinc-900/60 p-1">
-            {([7, 14, 30] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setDays(d)}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  days === d
-                    ? "bg-white/10 text-white ring-1 ring-white/10"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-          <Link
-            href="/agents/new"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/30 transition hover:from-violet-500 hover:to-fuchsia-500"
-          >
-            Add agent
-          </Link>
-        </div>
-      </header>
-
       {error && (
         <div
-          className="relative mb-8 rounded-2xl border border-red-500/20 bg-red-950/40 px-5 py-4 text-sm text-red-200 shadow-lg shadow-red-950/20"
+          className="relative mb-8 rounded-xl border border-red-500/20 bg-red-950/40 px-5 py-4 text-sm text-red-200"
           role="alert"
         >
           <p className="font-medium text-red-100">Couldn&apos;t load data</p>
@@ -238,508 +265,449 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 1 — Hero: spend + savings + 3 changes (dashboard template) */}
-      <section className="relative mb-12 overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-zinc-900/80 via-zinc-900/50 to-violet-950/30 p-6 shadow-2xl shadow-black/30 ring-1 ring-white/[0.05] sm:p-8">
-        <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-              This month
-            </p>
-            {loading || !summary ? (
-              <div className="mt-3 h-14 w-48 animate-pulse rounded-lg bg-zinc-800/80" />
-            ) : (
-              <>
-                <p className="mt-2 text-4xl font-bold tracking-tight text-white tabular-nums sm:text-5xl">
-                  ${summary.monthly_cost_usd.toFixed(2)}
-                </p>
-                <p className="mt-2 text-sm text-zinc-400">
-                  {scope === "team"
-                    ? "Total LLM spend for your organization this calendar month."
-                    : "Your agents’ spend this calendar month."}
-                </p>
-                {scope === "team" && summary.team_member_count > 0 && (
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {summary.team_member_count} teammate
-                    {summary.team_member_count === 1 ? "" : "s"} in this org
-                  </p>
-                )}
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
-                  <span className="rounded-md bg-zinc-800/80 px-2 py-1">
-                    Plan: {summary.plan_tier}
-                  </span>
-                  <span className="rounded-md bg-zinc-800/80 px-2 py-1">
-                    {summary.cost_budget_utilization_pct.toFixed(0)}% of your
-                    monthly spend cap
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="border-t border-white/[0.06] pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400/90">
-              Estimated savings
-            </p>
-            {loading || !summary ? (
-              <div className="mt-3 h-14 w-40 animate-pulse rounded-lg bg-zinc-800/80" />
-            ) : (
-              <>
-                <p className="mt-2 text-4xl font-bold tracking-tight text-emerald-300 tabular-nums sm:text-5xl">
-                  $
-                  {summary.potential_savings_usd.toFixed(2)}
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                  Combined from the top three optimization opportunities (same
-                  engine as each agent&apos;s page). Not guaranteed savings —
-                  use them as a prioritized backlog.
-                </p>
-              </>
-            )}
+      <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight text-white sm:text-[1.875rem] lg:text-[2rem]">
+            Spend &amp; Behavior
+          </h1>
+          <p className="mt-3 max-w-xl text-base leading-relaxed text-zinc-500">
+            What it cost, what changed, and where your budget goes
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-zinc-600">
+              Scope
+            </span>
+            <div className="inline-flex rounded-full border border-zinc-800 bg-[#1c1c1c] p-0.5">
+              <button
+                type="button"
+                onClick={() => setScope("me")}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                  scope === "me"
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                My workspace
+              </button>
+              <button
+                type="button"
+                disabled={!teamAvailable}
+                onClick={() => teamAvailable && setScope("team")}
+                title={
+                  teamAvailable
+                    ? "Organization-wide agents"
+                    : "Set organization in Settings"
+                }
+                className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                  scope === "team"
+                    ? "bg-zinc-800 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                } ${!teamAvailable ? "cursor-not-allowed opacity-40" : ""}`}
+              >
+                Team
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-white/[0.06] pt-8">
-          <p className="mb-4 text-sm font-semibold text-zinc-200">
-            Three changes to make first
-          </p>
-          {loading || !summary ? (
-            <div className="grid gap-3 sm:grid-cols-3">
+        <div className="flex w-full flex-col gap-3 sm:max-w-xl lg:max-w-none lg:flex-1 lg:flex-row lg:items-center lg:justify-end lg:gap-4">
+          <div className="flex w-full min-w-0 flex-1 items-stretch overflow-hidden rounded-2xl border border-zinc-800 bg-[#1c1c1c] lg:max-w-md">
+            <span className="flex w-11 shrink-0 items-center justify-center bg-sky-500">
+              <svg
+                className="h-5 w-5 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                />
+              </svg>
+            </span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search here..."
+              className="min-w-0 flex-1 border-0 bg-transparent py-2.5 pl-3 pr-4 text-base text-white placeholder-zinc-500 outline-none ring-0"
+              aria-label="Search"
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex rounded-2xl border border-zinc-800 bg-[#1c1c1c] p-1">
+              {([7, 14, 30] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDays(d)}
+                  className={`rounded-xl px-3 py-2 text-base font-medium transition ${
+                    days === d
+                      ? "bg-zinc-800 text-white"
+                      : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  {d}d
+                </button>
+              ))}
+            </div>
+            <Link
+              href="/agents/new"
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-orange-400 via-orange-500 to-red-600 px-5 py-2.5 text-base font-semibold text-white shadow-lg shadow-orange-950/25 transition hover:from-orange-300 hover:to-red-500"
+            >
+              + Add agent
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <section className="mb-10 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-6 sm:p-9">
+        {loading || !summary ? (
+          <div className="space-y-4">
+            <div className="h-10 w-full max-w-xl animate-pulse rounded-lg bg-zinc-800" />
+            <div className="grid gap-4 sm:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-28 animate-pulse rounded-xl bg-zinc-800/50"
+                  className="h-40 animate-pulse rounded-2xl bg-zinc-800/80"
                 />
               ))}
             </div>
-          ) : summary.top_changes.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              No optimization opportunities matched your traffic yet — open an
-              agent to see model-specific checks, or add more history (30d
-              helps).
+          </div>
+        ) : (
+          <>
+            <p className="text-[1.375rem] font-medium leading-snug text-zinc-200 sm:text-[1.5rem] lg:text-[1.625rem]">
+              You spent{" "}
+              <span className="font-semibold tabular-nums text-white">
+                ${summary.monthly_cost_usd.toFixed(2)}
+              </span>{" "}
+              the last month. You could save{" "}
+              <span className="font-semibold tabular-nums text-orange-400">
+                ${summary.potential_savings_usd.toFixed(2)}
+              </span>
+              .
             </p>
-          ) : (
-            <ol className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
-              {summary.top_changes.slice(0, 3).map((ch) => (
-                <li
-                  key={`${ch.agent_id}-${ch.rank}`}
-                  className="flex flex-col rounded-xl border border-white/[0.08] bg-zinc-950/40 p-4 ring-1 ring-white/[0.03]"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/20 text-sm font-bold text-violet-200">
-                      {ch.rank}
-                    </span>
-                    <span className="text-right text-xs font-semibold text-emerald-400/90 tabular-nums">
-                      ~${ch.estimated_savings_usd.toFixed(0)} saved
-                    </span>
-                  </div>
-                  <p className="mt-3 font-medium leading-snug text-zinc-100">
-                    {ch.title}
-                  </p>
-                  <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-zinc-500">
-                    {ch.description}
-                  </p>
-                  <p className="mt-3 text-xs text-zinc-600">
-                    Agent:{" "}
-                    <span className="text-zinc-400">{ch.agent_name}</span>
-                  </p>
-                  <Link
-                    href={`/agents/${ch.agent_id}`}
-                    className="mt-3 text-sm font-medium text-violet-400 hover:text-violet-300"
-                  >
-                    View details & full recommendations →
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      </section>
+            {summary.top_changes.length > 0 && (
+              <p className="mt-4 text-base leading-relaxed text-zinc-500">
+                3 changes across your agents, ranked by estimated monthly impact.
+              </p>
+            )}
 
-      {/* 2 — Infrastructure split */}
-      <section className="relative mb-12">
-        <SectionHeader
-          title="Infrastructure split"
-          subtitle="Where cost goes by model and by endpoint (feature tag) in the selected period."
-        />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {(
-            [
-              {
-                title: "By model",
-                subtitle: "Provider / model — your LLM infrastructure mix",
-                rows: breakdown?.by_model ?? [],
-              },
-              {
-                title: "By endpoint",
-                subtitle: "From the feature_tag on each request",
-                rows: breakdown?.by_endpoint ?? [],
-              },
-            ] as const
-          ).map((block) => (
             <div
-              key={block.title}
-              className="overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-900/25 shadow-lg shadow-black/15 ring-1 ring-white/[0.03]"
+              id="recommendations"
+              className="mt-8 scroll-mt-28 border-t border-zinc-800/80 pt-8"
             >
-              <div className="border-b border-white/[0.06] bg-zinc-900/40 px-5 py-4">
-                <h3 className="font-semibold text-zinc-100">{block.title}</h3>
-                <p className="mt-0.5 text-xs text-zinc-500">{block.subtitle}</p>
-              </div>
-              <div className="p-2">
-                {loading || !block.rows.length ? (
-                  <p className="px-3 py-10 text-center text-sm text-zinc-500">
-                    {loading ? "Loading…" : "No data for this period"}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {summary.top_changes.length === 0 ? (
+                  <p className="col-span-full text-base text-zinc-500">
+                    No recommendations yet — add agents and usage history.
                   </p>
                 ) : (
-                  <ul className="space-y-1">
-                    {block.rows.slice(0, 8).map((row) => (
-                      <li
-                        key={row.label}
-                        className="rounded-lg px-3 py-2.5 transition hover:bg-white/[0.04]"
+                  summary.top_changes.slice(0, 3).map((ch) => {
+                    const sev = severityLabel(ch.severity);
+                    return (
+                      <div
+                        key={`${ch.agent_id}-${ch.rank}`}
+                        className="flex flex-col rounded-2xl border border-zinc-800/80 bg-[#121212] p-5"
                       >
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-lg font-semibold leading-snug text-zinc-100">
+                            {String(ch.rank).padStart(2, "0")} — {ch.title}
+                          </span>
                           <span
-                            className={`min-w-0 truncate font-mono text-xs ${
-                              block.title === "By model"
-                                ? "text-sky-200/90"
-                                : "text-zinc-300"
-                            }`}
-                            title={row.label}
+                            className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${severityBadgeClass(sev)}`}
                           >
-                            {row.label}
-                          </span>
-                          <span className="shrink-0 text-sm font-semibold tabular-nums text-white">
-                            ${row.total_cost_usd.toFixed(2)}
+                            {sev}
                           </span>
                         </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-800">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 opacity-90"
-                              style={{
-                                width: `${Math.min(100, row.share_of_cost_pct)}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="w-10 text-right text-xs tabular-nums text-zinc-500">
-                            {row.share_of_cost_pct.toFixed(0)}%
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                        <p className="mt-3 line-clamp-5 flex-1 text-sm leading-relaxed text-zinc-500">
+                          {ch.description}
+                        </p>
+                        <p className="mt-5 text-base font-semibold tabular-nums text-orange-400">
+                          Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
+                        </p>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
-          ))}
-        </div>
+          </>
+        )}
       </section>
 
-      {/* 3 — At a glance */}
-      <section className="relative mb-12">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          At a glance · {periodLabel}
+      {/* Spend breakdown — title outside card */}
+      <div className="mb-2">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Spend breakdown
+        </h2>
+      </div>
+
+      <section className="mb-10 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c]">
+        <div className="flex gap-8 border-b border-zinc-800/90 px-5 pt-4">
+          <button
+            type="button"
+            onClick={() => setBreakdownTab("member")}
+            className={`relative pb-3 text-base font-medium transition ${
+              breakdownTab === "member"
+                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-orange-500"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            By team member
+          </button>
+          <button
+            type="button"
+            onClick={() => setBreakdownTab("tool")}
+            className={`relative pb-3 text-base font-medium transition ${
+              breakdownTab === "tool"
+                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-orange-500"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            By tool spend
+          </button>
+        </div>
+
+        {loading || !timeline ? (
+          <div className="h-52 animate-pulse p-6">
+            <div className="h-full rounded-xl bg-zinc-800/40" />
+          </div>
+        ) : (
+          <>
+            <div className="relative px-2 pb-2 pt-4 sm:px-5">
+              <div className="flex gap-2">
+                <div className="flex w-11 flex-col justify-between py-0.5 text-right text-xs font-medium tabular-nums text-zinc-500 sm:w-12 sm:text-sm">
+                  {yTickLabels.map((t) => (
+                    <span key={t}>{t}</span>
+                  ))}
+                </div>
+                <div className="relative min-h-0 flex-1 border-l border-zinc-800/80 pl-2">
+                  <div
+                    className="pointer-events-none absolute inset-0 left-2 opacity-40"
+                    style={{
+                      backgroundImage:
+                        "repeating-linear-gradient(to bottom, transparent 0, transparent 38px, rgba(63,63,70,0.5) 39px)",
+                    }}
+                    aria-hidden
+                  />
+                  <div
+                    className="relative flex items-end justify-between gap-0.5 px-1 sm:gap-1"
+                    style={{ height: CHART_H }}
+                  >
+                    {chartModel.weekTotals.map((weekTotal, wi) => (
+                      <div
+                        key={wi}
+                        className="flex h-full min-h-0 flex-1 items-end justify-center gap-px sm:gap-0.5"
+                      >
+                        {chartModel.props.map((p, si) => {
+                          const raw = weekTotal * p;
+                          const h = Math.max(
+                            3,
+                            Math.round((raw / displayMax) * CHART_H)
+                          );
+                          const hex = CHART_HEX[si];
+                          return (
+                            <div
+                              key={si}
+                              className="w-full max-w-[18px] rounded-t-[3px] shadow-sm ring-1 ring-black/20"
+                              style={{
+                                height: `${h}px`,
+                                backgroundColor: hex,
+                                boxShadow:
+                                  hex === "#FFF35C"
+                                    ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
+                                    : undefined,
+                              }}
+                              title={`${chartModel.labels[si]}: $${raw.toFixed(2)}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 flex pl-10 text-xs font-medium text-zinc-500 sm:pl-14 sm:text-sm">
+                {["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map(
+                  (w, i) => (
+                    <div key={w} className="flex-1 text-center">
+                      {w}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            <ul className="space-y-0 border-t border-zinc-800/90 px-3 py-4 sm:px-5">
+              {breakdownTab === "member" ? (
+                sortedAgents.length === 0 ? (
+                  <li className="px-2 py-6 text-center text-base text-zinc-500">
+                    No agents for this scope.
+                  </li>
+                ) : (
+                  sortedAgents.slice(0, 8).map((a, i) => {
+                    const topIdx = topFourAgents.findIndex((x) => x.id === a.id);
+                    const colorIdx = topIdx >= 0 ? topIdx % 4 : i % 4;
+                    const dot = CHART_HEX[colorIdx];
+                    return (
+                      <li
+                        key={a.id}
+                        className="flex flex-col gap-3 border-b border-zinc-800/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
+                      >
+                        <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
+                          <span
+                            className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
+                            style={{ backgroundColor: dot }}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-base font-medium text-white">{a.name}</p>
+                            <p className="text-sm text-zinc-500">
+                              {a.purpose || "Support Agent"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1 px-0 sm:px-2">
+                          <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                            <div
+                              className="h-full rounded-full bg-blue-500"
+                              style={{
+                                width: `${Math.min(100, (a.total_cost_7d / maxMemberCost) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[12rem] sm:flex-row sm:items-center sm:justify-end sm:gap-6">
+                          <span className="text-base font-semibold tabular-nums text-white">
+                            ${a.total_cost_7d.toFixed(2)}
+                          </span>
+                          <TrendVsLastMo pct={summary?.cost_change_pct} />
+                        </div>
+                      </li>
+                    );
+                  })
+                )
+              ) : sortedTools.length === 0 ? (
+                <li className="px-2 py-6 text-center text-base text-zinc-500">
+                  No endpoint data for this period.
+                </li>
+              ) : (
+                sortedTools.slice(0, 8).map((row, i) => (
+                  <li
+                    key={row.label}
+                    className="flex flex-col gap-3 border-b border-zinc-800/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
+                  >
+                    <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
+                      <span
+                        className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
+                        style={{ backgroundColor: CHART_HEX[i % 4] }}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-base text-white">
+                          {row.label}
+                        </p>
+                        <p className="text-sm text-zinc-500">Tool / feature</p>
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1 px-0 sm:px-2">
+                      <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                        <div
+                          className="h-full rounded-full bg-blue-500"
+                          style={{
+                            width: `${Math.min(100, (row.total_cost_usd / maxToolCost) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[12rem] sm:flex-row sm:items-center sm:justify-end sm:gap-6">
+                      <span className="text-base font-semibold tabular-nums text-white">
+                        ${row.total_cost_usd.toFixed(2)}
+                      </span>
+                      <TrendVsLastMo pct={summary?.cost_change_pct} />
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <section>
+        <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500">
+          At a glance — Last 14 days
         </p>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          {loading || !summary ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          {loading || !glance ? (
             Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="h-36 animate-pulse rounded-2xl border border-white/[0.04] bg-zinc-900/30"
+                className="h-36 animate-pulse rounded-2xl border border-zinc-800/80 bg-zinc-900/30"
               />
             ))
           ) : (
             <>
               <KpiCard
-                accent="violet"
-                label="Period spend"
-                hint={`vs previous ${summary.period_days} days`}
-                value={`$${summary.current_total_cost_usd.toFixed(2)}`}
-                footer={
-                  <span className="text-zinc-500">
-                    Change{" "}
+                accent="orange"
+                label="Total Cost"
+                value={`$${glance.current_total_cost_usd.toFixed(2)}`}
+                subline={
+                  <span>
                     <span
                       className={`font-semibold tabular-nums ${changeToneClass(
-                        summary.cost_change_pct ?? 0
+                        glance.cost_change_pct ?? 0
                       )}`}
                     >
-                      {fmtPct(summary.cost_change_pct)}
-                    </span>
+                      {fmtPct(glance.cost_change_pct)}
+                    </span>{" "}
+                    vs prev 14d
                   </span>
                 }
               />
               <KpiCard
-                accent="sky"
-                label="Avg tokens / request"
-                hint="Larger prompts & completions cost more"
-                value={summary.avg_tokens_per_request.toLocaleString(undefined, {
+                accent="blue"
+                label="Avg tokens/req"
+                value={glance.avg_tokens_per_request.toLocaleString(undefined, {
                   maximumFractionDigits: 0,
                 })}
+                subline="Larger prompts cost more"
               />
               <KpiCard
-                accent="emerald"
-                label="Tool calls / request"
-                hint="Per LLM turn"
-                value={summary.avg_tool_calls_per_request.toFixed(2)}
+                accent="blue"
+                label="Avg tool calls/req"
+                value={glance.avg_tool_calls_per_request.toFixed(2)}
+                subline="Tools, retrieval, sub-calls"
               />
               <KpiCard
-                accent="teal"
+                accent="blue"
                 label="Stability"
-                hint="Successful requests"
                 value={
                   <>
-                    {summary.stability_score.toFixed(0)}
+                    {glance.stability_score.toFixed(0)}
                     <span className="text-xl font-medium text-zinc-500">%</span>
                   </>
                 }
+                subline="Requests that succeeded"
               />
               <KpiCard
-                accent="amber"
-                label="Requests in period"
-                hint={`Last ${summary.period_days} days · ${scope === "team" ? "team" : "your workspace"}`}
-                value={summary.request_count.toLocaleString()}
+                accent="blue"
+                label="Month to date"
+                value={`$${glance.monthly_cost_usd.toFixed(2)}`}
+                subline={`${glance.cost_budget_utilization_pct.toFixed(0)}% of monthly budget`}
               />
             </>
           )}
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
-        <section className="rounded-2xl border border-white/[0.06] bg-zinc-900/25 p-6 shadow-xl shadow-black/20 ring-1 ring-white/[0.03] backdrop-blur-sm">
-          <SectionHeader
-            title="How behavior shifted"
-            subtitle="Before vs after the same-length windows."
-          />
-          <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950/40">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/[0.06] bg-zinc-900/50">
-                  <th className="px-4 py-3 text-xs font-semibold text-zinc-500">
-                    Metric
-                  </th>
-                  <th className="px-4 py-3 text-xs font-semibold text-zinc-500">
-                    Before
-                  </th>
-                  <th className="px-4 py-3 text-xs font-semibold text-zinc-500">
-                    After
-                  </th>
-                  <th className="px-4 py-3 text-xs font-semibold text-zinc-500">
-                    Δ
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="text-zinc-200">
-                {loading || !b ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-10 text-center text-zinc-500"
-                    >
-                      Loading…
-                    </td>
-                  </tr>
-                ) : (
-                  <>
-                    {[
-                      {
-                        name: "Tokens / request",
-                        b: b.avg_tokens_before.toFixed(0),
-                        a: b.avg_tokens_after.toFixed(0),
-                        ch: b.tokens_pct_change,
-                      },
-                      {
-                        name: "Tool calls / request",
-                        b: b.avg_tool_calls_before.toFixed(2),
-                        a: b.avg_tool_calls_after.toFixed(2),
-                        ch: b.tool_calls_pct_change,
-                      },
-                      {
-                        name: "Latency",
-                        b: `${b.avg_latency_ms_before.toFixed(0)} ms`,
-                        a: `${b.avg_latency_ms_after.toFixed(0)} ms`,
-                        ch: b.latency_pct_change,
-                      },
-                      {
-                        name: "Cost / request",
-                        b: `$${b.cost_per_request_before.toFixed(4)}`,
-                        a: `$${b.cost_per_request_after.toFixed(4)}`,
-                        ch: b.cost_per_request_pct_change,
-                      },
-                    ].map((row, i) => (
-                      <tr
-                        key={row.name}
-                        className={`border-b border-white/[0.04] last:border-0 ${
-                          i % 2 === 0 ? "bg-transparent" : "bg-white/[0.02]"
-                        }`}
-                      >
-                        <td className="px-4 py-3.5 font-medium text-zinc-300">
-                          {row.name}
-                        </td>
-                        <td className="px-4 py-3.5 tabular-nums text-zinc-500">
-                          {row.b}
-                        </td>
-                        <td className="px-4 py-3.5 tabular-nums text-white">
-                          {row.a}
-                        </td>
-                        <td
-                          className={`px-4 py-3.5 font-semibold tabular-nums ${changeToneClass(
-                            row.ch
-                          )}`}
-                        >
-                          {fmtChange(row.ch)}
-                        </td>
-                      </tr>
-                    ))}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {!loading && b && (
-            <p className="mt-3 text-center text-xs text-zinc-600">
-              {b.before_period_label} → {b.after_period_label}
-            </p>
-          )}
-        </section>
-
-        <section className="rounded-2xl border border-white/[0.06] bg-zinc-900/25 p-6 shadow-xl shadow-black/20 ring-1 ring-white/[0.03] backdrop-blur-sm">
-          <SectionHeader
-            title="Insights & alerts"
-            subtitle="Includes the same optimization signals as agent pages, plus trend notes."
-          />
-          <ul className="space-y-3">
-            {loading || !summary ? (
-              <li className="rounded-xl border border-white/[0.04] bg-zinc-950/30 px-4 py-8 text-center text-sm text-zinc-500">
-                Loading…
-              </li>
-            ) : summary.insights.length === 0 ? (
-              <li className="rounded-xl border border-dashed border-zinc-700/60 bg-zinc-950/20 px-4 py-8 text-center text-sm text-zinc-500">
-                Nothing to report for this window.
-              </li>
-            ) : (
-              summary.insights.map((line, i) => (
-                <li
-                  key={i}
-                  className="flex gap-3 rounded-xl border border-white/[0.06] bg-gradient-to-r from-violet-500/[0.06] to-transparent px-4 py-3.5 text-sm leading-relaxed text-zinc-200"
-                >
-                  <span
-                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-xs font-bold text-violet-300"
-                    aria-hidden
-                  >
-                    {i + 1}
-                  </span>
-                  <span>{line}</span>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
-      </div>
-
-      <section className="relative mt-12 rounded-2xl border border-white/[0.06] bg-zinc-900/25 p-6 shadow-xl shadow-black/20 ring-1 ring-white/[0.03] backdrop-blur-sm">
-        <SectionHeader
-          title="Daily spend"
-          subtitle="Bar height = that day’s cost vs the busiest day. Hover for amount."
-        />
-        {loading || !timeline?.points.length ? (
-          <div className="h-28 animate-pulse rounded-xl bg-zinc-950/40" />
-        ) : (
-          <div className="rounded-xl border border-white/[0.06] bg-zinc-950/50 p-4">
-            <div className="mb-2 flex justify-between text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-              <span>{timeline.points[0]?.date}</span>
-              <span>{timeline.points[timeline.points.length - 1]?.date}</span>
-            </div>
-            <div className="flex h-28 items-end gap-0.5 sm:gap-1">
-              {timeline.points.map((p) => {
-                const barPx = Math.max(
-                  4,
-                  Math.round((p.cost_usd / maxDailyCost) * DAILY_CHART_BAR_MAX_PX)
-                );
-                return (
-                  <div
-                    key={p.date}
-                    className="group relative flex min-h-0 min-w-0 flex-1 flex-col items-center justify-end"
-                  >
-                    <div
-                      className="w-full max-w-[12px] shrink-0 rounded-t-md bg-gradient-to-t from-violet-600 via-violet-400 to-fuchsia-400/90 opacity-95 shadow-sm shadow-violet-900/40 transition group-hover:opacity-100 sm:max-w-[14px]"
-                      style={{ height: `${barPx}px` }}
-                      title={`${p.date}: $${p.cost_usd.toFixed(2)}`}
-                    />
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-[10px] font-medium text-zinc-200 opacity-0 shadow-xl transition group-hover:opacity-100">
-                      {p.date}
-                      <br />
-                      <span className="text-violet-300">
-                        ${p.cost_usd.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="relative mt-14 border-t border-white/[0.06] pt-12">
-        <SectionHeader title="Your agents">
-          <Link
-            href="/agents"
-            className="text-sm font-medium text-violet-400 hover:text-violet-300"
-          >
-            View all →
-          </Link>
-        </SectionHeader>
-        {loading ? (
-          <div className="h-28 animate-pulse rounded-2xl bg-zinc-900/30" />
-        ) : agents.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-700/70 bg-zinc-900/20 px-6 py-12 text-center">
-            <p className="text-sm text-zinc-400">
-              No agents yet — register one to attribute spend.
-            </p>
-            <Link
-              href="/agents/new"
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/10 hover:bg-white/[0.14]"
-            >
-              Register agent
-            </Link>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {agents.slice(0, 6).map((agent) => (
-              <Link
-                key={agent.id}
-                href={`/agents/${agent.id}`}
-                className="group flex gap-4 rounded-2xl border border-white/[0.06] bg-zinc-900/30 p-4 shadow-md shadow-black/10 ring-1 ring-white/[0.03] transition hover:border-violet-500/25 hover:bg-zinc-900/50"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600/30 to-fuchsia-600/20 text-lg font-bold text-violet-200">
-                  {agent.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-zinc-100 group-hover:text-white">
-                      {agent.name}
-                    </p>
-                    {scope === "team" &&
-                      myUserId &&
-                      agent.user_id !== myUserId && (
-                        <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
-                          Teammate
-                        </span>
-                      )}
-                  </div>
-                  <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">
-                    {agent.model}
-                  </p>
-                  <p className="mt-2 text-xs text-zinc-500">
-                    Last 7 days:{" "}
-                    <span className="font-semibold tabular-nums text-zinc-200">
-                      ${agent.total_cost_7d.toFixed(2)}
-                    </span>
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+      <p className="mt-10 text-center text-sm text-zinc-600">
+        <Link href="/agents" className="text-orange-400 hover:text-orange-300">
+          View all agents →
+        </Link>
+      </p>
     </div>
   );
 }

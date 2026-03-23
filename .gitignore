@@ -1,0 +1,21 @@
+# Dependencies & build
+node_modules/
+.next/
+out/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.Python
+.venv/
+venv/
+.env
+.env.*
+
+# OS / IDE
+.DS_Store
+*.swp
+.idea/
+.vscode/

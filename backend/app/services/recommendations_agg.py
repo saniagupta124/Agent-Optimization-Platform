@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from app.db.models import Agent
+from app.db.models import Agent, User
 from app.services.optimization_service import get_optimizations
 from app.services.scope import resolve_agent_ids
 

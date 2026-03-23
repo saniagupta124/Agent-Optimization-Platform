@@ -10,7 +10,7 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-gradient-to-br from-zinc-950 via-zinc-900/95 to-slate-950">
+      <main className="flex-1 overflow-y-auto bg-[#121212]">
         {children}
       </main>
     </div>

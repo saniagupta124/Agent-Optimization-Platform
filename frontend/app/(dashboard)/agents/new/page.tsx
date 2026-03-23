@@ -101,7 +101,7 @@ export default function NewAgentPage() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             placeholder='e.g. "Customer Support Bot"'
           />
         </div>
@@ -114,7 +114,7 @@ export default function NewAgentPage() {
             id="purpose"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
           >
             {PURPOSES.map((p) => (
               <option key={p.value} value={p.value}>
@@ -133,7 +133,7 @@ export default function NewAgentPage() {
               id="provider"
               value={provider}
               onChange={(e) => handleProviderChange(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             >
               {Object.entries(PROVIDERS).map(([key, val]) => (
                 <option key={key} value={key}>
@@ -151,7 +151,7 @@ export default function NewAgentPage() {
               id="model"
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             >
               {(PROVIDERS[provider]?.models || []).map((m) => (
                 <option key={m} value={m}>
@@ -171,7 +171,7 @@ export default function NewAgentPage() {
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             placeholder="sk-..."
           />
           <p className="mt-1.5 text-xs text-gray-500">
@@ -183,7 +183,7 @@ export default function NewAgentPage() {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-orange-950/30 transition hover:from-orange-400 hover:to-orange-500 disabled:opacity-50"
           >
             {loading ? "Creating..." : "Create Agent"}
           </button>

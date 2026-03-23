@@ -136,11 +136,11 @@ export default function SettingsPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
             />
           </div>
 
-          <div>
+          <div id="organization" className="scroll-mt-24">
             <label htmlFor="org" className="mb-1.5 block text-sm font-medium text-gray-300">
               Organization
             </label>
@@ -149,7 +149,7 @@ export default function SettingsPage() {
               type="text"
               value={organization}
               onChange={(e) => setOrganization(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               placeholder="e.g. Acme Labs"
             />
             <p className="mt-1 text-xs text-gray-500">
@@ -161,7 +161,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-orange-950/30 transition hover:from-orange-400 hover:to-orange-500 disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>

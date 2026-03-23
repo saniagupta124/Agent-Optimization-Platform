@@ -100,7 +100,7 @@ export default function AgentDetailPage() {
         <div className="rounded-lg border border-red-900 bg-red-950/50 p-6 text-red-400">
           {error || "Agent not found"}
         </div>
-        <Link href="/agents" className="mt-4 inline-block text-sm text-indigo-400 hover:text-indigo-300">
+        <Link href="/agents" className="mt-4 inline-block text-sm text-orange-400 hover:text-orange-300">
           Back to Agents
         </Link>
       </div>
