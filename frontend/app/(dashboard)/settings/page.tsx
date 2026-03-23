@@ -111,6 +111,22 @@ export default function SettingsPage() {
           </div>
 
           <div>
+            <label htmlFor="plan" className="mb-1.5 block text-sm font-medium text-gray-400">
+              Plan
+            </label>
+            <input
+              id="plan"
+              type="text"
+              disabled
+              value={profile?.plan_tier ?? "free"}
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm capitalize text-gray-400"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Token and spend limits apply per calendar month (see dashboard).
+            </p>
+          </div>
+
+          <div>
             <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-300">
               Name
             </label>
@@ -134,8 +150,11 @@ export default function SettingsPage() {
               value={organization}
               onChange={(e) => setOrganization(e.target.value)}
               className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-              placeholder="Optional"
+              placeholder="e.g. Acme Labs"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Use the same name across teammates to unlock <strong className="font-medium text-gray-400">Team</strong> spend on the dashboard.
+            </p>
           </div>
 
           <div className="flex items-center gap-3">

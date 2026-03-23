@@ -143,7 +143,30 @@ export interface UserProfile {
   email: string;
   name: string;
   organization_name: string;
+  plan_tier: string;
   created_at: string;
+}
+
+export interface SubscriptionUsageRow {
+  label: string;
+  total_tokens: number;
+  total_cost_usd: number;
+}
+
+export interface SubscriptionUsage {
+  scope?: string;
+  is_team_aggregate?: boolean;
+  plan_tier: string;
+  monthly_token_budget: number;
+  monthly_cost_budget_usd: number;
+  tokens_used: number;
+  cost_usd: number;
+  period_start: string;
+  period_end: string;
+  token_utilization: number;
+  cost_utilization: number;
+  by_provider: SubscriptionUsageRow[];
+  by_model: SubscriptionUsageRow[];
 }
 
 // ---------- Auth ----------
@@ -188,10 +211,146 @@ export function getTimeseries(token: string, agentId?: string) {
   return fetchJSON<TimeseriesPoint[]>(`/metrics/timeseries${q}`, token);
 }
 
+export function getSubscriptionUsage(
+  token: string,
+  scope?: "me" | "team"
+) {
+  const q = scope ? `?scope=${scope}` : "";
+  return fetchJSON<SubscriptionUsage>(`/subscription/usage${q}`, token);
+}
+
+// ---------- Usage (dashboard) ----------
+
+export interface BehavioralComparison {
+  window_days: number;
+  before_period_label: string;
+  after_period_label: string;
+  avg_tokens_before: number;
+  avg_tokens_after: number;
+  tokens_pct_change: number;
+  avg_tool_calls_before: number;
+  avg_tool_calls_after: number;
+  tool_calls_pct_change: number;
+  avg_latency_ms_before: number;
+  avg_latency_ms_after: number;
+  latency_pct_change: number;
+  cost_per_request_before: number;
+  cost_per_request_after: number;
+  cost_per_request_pct_change: number;
+}
+
+export interface TopChangeItem {
+  rank: number;
+  title: string;
+  description: string;
+  action: string;
+  estimated_savings_usd: number;
+  severity: string;
+  type: string;
+  agent_id: string;
+  agent_name: string;
+}
+
+export interface UsageSummary {
+  scope: string;
+  team_view_available: boolean;
+  team_member_count: number;
+  potential_savings_usd: number;
+  top_changes: TopChangeItem[];
+  period_days: number;
+  current_total_cost_usd: number;
+  previous_total_cost_usd: number;
+  cost_change_pct: number | null;
+  total_tokens: number;
+  request_count: number;
+  avg_tokens_per_request: number;
+  avg_tool_calls_per_request: number;
+  stability_score: number;
+  monthly_cost_usd: number;
+  monthly_tokens: number;
+  monthly_token_budget: number;
+  monthly_cost_budget_usd: number;
+  plan_tier: string;
+  token_budget_utilization_pct: number;
+  cost_budget_utilization_pct: number;
+  behavioral: BehavioralComparison;
+  insights: string[];
+}
+
+export interface UsageBreakdownRow {
+  label: string;
+  total_cost_usd: number;
+  total_tokens: number;
+  request_count: number;
+  share_of_cost_pct: number;
+}
+
+export interface DashboardUsageBreakdown {
+  scope: string;
+  period_days: number;
+  by_model: UsageBreakdownRow[];
+  by_endpoint: UsageBreakdownRow[];
+}
+
+export interface TimelinePoint {
+  date: string;
+  cost_usd: number;
+  total_tokens: number;
+  request_count: number;
+}
+
+export interface UsageTimeline {
+  scope: string;
+  period_days: number;
+  points: TimelinePoint[];
+}
+
+function usageQuery(days?: number, scope?: "me" | "team") {
+  const p = new URLSearchParams();
+  if (days != null) p.set("days", String(days));
+  if (scope) p.set("scope", scope);
+  const s = p.toString();
+  return s ? `?${s}` : "";
+}
+
+export function getUsageSummary(
+  token: string,
+  days?: number,
+  scope?: "me" | "team"
+) {
+  return fetchJSON<UsageSummary>(
+    `/usage/summary${usageQuery(days, scope)}`,
+    token
+  );
+}
+
+export function getUsageBreakdown(
+  token: string,
+  days?: number,
+  scope?: "me" | "team"
+) {
+  return fetchJSON<DashboardUsageBreakdown>(
+    `/usage/breakdown${usageQuery(days, scope)}`,
+    token
+  );
+}
+
+export function getUsageTimeline(
+  token: string,
+  days?: number,
+  scope?: "me" | "team"
+) {
+  return fetchJSON<UsageTimeline>(
+    `/usage/timeline${usageQuery(days, scope)}`,
+    token
+  );
+}
+
 // ---------- Agents ----------
 
-export function getAgents(token: string) {
-  return fetchJSON<AgentWithStats[]>("/agents", token);
+export function getAgents(token: string, scope?: "me" | "team") {
+  const q = scope ? `?scope=${scope}` : "";
+  return fetchJSON<AgentWithStats[]>(`/agents${q}`, token);
 }
 
 export function getAgent(token: string, id: string) {

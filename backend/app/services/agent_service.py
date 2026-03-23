@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import Agent, Request
+from app.db.models import Agent, Request, User
 
 
 def create_agent(
@@ -36,6 +36,34 @@ def get_user_agents(db: Session, user_id: str) -> list[Agent]:
         .order_by(Agent.created_at.desc())
         .all()
     )
+
+
+def get_agents_for_users(db: Session, user_ids: list[str]) -> list[Agent]:
+    if not user_ids:
+        return []
+    return (
+        db.query(Agent)
+        .filter(Agent.user_id.in_(user_ids))
+        .order_by(Agent.created_at.desc())
+        .all()
+    )
+
+
+def get_agent_for_viewer(db: Session, agent_id: str, viewer: User) -> Agent | None:
+    """Owner always; teammates with same organization_name may view."""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        return None
+    if agent.user_id == viewer.id:
+        return agent
+    owner = db.query(User).filter(User.id == agent.user_id).first()
+    if not owner:
+        return None
+    vo = (viewer.organization_name or "").strip().lower()
+    oo = (owner.organization_name or "").strip().lower()
+    if vo and oo and vo == oo:
+        return agent
+    return None
 
 
 def get_agent(db: Session, agent_id: str, user_id: str) -> Agent | None:

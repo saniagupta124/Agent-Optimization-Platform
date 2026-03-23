@@ -29,7 +29,7 @@ def overview(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return get_overview(db, days, user_id=user.id, agent_id=agent_id)
+    return get_overview(db, days, user=user, agent_id=agent_id)
 
 
 @router.get("/by-agent", response_model=list[GroupedMetric])
@@ -75,4 +75,4 @@ def timeseries(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return get_timeseries(db, days, user_id=user.id, agent_id=agent_id)
+    return get_timeseries(db, days, user=user, agent_id=agent_id)

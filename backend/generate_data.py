@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Generate 20,000+ realistic mock LLM request records."""
+"""Generate ~22k mock LLM request rows tied to a demo user and real Agent IDs."""
 
-import math
 import os
 import random
+import sys
 import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import sys
 sys.path.insert(0, "/app")
 
 from app.core.pricing import calculate_cost
 from app.db.base import Base
-from app.db.models import Request
+from app.db.models import Agent, Request, User
+from app.services.auth_service import hash_password
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql://user:password@postgres:5432/tokendb"
@@ -23,13 +23,25 @@ DATABASE_URL = os.environ.get(
 
 NUM_ROWS = 22000
 
-AGENTS = {
-    "support_agent": 0.60,
-    "research_agent": 0.15,
-    "code_agent": 0.12,
-    "sales_agent": 0.08,
-    "email_agent": 0.05,
-}
+SEED_USER_EMAIL = os.environ.get("SEED_USER_EMAIL", "demo@tokencost.local")
+SEED_USER_PASSWORD = os.environ.get("SEED_USER_PASSWORD", "demo12345")
+SEED_USER_NAME = os.environ.get("SEED_USER_NAME", "Demo User")
+
+# (role_key, display_name, purpose, default_provider, default_model, weight)
+AGENT_SPECS: list[tuple[str, str, str, str, str, float]] = [
+    ("support_agent", "Support Agent", "support", "openai", "openai/gpt-4o", 0.60),
+    (
+        "research_agent",
+        "Research Agent",
+        "research",
+        "anthropic",
+        "anthropic/claude-3-sonnet",
+        0.15,
+    ),
+    ("code_agent", "Code Agent", "code_review", "openai", "openai/gpt-4o-mini", 0.12),
+    ("sales_agent", "Sales Agent", "sales", "google", "google/gemini-pro", 0.08),
+    ("email_agent", "Email Agent", "email", "perplexity", "perplexity/pplx-70b", 0.05),
+]
 
 PROVIDER_MODELS = {
     "openai": {
@@ -64,17 +76,22 @@ LATENCY_RANGES = {
 }
 
 FEATURE_TAGS = [
-    "chat", "summarize", "classify", "extract", "generate",
-    "translate", "analyze", "search", "draft", "review",
+    "chat",
+    "summarize",
+    "classify",
+    "extract",
+    "generate",
+    "translate",
+    "analyze",
+    "search",
+    "draft",
+    "review",
 ]
 
 PROJECT_IDS = ["proj_alpha", "proj_beta", "proj_gamma", "proj_delta"]
 
 
 def generate_pareto_customers(n: int = 50) -> list[tuple[str, float]]:
-    """Generate customer IDs with Pareto-distributed weights.
-    Top 20% of customers get ~80% of the request weight.
-    """
     customers = [f"cust_{i:04d}" for i in range(1, n + 1)]
     top_count = max(1, n // 5)
 
@@ -96,7 +113,6 @@ def pick_weighted(items_weights: list[tuple[str, float]]) -> str:
 
 
 def generate_timestamp(days_back: int = 30) -> datetime:
-    """Generate a timestamp within the last N days with business-hour bias."""
     now = datetime.utcnow()
     day_offset = random.uniform(0, days_back)
     base = now - timedelta(days=day_offset)
@@ -104,8 +120,7 @@ def generate_timestamp(days_back: int = 30) -> datetime:
     hour = base.hour
     weekday = base.weekday()
 
-    # Business hours bias: reject and resample ~60% of off-hours timestamps
-    if weekday >= 5:  # weekend
+    if weekday >= 5:
         if random.random() < 0.6:
             day_offset = random.uniform(0, days_back)
             base = now - timedelta(days=day_offset)
@@ -116,13 +131,11 @@ def generate_timestamp(days_back: int = 30) -> datetime:
     return base
 
 
-def generate_tokens(model: str, agent_id: str, is_outlier: bool) -> tuple[int, int]:
-    """Generate realistic token counts. Outliers get 10x normal."""
+def generate_tokens(model: str, agent_role: str, is_outlier: bool) -> tuple[int, int]:
     base_prompt = random.randint(200, 1500)
     base_completion = random.randint(100, 1200)
 
-    # support_agent sometimes uses gpt-4o for simple tasks (low tokens, high cost)
-    if agent_id == "support_agent" and model == "openai/gpt-4o":
+    if agent_role == "support_agent" and model == "openai/gpt-4o":
         if random.random() < 0.3:
             base_prompt = random.randint(50, 200)
             base_completion = random.randint(30, 150)
@@ -134,26 +147,79 @@ def generate_tokens(model: str, agent_id: str, is_outlier: bool) -> tuple[int, i
     return base_prompt, base_completion
 
 
+def get_or_create_demo_user(session) -> User:
+    user = session.query(User).filter(User.email == SEED_USER_EMAIL).first()
+    if user:
+        return user
+    user = User(
+        email=SEED_USER_EMAIL,
+        name=SEED_USER_NAME,
+        password_hash=hash_password(SEED_USER_PASSWORD),
+        organization_name="Demo Org",
+        plan_tier="pro",
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def ensure_seed_agents(session, user_id: str) -> dict[str, str]:
+    """Return mapping role_key -> Agent.id (UUID string)."""
+    role_to_id: dict[str, str] = {}
+    for role_key, name, purpose, provider, model, _w in AGENT_SPECS:
+        agent = (
+            session.query(Agent)
+            .filter(Agent.user_id == user_id, Agent.name == name)
+            .first()
+        )
+        if not agent:
+            agent = Agent(
+                user_id=user_id,
+                name=name,
+                purpose=purpose,
+                provider=provider,
+                model=model,
+                api_key_hint="demo",
+            )
+            session.add(agent)
+            session.flush()
+        role_to_id[role_key] = agent.id
+    session.commit()
+    return role_to_id
+
+
 def main():
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    # Check if data already exists
-    existing = session.query(Request).count()
-    if existing > 0:
-        print(f"Database already has {existing} rows. Clearing...")
-        session.query(Request).delete()
-        session.commit()
+    user = get_or_create_demo_user(session)
+    role_to_id = ensure_seed_agents(session, user.id)
+    agent_ids = list(role_to_id.values())
+
+    deleted = (
+        session.query(Request)
+        .filter(Request.agent_id.in_(agent_ids))
+        .delete(synchronize_session=False)
+    )
+    session.commit()
+    print(
+        f"Seeding user {user.email} (plan={user.plan_tier}); "
+        f"cleared {deleted} existing request rows for seed agents."
+    )
+
+    weight_items = [(role_to_id[row[0]], row[5]) for row in AGENT_SPECS]
 
     customers = generate_pareto_customers(50)
-    agent_items = list(AGENTS.items())
     provider_items = [(k, v["weight"]) for k, v in PROVIDER_MODELS.items()]
 
     records = []
     for i in range(NUM_ROWS):
-        agent_id = pick_weighted(agent_items)
+        agent_id = pick_weighted(weight_items)
+        role_key = next(k for k, v in role_to_id.items() if v == agent_id)
+
         provider_name = pick_weighted(provider_items)
         provider_cfg = PROVIDER_MODELS[provider_name]
 
@@ -163,7 +229,9 @@ def main():
 
         customer_id = pick_weighted(customers)
         is_outlier = random.random() < 0.05
-        prompt_tokens, completion_tokens = generate_tokens(model, agent_id, is_outlier)
+        prompt_tokens, completion_tokens = generate_tokens(
+            model, role_key, is_outlier
+        )
         total_tokens = prompt_tokens + completion_tokens
 
         cost = calculate_cost(prompt_tokens, completion_tokens, model)
@@ -190,6 +258,7 @@ def main():
             latency_ms=latency_ms,
             status="success" if random.random() > 0.02 else "error",
             feature_tag=random.choice(FEATURE_TAGS),
+            tool_calls=random.randint(1, 5),
         )
         records.append(record)
 
@@ -203,9 +272,14 @@ def main():
         session.bulk_save_objects(records)
         session.commit()
 
-    final_count = session.query(Request).count()
+    final_count = (
+        session.query(Request).filter(Request.agent_id.in_(agent_ids)).count()
+    )
     session.close()
-    print(f"Done. Total rows in database: {final_count}")
+    print(f"Done. Request rows for seed agents: {final_count}")
+    print(
+        f"Sign in as {SEED_USER_EMAIL} / {SEED_USER_PASSWORD} to view dashboard data."
+    )
 
 
 if __name__ == "__main__":

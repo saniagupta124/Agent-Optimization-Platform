@@ -10,6 +10,7 @@ class LogRequestInput(BaseModel):
     messages: list[dict]
     project_id: str = ""
     feature_tag: str = ""
+    tool_calls: int | None = None
 
 
 class LogRequestResponse(BaseModel):
@@ -27,6 +28,7 @@ class LogRequestResponse(BaseModel):
     latency_ms: int
     status: str
     feature_tag: str
+    tool_calls: int
 
     class Config:
         from_attributes = True

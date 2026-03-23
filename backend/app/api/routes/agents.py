@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -10,20 +10,33 @@ from app.services.agent_service import (
     create_agent,
     delete_agent,
     get_agent,
+    get_agent_for_viewer,
     get_agent_stats_7d,
+    get_agents_for_users,
     get_user_agents,
 )
 from app.services.optimization_service import get_optimizations
+from app.services.scope import resolve_team_user_ids, team_view_available
 
 router = APIRouter(prefix="/agents")
 
 
 @router.get("", response_model=list[AgentWithStats])
 def list_agents(
+    scope: str = Query(
+        default="me",
+        description="'me' = your agents; 'team' = all agents in your organization",
+    ),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    agents = get_user_agents(db, user.id)
+    if scope not in ("me", "team"):
+        scope = "me"
+    if scope == "team" and team_view_available(user):
+        uids = resolve_team_user_ids(db, user)
+        agents = get_agents_for_users(db, uids)
+    else:
+        agents = get_user_agents(db, user.id)
     result = []
     for agent in agents:
         stats = get_agent_stats_7d(db, agent.id)
@@ -74,7 +87,7 @@ def get_single(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    agent = get_agent(db, agent_id, user.id)
+    agent = get_agent_for_viewer(db, agent_id, user)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     stats = get_agent_stats_7d(db, agent.id)
@@ -115,7 +128,7 @@ def optimizations(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    agent = get_agent(db, agent_id, user.id)
+    agent = get_agent_for_viewer(db, agent_id, user)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     return get_optimizations(db, agent)

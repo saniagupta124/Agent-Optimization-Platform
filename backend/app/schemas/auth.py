@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     organization_name: str
+    plan_tier: str = "free"
     created_at: datetime
 
     class Config:

@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import Agent, Request
+from app.db.models import Agent, Request, User
+from app.services.agent_service import get_agent_for_viewer
 from app.schemas.metrics import (
     GroupedMetric,
     OutlierRecord,
@@ -24,7 +25,7 @@ def _user_agent_ids(db: Session, user_id: str) -> list[str]:
 def get_overview(
     db: Session,
     days: int = 7,
-    user_id: str | None = None,
+    user: User | None = None,
     agent_id: str | None = None,
 ) -> OverviewMetrics:
     since = _default_start(days)
@@ -36,14 +37,22 @@ def get_overview(
     ).filter(Request.timestamp >= since)
 
     if agent_id:
+        if not user or not get_agent_for_viewer(db, agent_id, user):
+            return OverviewMetrics(
+                total_cost=0, total_tokens=0, request_count=0, avg_latency=0
+            )
         query = query.filter(Request.agent_id == agent_id)
-    elif user_id:
-        agent_ids = _user_agent_ids(db, user_id)
+    elif user:
+        agent_ids = _user_agent_ids(db, user.id)
         if not agent_ids:
             return OverviewMetrics(
                 total_cost=0, total_tokens=0, request_count=0, avg_latency=0
             )
         query = query.filter(Request.agent_id.in_(agent_ids))
+    else:
+        return OverviewMetrics(
+            total_cost=0, total_tokens=0, request_count=0, avg_latency=0
+        )
 
     rows = query.one()
     return OverviewMetrics(
@@ -145,7 +154,7 @@ def get_outliers(
 def get_timeseries(
     db: Session,
     days: int = 30,
-    user_id: str | None = None,
+    user: User | None = None,
     agent_id: str | None = None,
 ) -> list[TimeseriesPoint]:
     since = _default_start(days)
@@ -160,12 +169,16 @@ def get_timeseries(
     )
 
     if agent_id:
+        if not user or not get_agent_for_viewer(db, agent_id, user):
+            return []
         query = query.filter(Request.agent_id == agent_id)
-    elif user_id:
-        agent_ids = _user_agent_ids(db, user_id)
+    elif user:
+        agent_ids = _user_agent_ids(db, user.id)
         if not agent_ids:
             return []
         query = query.filter(Request.agent_id.in_(agent_ids))
+    else:
+        return []
 
     rows = query.group_by(date_col).order_by(date_col).all()
     return [

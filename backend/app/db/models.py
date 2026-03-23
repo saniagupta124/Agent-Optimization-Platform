@@ -17,6 +17,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String)
     password_hash: Mapped[str] = mapped_column(String)
     organization_name: Mapped[str] = mapped_column(String, default="")
+    plan_tier: Mapped[str] = mapped_column(String, default="free", index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
@@ -66,6 +67,7 @@ class Request(Base):
     latency_ms: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String, default="success")
     feature_tag: Mapped[str] = mapped_column(String, default="")
+    tool_calls: Mapped[int] = mapped_column(Integer, default=1)
 
     __table_args__ = (
         Index("ix_requests_timestamp_desc", timestamp.desc()),

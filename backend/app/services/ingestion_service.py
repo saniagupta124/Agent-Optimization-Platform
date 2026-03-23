@@ -1,3 +1,5 @@
+import random
+
 from sqlalchemy.orm import Session
 
 from app.core.pricing import calculate_cost
@@ -38,6 +40,10 @@ async def ingest_request(db: Session, payload: LogRequestInput) -> Request:
         model_key=payload.model,
     )
 
+    tool_calls = payload.tool_calls
+    if tool_calls is None:
+        tool_calls = int(result.get("tool_calls") or random.randint(1, 4))
+
     record = Request(
         agent_id=payload.agent_id,
         project_id=payload.project_id,
@@ -51,6 +57,7 @@ async def ingest_request(db: Session, payload: LogRequestInput) -> Request:
         latency_ms=result["latency_ms"],
         status=result["status"],
         feature_tag=payload.feature_tag,
+        tool_calls=max(0, tool_calls),
     )
 
     db.add(record)

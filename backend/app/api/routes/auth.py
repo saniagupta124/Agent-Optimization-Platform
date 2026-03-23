@@ -28,6 +28,7 @@ def _user_response(user: User) -> UserResponse:
         email=user.email,
         name=user.name,
         organization_name=user.organization_name,
+        plan_tier=user.plan_tier,
         created_at=user.created_at,
     )
 
