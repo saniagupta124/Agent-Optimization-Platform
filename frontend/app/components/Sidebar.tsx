@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
 
 function HomeIcon({ className }: { className?: string }) {
   return (
@@ -36,7 +35,7 @@ const NAV_ITEMS = [
   },
   {
     label: "Recommendations",
-    href: "/#recommendations",
+    href: "/recommendations",
     activeMatch: "recommendations" as const,
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -84,9 +83,9 @@ function navActive(
 ): boolean {
   switch (activeMatch) {
     case "dashboard":
-      return pathname === "/" && hash !== "#recommendations";
+      return pathname === "/";
     case "recommendations":
-      return pathname === "/" && hash === "#recommendations";
+      return pathname.startsWith("/recommendations");
     case "agents":
       return pathname.startsWith("/agents");
     case "team":
@@ -101,14 +100,6 @@ function navActive(
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [hash, setHash] = useState("");
-
-  useEffect(() => {
-    const read = () => setHash(typeof window !== "undefined" ? window.location.hash : "");
-    read();
-    window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
-  }, [pathname]);
 
   return (
     <aside className="flex h-screen w-[260px] flex-col border-r border-zinc-800/90 bg-[#1c1c1c]">
@@ -118,7 +109,7 @@ export default function Sidebar() {
 
       <nav className="flex-1 space-y-0.5 px-3 py-3">
         {NAV_ITEMS.map((item) => {
-          const active = navActive(pathname, hash, item.activeMatch);
+          const active = navActive(pathname, "", item.activeMatch);
           const isDash = item.label === "Dashboard";
 
           return (

@@ -8,5 +8,7 @@ export const config = {
     "/settings/:path*",
     "/team",
     "/team/:path*",
+    "/recommendations",
+    "/recommendations/:path*",
   ],
 };

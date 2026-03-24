@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
@@ -252,25 +253,33 @@ export default function TeamPage() {
         </div>
         <ul className="divide-y divide-zinc-800/60">
           {data.members.map((member) => (
-            <li key={member.id} className="flex items-center gap-4 px-5 py-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm font-semibold text-white ring-1 ring-zinc-600">
-                {member.name[0]?.toUpperCase() || "?"}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-zinc-100">{member.name}</p>
-                <p className="truncate text-xs text-zinc-500">{member.email}</p>
-              </div>
-              <div className="hidden text-center sm:block sm:w-24">
-                <p className="text-sm font-semibold tabular-nums text-zinc-200">{member.agent_count}</p>
-                <p className="text-xs text-zinc-600">agents</p>
-              </div>
-              <div className="w-28 text-right">
-                <p className="text-sm font-semibold tabular-nums text-white">${member.total_cost_7d.toFixed(2)}</p>
-                <p className="text-xs text-zinc-600">{member.total_requests_7d.toLocaleString()} reqs</p>
-              </div>
-              <div className="hidden w-16 text-right sm:block">
-                {tierBadge(member.plan_tier)}
-              </div>
+            <li key={member.id}>
+              <Link
+                href={`/team/${member.id}`}
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-zinc-800/40"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm font-semibold text-white ring-1 ring-zinc-600">
+                  {member.name[0]?.toUpperCase() || "?"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-zinc-100">{member.name}</p>
+                  <p className="truncate text-xs text-zinc-500">{member.email}</p>
+                </div>
+                <div className="hidden text-center sm:block sm:w-24">
+                  <p className="text-sm font-semibold tabular-nums text-zinc-200">{member.agent_count}</p>
+                  <p className="text-xs text-zinc-600">agents</p>
+                </div>
+                <div className="w-28 text-right">
+                  <p className="text-sm font-semibold tabular-nums text-white">${member.total_cost_7d.toFixed(2)}</p>
+                  <p className="text-xs text-zinc-600">{member.total_requests_7d.toLocaleString()} reqs</p>
+                </div>
+                <div className="hidden w-16 text-right sm:block">
+                  {tierBadge(member.plan_tier)}
+                </div>
+                <svg className="h-4 w-4 shrink-0 text-zinc-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
             </li>
           ))}
         </ul>

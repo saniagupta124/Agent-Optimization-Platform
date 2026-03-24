@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models import Agent, Request, Team, User
-from app.schemas.team import TeamMemberRow, TeamOverviewResponse
+from app.schemas.team import MemberAgentRow, MemberDetailResponse, TeamMemberRow, TeamOverviewResponse
 from app.services.auth_service import hash_password, verify_password
 
 
@@ -112,4 +112,72 @@ def get_team_overview(db: Session, user: User) -> TeamOverviewResponse | None:
         team_name=team.name,
         team_id=team.id,
         members=members,
+    )
+
+
+def get_team_member_detail(
+    db: Session, requesting_user: User, member_id: str
+) -> MemberDetailResponse | None:
+    """Return detailed agent/usage stats for a specific team member."""
+    if not requesting_user.team_id:
+        return None
+
+    member = db.query(User).filter(
+        User.id == member_id,
+        User.team_id == requesting_user.team_id,
+    ).first()
+    if not member:
+        return None
+
+    agents = db.query(Agent).filter(Agent.user_id == member.id).all()
+    cutoff_7d = datetime.utcnow() - timedelta(days=7)
+    cutoff_30d = datetime.utcnow() - timedelta(days=30)
+
+    agent_rows: list[MemberAgentRow] = []
+    for agent in agents:
+        row_7d = (
+            db.query(
+                func.coalesce(func.sum(Request.cost_usd), 0.0),
+                func.count(Request.id),
+                func.coalesce(func.avg(Request.total_tokens), 0.0),
+            )
+            .filter(Request.agent_id == agent.id, Request.timestamp >= cutoff_7d)
+            .first()
+        )
+        row_30d = (
+            db.query(
+                func.coalesce(func.sum(Request.cost_usd), 0.0),
+                func.count(Request.id),
+            )
+            .filter(Request.agent_id == agent.id, Request.timestamp >= cutoff_30d)
+            .first()
+        )
+        agent_rows.append(
+            MemberAgentRow(
+                id=agent.id,
+                name=agent.name,
+                purpose=agent.purpose or "",
+                model=agent.model,
+                provider=agent.provider,
+                cost_7d=round(float(row_7d[0]), 4) if row_7d else 0.0,
+                requests_7d=int(row_7d[1]) if row_7d else 0,
+                avg_tokens_7d=round(float(row_7d[2]), 0) if row_7d else 0.0,
+                cost_30d=round(float(row_30d[0]), 4) if row_30d else 0.0,
+                requests_30d=int(row_30d[1]) if row_30d else 0,
+            )
+        )
+
+    agent_rows.sort(key=lambda a: a.cost_7d, reverse=True)
+
+    return MemberDetailResponse(
+        id=member.id,
+        name=member.name,
+        email=member.email,
+        plan_tier=member.plan_tier,
+        agent_count=len(agent_rows),
+        total_cost_7d=round(sum(a.cost_7d for a in agent_rows), 4),
+        total_requests_7d=sum(a.requests_7d for a in agent_rows),
+        total_cost_30d=round(sum(a.cost_30d for a in agent_rows), 4),
+        total_requests_30d=sum(a.requests_30d for a in agent_rows),
+        agents=agent_rows,
     )

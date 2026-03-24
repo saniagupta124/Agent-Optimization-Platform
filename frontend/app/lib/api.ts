@@ -421,6 +421,36 @@ export function leaveTeam(token: string) {
   return postJSON<{ ok: boolean }>("/team/leave", {}, token);
 }
 
+export interface MemberAgentRow {
+  id: string;
+  name: string;
+  purpose: string;
+  model: string;
+  provider: string;
+  cost_7d: number;
+  requests_7d: number;
+  avg_tokens_7d: number;
+  cost_30d: number;
+  requests_30d: number;
+}
+
+export interface MemberDetail {
+  id: string;
+  name: string;
+  email: string;
+  plan_tier: string;
+  agent_count: number;
+  total_cost_7d: number;
+  total_requests_7d: number;
+  total_cost_30d: number;
+  total_requests_30d: number;
+  agents: MemberAgentRow[];
+}
+
+export function getMemberDetail(token: string, memberId: string) {
+  return fetchJSON<MemberDetail>(`/team/members/${memberId}`, token);
+}
+
 // ---------- Profile ----------
 
 export function getProfile(token: string) {

@@ -347,9 +347,10 @@ export default function Dashboard() {
                   summary.top_changes.slice(0, 3).map((ch) => {
                     const sev = severityLabel(ch.severity);
                     return (
-                      <div
+                      <Link
                         key={`${ch.agent_id}-${ch.type}-${ch.rank}`}
-                        className="flex flex-col rounded-2xl border border-zinc-800/80 bg-[#121212] p-5"
+                        href={`/recommendations/${ch.type}?agent_id=${ch.agent_id}&days=${days}&scope=${scope}`}
+                        className="flex flex-col rounded-2xl border border-zinc-800/80 bg-[#121212] p-5 transition hover:border-zinc-700 hover:bg-zinc-900/60"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <span className="text-lg font-semibold leading-snug text-zinc-100">
@@ -365,10 +366,13 @@ export default function Dashboard() {
                         <p className="mt-2 line-clamp-5 flex-1 text-sm leading-relaxed text-zinc-500">
                           {ch.description}
                         </p>
-                        <p className="mt-5 text-base font-semibold tabular-nums text-orange-400">
-                          Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
-                        </p>
-                      </div>
+                        <div className="mt-5 flex items-center justify-between">
+                          <p className="text-base font-semibold tabular-nums text-orange-400">
+                            Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
+                          </p>
+                          <span className="text-xs text-zinc-600 hover:text-zinc-400">View details →</span>
+                        </div>
+                      </Link>
                     );
                   })
                 )}
@@ -396,7 +400,7 @@ export default function Dashboard() {
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            By agent
+            By team member
           </button>
           <button
             type="button"
@@ -407,7 +411,7 @@ export default function Dashboard() {
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            By tool / feature
+            By tool
           </button>
         </div>
 

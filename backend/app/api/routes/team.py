@@ -7,12 +7,14 @@ from app.db.session import get_db
 from app.schemas.team import (
     CreateTeamRequest,
     JoinTeamRequest,
+    MemberDetailResponse,
     TeamInfoResponse,
     TeamOverviewResponse,
 )
 from app.services.team_service import (
     create_team,
     get_team_member_count,
+    get_team_member_detail,
     get_team_overview,
     join_team,
     leave_team,
@@ -93,3 +95,18 @@ def team_members(
             detail="You are not in a team",
         )
     return overview
+
+
+@router.get("/members/{member_id}", response_model=MemberDetailResponse)
+def team_member_detail(
+    member_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    detail = get_team_member_detail(db, user, member_id)
+    if not detail:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found or not in your team",
+        )
+    return detail
