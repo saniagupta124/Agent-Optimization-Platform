@@ -7,9 +7,12 @@ import {
   AgentWithStats,
   DashboardUsageBreakdown,
   getAgents,
+  getTeamOverview,
   getUsageBreakdown,
   getUsageSummary,
   getUsageTimeline,
+  TeamMember,
+  TeamOverview,
   UsageSummary,
   UsageTimeline,
 } from "../lib/api";
@@ -109,6 +112,7 @@ export default function Dashboard() {
   const [breakdown, setBreakdown] = useState<DashboardUsageBreakdown | null>(null);
   const [timeline, setTimeline] = useState<UsageTimeline | null>(null);
   const [agents, setAgents] = useState<AgentWithStats[]>([]);
+  const [teamOverview, setTeamOverview] = useState<TeamOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,12 +125,14 @@ export default function Dashboard() {
       getUsageBreakdown(token, days, scope),
       getUsageTimeline(token, Math.max(days, 35), scope),
       getAgents(token, scope),
+      getTeamOverview(token).catch(() => null),
     ])
-      .then(([s, b, t, a]) => {
+      .then(([s, b, t, a, to]) => {
         setSummary(s);
         setBreakdown(b);
         setTimeline(t);
         setAgents(a);
+        setTeamOverview(to);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -151,10 +157,16 @@ export default function Dashboard() {
     let slices: { label: string; proportion: number }[];
 
     if (breakdownTab === "member") {
-      // Proportions from top 4 agents by 7d cost
-      const top = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4);
-      const sumCost = top.reduce((s, a) => s + a.total_cost_7d, 0) || 1;
-      slices = top.map((a) => ({ label: a.name, proportion: a.total_cost_7d / sumCost }));
+      // Proportions from top 4 team members by 7d cost (fall back to agents if no team)
+      if (teamOverview && teamOverview.members.length > 0) {
+        const top = [...teamOverview.members].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4);
+        const sumCost = top.reduce((s, m) => s + m.total_cost_7d, 0) || 1;
+        slices = top.map((m) => ({ label: m.name, proportion: m.total_cost_7d / sumCost }));
+      } else {
+        const top = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4);
+        const sumCost = top.reduce((s, a) => s + a.total_cost_7d, 0) || 1;
+        slices = top.map((a) => ({ label: a.name, proportion: a.total_cost_7d / sumCost }));
+      }
     } else {
       // Proportions from top 4 tools/endpoints by cost
       const tools = [...(breakdown?.by_endpoint ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
@@ -169,7 +181,7 @@ export default function Dashboard() {
       props: slices.slice(0, 4).map((s) => s.proportion),
       labels: slices.slice(0, 4).map((s) => s.label),
     };
-  }, [timeline, agents, breakdown, breakdownTab]);
+  }, [timeline, agents, breakdown, breakdownTab, teamOverview]);
 
   const maxBarVal = useMemo(() => {
     let m = 1e-9;
@@ -202,11 +214,6 @@ export default function Dashboard() {
     if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
     return rows;
   }, [toolRows, search]);
-
-  const topFourAgents = useMemo(
-    () => [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4),
-    [agents]
-  );
 
   const maxMemberCost = Math.max(...sortedAgents.map((a) => a.total_cost_7d), 1e-9);
   const maxToolCost = Math.max(...sortedTools.map((r) => r.total_cost_usd), 1e-9);
@@ -490,15 +497,63 @@ export default function Dashboard() {
             {/* Rows — per-item cost share, not global pct */}
             <ul className="space-y-0 border-t border-zinc-800/90 px-3 py-4 sm:px-5">
               {breakdownTab === "member" ? (
-                sortedAgents.length === 0 ? (
-                  <li className="px-2 py-6 text-center text-base text-zinc-500">
-                    No agents for this scope.
-                  </li>
-                ) : (
-                  sortedAgents.slice(0, 8).map((a, i) => {
-                    const topIdx = topFourAgents.findIndex((x) => x.id === a.id);
-                    const colorIdx = topIdx >= 0 ? topIdx % 4 : i % 4;
-                    const dot = CHART_HEX[colorIdx];
+                (() => {
+                  // Use team members if available, otherwise fall back to agents
+                  if (teamOverview && teamOverview.members.length > 0) {
+                    const sorted = [...teamOverview.members].sort((a, b) => b.total_cost_7d - a.total_cost_7d);
+                    const totalCost = sorted.reduce((s, m) => s + m.total_cost_7d, 0) || 1;
+                    const maxCost = sorted[0]?.total_cost_7d || 1e-9;
+                    return sorted.map((m, i) => {
+                      const share = (m.total_cost_7d / totalCost) * 100;
+                      return (
+                        <li key={m.id} className="border-b border-zinc-800/50 last:border-0">
+                          <Link
+                            href={`/team/${m.id}`}
+                            className="flex flex-col gap-3 py-4 transition hover:bg-zinc-800/20 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
+                          >
+                            <div className="flex min-w-0 items-start gap-3 sm:w-52 sm:shrink-0">
+                              <span
+                                className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
+                                style={{ backgroundColor: CHART_HEX[i % 4] }}
+                              />
+                              <div className="min-w-0">
+                                <p className="text-base font-medium text-white">{m.name}</p>
+                                <p className="text-sm text-zinc-500">{m.agent_count} agent{m.agent_count !== 1 ? "s" : ""} · {m.email}</p>
+                              </div>
+                            </div>
+                            <div className="min-w-0 flex-1 px-0 sm:px-2">
+                              <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                                <div
+                                  className="h-full rounded-full bg-blue-500"
+                                  style={{ width: `${Math.min(100, (m.total_cost_7d / maxCost) * 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
+                              <span className="text-base font-semibold tabular-nums text-white">
+                                ${m.total_cost_7d.toFixed(2)}
+                              </span>
+                              <span className="text-sm tabular-nums text-zinc-500">
+                                {share.toFixed(1)}% of total
+                              </span>
+                            </div>
+                            <svg className="hidden h-4 w-4 shrink-0 text-zinc-600 sm:block" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                          </Link>
+                        </li>
+                      );
+                    });
+                  }
+                  // Fallback: no team, show agents
+                  if (sortedAgents.length === 0) {
+                    return (
+                      <li className="px-2 py-6 text-center text-base text-zinc-500">
+                        No agents for this scope.
+                      </li>
+                    );
+                  }
+                  return sortedAgents.slice(0, 8).map((a, i) => {
                     const totalCost = agents.reduce((s, x) => s + x.total_cost_7d, 0) || 1;
                     const share = (a.total_cost_7d / totalCost) * 100;
                     return (
@@ -509,7 +564,7 @@ export default function Dashboard() {
                         <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
                           <span
                             className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
-                            style={{ backgroundColor: dot }}
+                            style={{ backgroundColor: CHART_HEX[i % 4] }}
                           />
                           <div className="min-w-0">
                             <p className="text-base font-medium text-white">{a.name}</p>
@@ -534,8 +589,8 @@ export default function Dashboard() {
                         </div>
                       </li>
                     );
-                  })
-                )
+                  });
+                })()
               ) : sortedTools.length === 0 ? (
                 <li className="px-2 py-6 text-center text-base text-zinc-500">
                   No endpoint data for this period.
