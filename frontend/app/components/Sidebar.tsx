@@ -64,6 +64,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    label: "Setup",
+    href: "/onboarding",
+    activeMatch: "onboarding" as const,
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+      </svg>
+    ),
+  },
+  {
     label: "Settings",
     href: "/settings",
     activeMatch: "settings" as const,
@@ -79,7 +89,7 @@ const NAV_ITEMS = [
 function navActive(
   pathname: string,
   hash: string,
-  activeMatch: "dashboard" | "recommendations" | "agents" | "team" | "settings"
+  activeMatch: "dashboard" | "recommendations" | "agents" | "team" | "onboarding" | "settings"
 ): boolean {
   switch (activeMatch) {
     case "dashboard":
@@ -90,6 +100,8 @@ function navActive(
       return pathname.startsWith("/agents");
     case "team":
       return pathname.startsWith("/team");
+    case "onboarding":
+      return pathname.startsWith("/onboarding");
     case "settings":
       return pathname === "/settings";
     default:
@@ -104,7 +116,7 @@ export default function Sidebar() {
   return (
     <aside className="flex h-screen w-[260px] flex-col border-r border-zinc-800/90 bg-[#1c1c1c]">
       <div className="flex h-[52px] items-center px-6 pt-1">
-        <span className="text-lg font-bold tracking-tight text-white">Slash</span>
+        <span className="text-lg font-bold tracking-tight" style={{ color: "#2de080", letterSpacing: "-0.02em" }}>Traeco</span>
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3 py-3">

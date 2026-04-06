@@ -11,8 +11,9 @@ function SignUpForm() {
   const searchParams = useSearchParams();
   const inviteToken = (searchParams.get("invite") || "").trim();
   const nextPath = (searchParams.get("next") || "").trim();
+  const prefillEmail = (searchParams.get("email") || "").trim();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [organization, setOrganization] = useState("");
   const [error, setError] = useState("");
@@ -55,7 +56,7 @@ function SignUpForm() {
             ? nextPath
             : inviteToken
               ? `/team`
-              : "/";
+              : "/onboarding";
         router.push(dest);
         router.refresh();
       }

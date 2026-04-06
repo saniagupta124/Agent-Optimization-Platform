@@ -637,15 +637,16 @@ for(let i=0;i<9;i++){
 });
 
 /* CTA FORM */
+var APP_URL = "http://localhost:3000";
 function fsub(e){
   e.preventDefault();
   const btn=document.getElementById('cta-btn');
-  const note=document.getElementById('cta-note');
-  btn.textContent='You\'re on the list ✓';
+  const inp=document.getElementById('cta-email');
+  const email=inp?inp.value.trim():'';
+  btn.textContent='Taking you there\u2026';
   btn.style.background='var(--g)';
   btn.disabled=true;
-  note.textContent='We\'ll be in touch within 24 hours.';
-  note.style.color='var(--g2)';
+  window.location.href=APP_URL+"/signup?next=/onboarding"+(email?"&email="+encodeURIComponent(email):"");
 }
 </script>
 </body>

@@ -1091,15 +1091,17 @@ const cio=new IntersectionObserver(es=>{
 document.querySelectorAll('.stat-grid').forEach(el=>cio.observe(el));
 
 /* FORMS */
+var APP_URL = "http://localhost:3000";
 function fsub(e,id){
   e.preventDefault();
   const btn=document.getElementById(id+'-btn');
-  const note=document.getElementById(id+'-note')||document.getElementById('c-note');
   const inp=document.getElementById(id+'-email');
-  btn.innerHTML="You&rsquo;re on the list ✓";
+  const email=inp?inp.value.trim():'';
+  btn.innerHTML="Taking you there&hellip;";
   btn.style.background='var(--g)';btn.style.transform='none';
-  btn.disabled=inp.disabled=true;
-  if(note){note.textContent="We'll be in touch within 24 hours.";note.style.color='var(--g2)';}
+  btn.disabled=true;
+  const dest=APP_URL+"/signup?next=/onboarding"+(email?"&email="+encodeURIComponent(email):"");
+  window.location.href=dest;
 }
 </script>
 </body>
