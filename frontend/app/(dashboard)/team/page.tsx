@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
   createTeam,
+  createTeamInvite,
   getTeamOverview,
   joinTeam,
   leaveTeam,
@@ -52,6 +53,10 @@ export default function TeamPage() {
   // Leave confirmation
   const [leaveConfirm, setLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
+
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteErr, setInviteErr] = useState("");
 
   function fetchTeam() {
     if (!token) return;
@@ -109,6 +114,26 @@ export default function TeamPage() {
   const totalSpend = data?.members.reduce((s, m) => s + m.total_cost_7d, 0) ?? 0;
   const totalAgents = data?.members.reduce((s, m) => s + m.agent_count, 0) ?? 0;
   const totalRequests = data?.members.reduce((s, m) => s + m.total_requests_7d, 0) ?? 0;
+  const userId = (session as { userId?: string } | undefined)?.userId;
+  const isOwner =
+    data?.members.some((m) => m.id === userId && m.role === "owner") ?? false;
+
+  async function handleCreateInvite() {
+    if (!token) return;
+    setInviteErr("");
+    setInviteBusy(true);
+    try {
+      const inv = await createTeamInvite(token, 14);
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const path = `/join?token=${encodeURIComponent(inv.token)}`;
+      setInviteUrl(inv.invite_url || (origin ? `${origin}${path}` : path));
+    } catch (e: unknown) {
+      setInviteErr(e instanceof Error ? e.message : "Could not create invite");
+    } finally {
+      setInviteBusy(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -230,6 +255,37 @@ export default function TeamPage() {
         </span>
       </div>
 
+      {isOwner && (
+        <div className="mb-8 rounded-2xl border border-orange-900/40 bg-[#1c1c1c] p-5">
+          <h2 className="text-sm font-semibold text-orange-200">Invite teammates</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Generates a single-use link. For deployed apps, set{" "}
+            <code className="rounded bg-zinc-800 px-1 text-zinc-400">PUBLIC_APP_URL</code> on the API
+            so the URL is absolute, or copy the path below.
+          </p>
+          {inviteErr && (
+            <p className="mt-2 text-xs text-red-400">{inviteErr}</p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={inviteBusy}
+              onClick={() => void handleCreateInvite()}
+              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+            >
+              {inviteBusy ? "Generating…" : "New invite link"}
+            </button>
+            {inviteUrl && (
+              <input
+                readOnly
+                value={inviteUrl}
+                className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-5">
@@ -273,7 +329,10 @@ export default function TeamPage() {
                   <p className="text-sm font-semibold tabular-nums text-white">${member.total_cost_7d.toFixed(2)}</p>
                   <p className="text-xs text-zinc-600">{member.total_requests_7d.toLocaleString()} reqs</p>
                 </div>
-                <div className="hidden w-16 text-right sm:block">
+                <div className="hidden w-28 shrink-0 text-right sm:block">
+                  <span className="mr-2 text-[10px] font-medium uppercase text-zinc-500">
+                    {member.role}
+                  </span>
                   {tierBadge(member.plan_tier)}
                 </div>
                 <svg className="h-4 w-4 shrink-0 text-zinc-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

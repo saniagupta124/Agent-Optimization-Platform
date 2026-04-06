@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -40,11 +41,12 @@ def register_user(
     password: str,
     organization_name: str = "",
 ) -> User:
-    existing = db.query(User).filter(User.email == email).first()
+    normalized_email = email.strip().lower()
+    existing = db.query(User).filter(func.lower(User.email) == normalized_email).first()
     if existing:
         raise ValueError("Email already registered")
     user = User(
-        email=email,
+        email=normalized_email,
         name=name,
         password_hash=hash_password(password),
         organization_name=organization_name,
@@ -56,7 +58,8 @@ def register_user(
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
-    user = db.query(User).filter(User.email == email).first()
+    normalized_email = email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == normalized_email).first()
     if not user or not verify_password(password, user.password_hash):
         return None
     return user

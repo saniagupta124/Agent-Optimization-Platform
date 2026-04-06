@@ -15,6 +15,19 @@ async function fetchJSON<T>(path: string, token?: string): Promise<T> {
   return res.json();
 }
 
+async function postJSONPublic<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `API error: ${res.status}`);
+  }
+  return res.json();
+}
+
 async function postJSON<T>(path: string, body: unknown, token?: string): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -66,6 +79,25 @@ async function deleteJSON(path: string, token?: string): Promise<void> {
   }
 }
 
+async function patchJSON<T>(path: string, body: unknown, token?: string): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `API error: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ---------- Types ----------
 
 export interface OverviewMetrics {
@@ -80,6 +112,28 @@ export interface GroupedMetric {
   total_cost: number;
   total_tokens: number;
   request_count: number;
+}
+
+/** Per registered agent / API key (see GET /metrics/usage-by-key). */
+export interface ApiKeyUsageRow {
+  agent_id: string;
+  agent_name: string;
+  api_key_hint: string;
+  total_cost: number;
+  total_tokens: number;
+  request_count: number;
+}
+
+export interface AgentResponse {
+  id: string;
+  user_id: string;
+  name: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  api_key_hint: string;
+  deployment_environment?: string;
+  created_at: string;
 }
 
 export interface OutlierRecord {
@@ -109,6 +163,7 @@ export interface AgentWithStats {
   model: string;
   api_key_hint: string;
   created_at: string;
+  deployment_environment?: string;
   total_cost_7d: number;
   total_tokens_7d: number;
   request_count_7d: number;
@@ -185,30 +240,94 @@ export function register(body: {
 
 // ---------- Metrics ----------
 
-export function getOverview(token: string, agentId?: string) {
-  const q = agentId ? `?agent_id=${agentId}` : "";
-  return fetchJSON<OverviewMetrics>(`/metrics/overview${q}`, token);
+function metricsQueryParts(opts?: {
+  days?: number;
+  scope?: "me" | "team";
+  agentId?: string;
+}) {
+  const p = new URLSearchParams();
+  if (opts?.days != null) p.set("days", String(opts.days));
+  if (opts?.scope) p.set("scope", opts.scope);
+  if (opts?.agentId) p.set("agent_id", opts.agentId);
+  const s = p.toString();
+  return s ? `?${s}` : "";
 }
 
-export function getByAgent(token: string) {
-  return fetchJSON<GroupedMetric[]>("/metrics/by-agent", token);
+export function getOverview(
+  token: string,
+  agentId?: string,
+  extra?: { scope?: "me" | "team"; days?: number }
+) {
+  return fetchJSON<OverviewMetrics>(
+    `/metrics/overview${metricsQueryParts({ ...extra, agentId })}`,
+    token
+  );
 }
 
-export function getByCustomer(token: string) {
-  return fetchJSON<GroupedMetric[]>("/metrics/by-customer", token);
+export function getByAgent(
+  token: string,
+  scope?: "me" | "team",
+  days?: number
+) {
+  return fetchJSON<GroupedMetric[]>(
+    `/metrics/by-agent${metricsQueryParts({ scope, days })}`,
+    token
+  );
 }
 
-export function getByProvider(token: string) {
-  return fetchJSON<GroupedMetric[]>("/metrics/by-provider", token);
+export function getByCustomer(
+  token: string,
+  scope?: "me" | "team",
+  days?: number
+) {
+  return fetchJSON<GroupedMetric[]>(
+    `/metrics/by-customer${metricsQueryParts({ scope, days })}`,
+    token
+  );
 }
 
-export function getOutliers(token: string) {
-  return fetchJSON<OutlierRecord[]>("/metrics/outliers", token);
+export function getByProvider(
+  token: string,
+  scope?: "me" | "team",
+  days?: number
+) {
+  return fetchJSON<GroupedMetric[]>(
+    `/metrics/by-provider${metricsQueryParts({ scope, days })}`,
+    token
+  );
 }
 
-export function getTimeseries(token: string, agentId?: string) {
-  const q = agentId ? `?agent_id=${agentId}` : "";
-  return fetchJSON<TimeseriesPoint[]>(`/metrics/timeseries${q}`, token);
+export function getOutliers(
+  token: string,
+  scope?: "me" | "team",
+  days?: number
+) {
+  return fetchJSON<OutlierRecord[]>(
+    `/metrics/outliers${metricsQueryParts({ scope, days })}`,
+    token
+  );
+}
+
+export function getTimeseries(
+  token: string,
+  agentId?: string,
+  extra?: { scope?: "me" | "team"; days?: number }
+) {
+  return fetchJSON<TimeseriesPoint[]>(
+    `/metrics/timeseries${metricsQueryParts({ ...extra, agentId })}`,
+    token
+  );
+}
+
+export function getUsageByKey(
+  token: string,
+  days?: number,
+  scope?: "me" | "team"
+) {
+  return fetchJSON<ApiKeyUsageRow[]>(
+    `/metrics/usage-by-key${metricsQueryParts({ days, scope })}`,
+    token
+  );
 }
 
 export function getSubscriptionUsage(
@@ -305,10 +424,15 @@ export interface UsageTimeline {
   points: TimelinePoint[];
 }
 
-function usageQuery(days?: number, scope?: "me" | "team") {
+function usageQuery(
+  days?: number,
+  scope?: "me" | "team",
+  deployment?: "internal" | "production" | "all"
+) {
   const p = new URLSearchParams();
   if (days != null) p.set("days", String(days));
   if (scope) p.set("scope", scope);
+  if (deployment && deployment !== "all") p.set("deployment", deployment);
   const s = p.toString();
   return s ? `?${s}` : "";
 }
@@ -316,10 +440,11 @@ function usageQuery(days?: number, scope?: "me" | "team") {
 export function getUsageSummary(
   token: string,
   days?: number,
-  scope?: "me" | "team"
+  scope?: "me" | "team",
+  deployment?: "internal" | "production" | "all"
 ) {
   return fetchJSON<UsageSummary>(
-    `/usage/summary${usageQuery(days, scope)}`,
+    `/usage/summary${usageQuery(days, scope, deployment)}`,
     token
   );
 }
@@ -327,10 +452,11 @@ export function getUsageSummary(
 export function getUsageBreakdown(
   token: string,
   days?: number,
-  scope?: "me" | "team"
+  scope?: "me" | "team",
+  deployment?: "internal" | "production" | "all"
 ) {
   return fetchJSON<DashboardUsageBreakdown>(
-    `/usage/breakdown${usageQuery(days, scope)}`,
+    `/usage/breakdown${usageQuery(days, scope, deployment)}`,
     token
   );
 }
@@ -338,19 +464,27 @@ export function getUsageBreakdown(
 export function getUsageTimeline(
   token: string,
   days?: number,
-  scope?: "me" | "team"
+  scope?: "me" | "team",
+  deployment?: "internal" | "production" | "all"
 ) {
   return fetchJSON<UsageTimeline>(
-    `/usage/timeline${usageQuery(days, scope)}`,
+    `/usage/timeline${usageQuery(days, scope, deployment)}`,
     token
   );
 }
 
 // ---------- Agents ----------
 
-export function getAgents(token: string, scope?: "me" | "team") {
-  const q = scope ? `?scope=${scope}` : "";
-  return fetchJSON<AgentWithStats[]>(`/agents${q}`, token);
+export function getAgents(
+  token: string,
+  scope?: "me" | "team",
+  deployment?: "internal" | "production" | "all"
+) {
+  const p = new URLSearchParams();
+  if (scope) p.set("scope", scope);
+  if (deployment && deployment !== "all") p.set("deployment", deployment);
+  const q = p.toString();
+  return fetchJSON<AgentWithStats[]>(`/agents${q ? `?${q}` : ""}`, token);
 }
 
 export function getAgent(token: string, id: string) {
@@ -364,14 +498,79 @@ export function createAgent(
     purpose: string;
     provider: string;
     model: string;
-    api_key_hint: string;
+    api_key_hint?: string;
+    /** Sent to backend once; stored as hash + last-4 hint for /log_request matching. */
+    api_key?: string;
+    deployment_environment?: "internal" | "production";
   }
 ) {
-  return postJSON<AgentWithStats>("/agents", body, token);
+  return postJSON<AgentResponse>("/agents", body, token);
+}
+
+export function updateAgent(
+  token: string,
+  id: string,
+  body: Partial<{
+    name: string;
+    purpose: string;
+    provider: string;
+    model: string;
+    api_key: string;
+    deployment_environment: "internal" | "production";
+  }>
+) {
+  return patchJSON<AgentResponse>(`/agents/${id}`, body, token);
 }
 
 export function deleteAgent(token: string, id: string) {
   return deleteJSON(`/agents/${id}`, token);
+}
+
+// ---------- Integrations (verify keys + discover OpenAI Assistants; stored in DB via /agents) ----------
+
+export interface OpenAIDiscoverResult {
+  valid: boolean;
+  error?: string | null;
+  assistants: { id: string; name: string }[];
+  models_sample: string[];
+}
+
+export interface AnthropicDiscoverResult {
+  valid: boolean;
+  error?: string | null;
+  models: string[];
+}
+
+export function discoverOpenAI(token: string, api_key: string) {
+  return postJSON<OpenAIDiscoverResult>(
+    "/integrations/openai/discover",
+    { api_key },
+    token
+  );
+}
+
+export function discoverAnthropic(token: string, api_key: string) {
+  return postJSON<AnthropicDiscoverResult>(
+    "/integrations/anthropic/discover",
+    { api_key },
+    token
+  );
+}
+
+export function registerOpenAIAssistant(
+  token: string,
+  body: {
+    api_key: string;
+    assistant_id: string;
+    purpose?: string;
+    model_override?: string | null;
+  }
+) {
+  return postJSON<AgentResponse>(
+    "/integrations/openai/register-assistant",
+    body,
+    token
+  );
 }
 
 export function getOptimizations(token: string, agentId: string) {
@@ -391,6 +590,7 @@ export interface TeamMember {
   total_cost_7d: number;
   total_requests_7d: number;
   plan_tier: string;
+  role: string;
 }
 
 export interface TeamOverview {
@@ -403,6 +603,21 @@ export interface TeamInfo {
   id: string;
   name: string;
   member_count: number;
+}
+
+export interface TeamInviteCreated {
+  token: string;
+  team_id: string;
+  team_name: string;
+  expires_at: string;
+  invite_url: string | null;
+}
+
+export interface TeamInvitePreview {
+  valid: boolean;
+  expired: boolean;
+  team_name: string | null;
+  team_id: string | null;
 }
 
 export function getTeamOverview(token: string) {
@@ -421,6 +636,18 @@ export function leaveTeam(token: string) {
   return postJSON<{ ok: boolean }>("/team/leave", {}, token);
 }
 
+export function createTeamInvite(token: string, expiresDays?: number) {
+  return postJSON<TeamInviteCreated>("/team/invites", { expires_days: expiresDays ?? 14 }, token);
+}
+
+export function previewTeamInvite(token: string) {
+  return postJSONPublic<TeamInvitePreview>("/team/invites/preview", { token });
+}
+
+export function acceptTeamInvite(authToken: string, token: string) {
+  return postJSON<TeamInfo>("/team/invites/accept", { token }, authToken);
+}
+
 export interface MemberAgentRow {
   id: string;
   name: string;
@@ -432,6 +659,7 @@ export interface MemberAgentRow {
   avg_tokens_7d: number;
   cost_30d: number;
   requests_30d: number;
+  deployment_environment?: string;
 }
 
 export interface MemberDetail {

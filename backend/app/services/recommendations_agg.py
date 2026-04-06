@@ -13,12 +13,13 @@ def get_top_recommendations_for_scope(
     scope: str,
     limit: int = 3,
     period_days: int = 30,
+    deployment: str | None = None,
 ) -> tuple[float, list[dict]]:
     """
     Returns (sum of estimated_savings for top `limit` recs, full list for those recs).
     Each dict includes agent_id, agent_name plus optimization fields.
     """
-    agent_ids = resolve_agent_ids(db, user, scope)
+    agent_ids = resolve_agent_ids(db, user, scope, deployment)
     if not agent_ids:
         return 0.0, []
 

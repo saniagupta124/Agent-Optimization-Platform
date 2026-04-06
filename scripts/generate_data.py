@@ -23,7 +23,7 @@ DATABASE_URL = os.environ.get(
 
 NUM_ROWS = 22000
 
-SEED_USER_EMAIL = os.environ.get("SEED_USER_EMAIL", "demo@tokencost.local")
+SEED_USER_EMAIL = os.environ.get("SEED_USER_EMAIL", "demo@slash.dev")
 SEED_USER_PASSWORD = os.environ.get("SEED_USER_PASSWORD", "demo12345")
 SEED_USER_NAME = os.environ.get("SEED_USER_NAME", "Demo User")
 

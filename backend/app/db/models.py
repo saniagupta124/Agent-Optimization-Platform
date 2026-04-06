@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -15,11 +15,66 @@ class Team(Base):
     )
     name: Mapped[str] = mapped_column(String, unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String)
+    owner_user_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
 
-    members = relationship("User", back_populates="team")
+    members = relationship("User", back_populates="team", foreign_keys="User.team_id")
+    memberships = relationship(
+        "TeamMember", back_populates="team", cascade="all, delete-orphan"
+    )
+
+
+class TeamMember(Base):
+    """Authoritative team roster (role + membership). user.team_id must match for active members."""
+
+    __tablename__ = "team_members"
+    __table_args__ = (
+        UniqueConstraint("user_id", "team_id", name="uq_team_members_user_team"),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    team_id: Mapped[str] = mapped_column(
+        String, ForeignKey("teams.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String, default="member")  # owner | member
+    status: Mapped[str] = mapped_column(String, default="active")  # active
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+
+    team = relationship("Team", back_populates="memberships")
+    user = relationship("User", back_populates="team_memberships")
+
+
+class TeamInvite(Base):
+    __tablename__ = "team_invites"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    team_id: Mapped[str] = mapped_column(
+        String, ForeignKey("teams.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_by_user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    consumed_by_user_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    team = relationship("Team")
 
 
 class User(Base):
@@ -36,11 +91,22 @@ class User(Base):
         String, ForeignKey("teams.id", ondelete="SET NULL"), nullable=True, default=None
     )
     plan_tier: Mapped[str] = mapped_column(String, default="free", index=True)
+    # Optional overrides populated by a subscription provider sync (e.g., Stripe).
+    # When set, these values take precedence over `core/plans.py` tier defaults.
+    monthly_token_budget_override: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    monthly_cost_budget_usd_override: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
 
-    team = relationship("Team", back_populates="members")
+    team = relationship("Team", back_populates="members", foreign_keys=[team_id])
+    team_memberships = relationship(
+        "TeamMember", back_populates="user", cascade="all, delete-orphan"
+    )
     agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -58,6 +124,12 @@ class Agent(Base):
     provider: Mapped[str] = mapped_column(String)
     model: Mapped[str] = mapped_column(String)
     api_key_hint: Mapped[str] = mapped_column(String, default="")
+    # SHA256 hex of pepper|provider|raw_key — lookup for /log_request by api_key.
+    api_key_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    # internal | production — scopes analytics and comparisons.
+    deployment_environment: Mapped[str] = mapped_column(
+        String, default="production", index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
@@ -75,6 +147,9 @@ class Request(Base):
         DateTime, default=datetime.utcnow, index=True
     )
     agent_id: Mapped[str] = mapped_column(String, index=True)
+    # Denormalized for team-scoped queries and RLS-ready exports.
+    user_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    team_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     project_id: Mapped[str] = mapped_column(String, default="")
     customer_id: Mapped[str] = mapped_column(String, index=True)
     provider: Mapped[str] = mapped_column(String, index=True)
@@ -87,6 +162,9 @@ class Request(Base):
     status: Mapped[str] = mapped_column(String, default="success")
     feature_tag: Mapped[str] = mapped_column(String, default="")
     tool_calls: Mapped[int] = mapped_column(Integer, default=1)
+    environment: Mapped[str] = mapped_column(String, default="production", index=True)
+    endpoint_route: Mapped[str] = mapped_column(String, default="")
+    error_detail: Mapped[str] = mapped_column(String, default="")
 
     __table_args__ = (
         Index("ix_requests_timestamp_desc", timestamp.desc()),

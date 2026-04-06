@@ -17,3 +17,26 @@ PLAN_LIMITS: dict[str, PlanLimits] = {
 
 def limits_for_tier(plan_tier: str) -> PlanLimits:
     return PLAN_LIMITS.get(plan_tier, PLAN_LIMITS["free"])
+
+
+def limits_for_user(
+    plan_tier: str,
+    monthly_token_budget_override: int | None = None,
+    monthly_cost_budget_usd_override: float | None = None,
+) -> PlanLimits:
+    """
+    Resolve effective plan limits using a tier default plus optional overrides.
+    """
+    base = limits_for_tier(plan_tier)
+    return {
+        "monthly_token_budget": (
+            monthly_token_budget_override
+            if monthly_token_budget_override is not None
+            else base["monthly_token_budget"]
+        ),
+        "monthly_cost_budget_usd": (
+            monthly_cost_budget_usd_override
+            if monthly_cost_budget_usd_override is not None
+            else base["monthly_cost_budget_usd"]
+        ),
+    }

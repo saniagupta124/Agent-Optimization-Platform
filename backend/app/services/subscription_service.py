@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.plans import limits_for_tier
+from app.core.plans import limits_for_user
 from app.db.models import Request, User
 from app.schemas.subscription import SubscriptionUsageResponse, UsageBreakdown
 from app.services.scope import count_team_members, resolve_agent_ids, team_view_available
@@ -21,13 +21,21 @@ def _month_window_utc(now: datetime | None = None) -> tuple[datetime, datetime]:
 
 
 def get_subscription_usage(
-    db: Session, user: User, scope: str = "me"
+    db: Session,
+    user: User,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> SubscriptionUsageResponse:
     if scope not in ("me", "team"):
         scope = "me"
-    limits = limits_for_tier(user.plan_tier)
+    dep = deployment if deployment in ("internal", "production") else None
+    limits = limits_for_user(
+        user.plan_tier,
+        monthly_token_budget_override=user.monthly_token_budget_override,
+        monthly_cost_budget_usd_override=user.monthly_cost_budget_usd_override,
+    )
     start, next_start = _month_window_utc()
-    agent_ids = resolve_agent_ids(db, user, scope)
+    agent_ids = resolve_agent_ids(db, user, scope, dep)
 
     period_end_day = (next_start - timedelta(days=1)).date()
 

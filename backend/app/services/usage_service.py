@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from app.core.plans import limits_for_tier
+from app.core.plans import limits_for_user
 from app.db.models import Request, User
 from app.schemas.usage import (
     BehavioralComparison,
@@ -132,17 +132,32 @@ def _build_insights(
 
 
 def get_usage_summary(
-    db: Session, user: User, period_days: int = 7, scope: str = "me"
+    db: Session,
+    user: User,
+    period_days: int = 7,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> UsageSummaryResponse:
     if scope not in ("me", "team"):
         scope = "me"
-    limits = limits_for_tier(user.plan_tier)
-    agent_ids = resolve_agent_ids(db, user, scope)
+    if deployment is not None and deployment not in ("internal", "production"):
+        deployment = None
+    limits = limits_for_user(
+        user.plan_tier,
+        monthly_token_budget_override=user.monthly_token_budget_override,
+        monthly_cost_budget_usd_override=user.monthly_cost_budget_usd_override,
+    )
+    agent_ids = resolve_agent_ids(db, user, scope, deployment)
     t_avail = team_view_available(user)
     t_members = count_team_members(db, user) if scope == "team" else 1
 
     potential_savings, raw_recs = get_top_recommendations_for_scope(
-        db, user, scope, limit=3, period_days=period_days
+        db,
+        user,
+        scope,
+        limit=3,
+        period_days=period_days,
+        deployment=deployment,
     )
     top_changes = [
         TopChangeItem(
@@ -263,11 +278,17 @@ def get_usage_summary(
 
 
 def get_usage_breakdown(
-    db: Session, user: User, period_days: int = 7, scope: str = "me"
+    db: Session,
+    user: User,
+    period_days: int = 7,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> UsageBreakdownResponse:
     if scope not in ("me", "team"):
         scope = "me"
-    agent_ids = resolve_agent_ids(db, user, scope)
+    if deployment is not None and deployment not in ("internal", "production"):
+        deployment = None
+    agent_ids = resolve_agent_ids(db, user, scope, deployment)
     now = datetime.utcnow()
     since = now - timedelta(days=period_days)
 
@@ -304,9 +325,14 @@ def get_usage_breakdown(
         for r in by_model_rows
     ]
 
+    route_or_tag = func.coalesce(
+        func.nullif(Request.endpoint_route, ""),
+        func.nullif(Request.feature_tag, ""),
+        "default",
+    )
     ep_rows = (
         db.query(
-            Request.feature_tag.label("tag"),
+            route_or_tag.label("tag"),
             func.coalesce(func.sum(Request.cost_usd), 0).label("cost"),
             func.coalesce(func.sum(Request.total_tokens), 0).label("tok"),
             func.count(Request.id).label("cnt"),
@@ -316,7 +342,7 @@ def get_usage_breakdown(
             Request.timestamp >= since,
             Request.timestamp <= now,
         )
-        .group_by(Request.feature_tag)
+        .group_by(route_or_tag)
         .order_by(func.sum(Request.cost_usd).desc())
         .all()
     )
@@ -341,11 +367,17 @@ def get_usage_breakdown(
 
 
 def get_usage_timeline(
-    db: Session, user: User, period_days: int = 14, scope: str = "me"
+    db: Session,
+    user: User,
+    period_days: int = 14,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> UsageTimelineResponse:
     if scope not in ("me", "team"):
         scope = "me"
-    agent_ids = resolve_agent_ids(db, user, scope)
+    if deployment is not None and deployment not in ("internal", "production"):
+        deployment = None
+    agent_ids = resolve_agent_ids(db, user, scope, deployment)
     now = datetime.utcnow()
     since = now - timedelta(days=period_days)
 

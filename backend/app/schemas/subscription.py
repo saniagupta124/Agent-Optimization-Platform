@@ -25,3 +25,22 @@ class SubscriptionUsageResponse(BaseModel):
     cost_utilization: float
     by_provider: list[UsageBreakdown]
     by_model: list[UsageBreakdown]
+
+
+class SubscriptionPlanSyncRequest(BaseModel):
+    """
+    Payload for a subscription provider sync.
+
+    - `plan_tier` updates the tier name used for default caps.
+    - `monthly_token_budget` / `monthly_cost_budget_usd` override those caps when set.
+    """
+
+    plan_tier: str | None = None
+    monthly_token_budget: int | None = Field(default=None, ge=0)
+    monthly_cost_budget_usd: float | None = Field(default=None, ge=0)
+
+
+class SubscriptionPlanSyncResponse(BaseModel):
+    plan_tier: str
+    monthly_token_budget: int
+    monthly_cost_budget_usd: float

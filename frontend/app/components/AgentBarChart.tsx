@@ -11,11 +11,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getByAgent, GroupedMetric } from "../lib/api";
+import { getUsageByKey, GroupedMetric } from "../lib/api";
 
 const COLORS = ["#6366f1", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6"];
 
-export default function AgentBarChart() {
+interface Props {
+  /** When your app uses team scope, pass "team" to include all teammates' keys. */
+  scope?: "me" | "team";
+}
+
+export default function AgentBarChart({ scope = "me" }: Props) {
   const { data: session } = useSession();
   const token = (session as any)?.accessToken as string | undefined;
 
@@ -25,11 +30,21 @@ export default function AgentBarChart() {
 
   useEffect(() => {
     if (!token) return;
-    getByAgent(token)
+    getUsageByKey(token, 7, scope)
+      .then((rows) =>
+        rows.map((r) => ({
+          group: r.api_key_hint
+            ? `${r.agent_name} (****${r.api_key_hint})`
+            : r.agent_name,
+          total_cost: r.total_cost,
+          total_tokens: r.total_tokens,
+          request_count: r.request_count,
+        }))
+      )
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, scope]);
 
   if (loading) {
     return (

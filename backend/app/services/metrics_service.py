@@ -6,20 +6,25 @@ from sqlalchemy.orm import Session
 from app.db.models import Agent, Request, User
 from app.services.agent_service import get_agent_for_viewer
 from app.schemas.metrics import (
+    ApiKeyUsageRow,
     GroupedMetric,
     OutlierRecord,
     OverviewMetrics,
     TimeseriesPoint,
 )
+from app.services.scope import resolve_agent_ids
 
 
 def _default_start(days: int = 7) -> datetime:
     return datetime.utcnow() - timedelta(days=days)
 
 
-def _user_agent_ids(db: Session, user_id: str) -> list[str]:
-    rows = db.query(Agent.id).filter(Agent.user_id == user_id).all()
-    return [r.id for r in rows]
+def _visible_agent_ids(
+    db: Session, user: User, scope: str, deployment: str | None = None
+) -> list[str]:
+    s = scope if scope in ("me", "team") else "me"
+    dep = deployment if deployment in ("internal", "production") else None
+    return resolve_agent_ids(db, user, s, dep)
 
 
 def get_overview(
@@ -27,6 +32,8 @@ def get_overview(
     days: int = 7,
     user: User | None = None,
     agent_id: str | None = None,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> OverviewMetrics:
     since = _default_start(days)
     query = db.query(
@@ -43,7 +50,7 @@ def get_overview(
             )
         query = query.filter(Request.agent_id == agent_id)
     elif user:
-        agent_ids = _user_agent_ids(db, user.id)
+        agent_ids = _visible_agent_ids(db, user, scope, deployment)
         if not agent_ids:
             return OverviewMetrics(
                 total_cost=0, total_tokens=0, request_count=0, avg_latency=0
@@ -67,7 +74,7 @@ def _grouped_query(
     db: Session,
     group_col,
     days: int = 7,
-    user_id: str | None = None,
+    agent_ids: list[str] | None = None,
     agent_id: str | None = None,
 ) -> list[GroupedMetric]:
     since = _default_start(days)
@@ -83,11 +90,12 @@ def _grouped_query(
 
     if agent_id:
         query = query.filter(Request.agent_id == agent_id)
-    elif user_id:
-        agent_ids = _user_agent_ids(db, user_id)
+    elif agent_ids is not None:
         if not agent_ids:
             return []
         query = query.filter(Request.agent_id.in_(agent_ids))
+    else:
+        return []
 
     rows = (
         query.group_by(group_col)
@@ -106,30 +114,55 @@ def _grouped_query(
 
 
 def get_by_agent(
-    db: Session, days: int = 7, user_id: str | None = None
+    db: Session,
+    days: int = 7,
+    user: User | None = None,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> list[GroupedMetric]:
-    return _grouped_query(db, Request.agent_id, days, user_id=user_id)
+    if not user:
+        return []
+    agent_ids = _visible_agent_ids(db, user, scope, deployment)
+    return _grouped_query(db, Request.agent_id, days, agent_ids=agent_ids)
 
 
 def get_by_customer(
-    db: Session, days: int = 7, user_id: str | None = None
+    db: Session,
+    days: int = 7,
+    user: User | None = None,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> list[GroupedMetric]:
-    return _grouped_query(db, Request.customer_id, days, user_id=user_id)
+    if not user:
+        return []
+    agent_ids = _visible_agent_ids(db, user, scope, deployment)
+    return _grouped_query(db, Request.customer_id, days, agent_ids=agent_ids)
 
 
 def get_by_provider(
-    db: Session, days: int = 7, user_id: str | None = None
+    db: Session,
+    days: int = 7,
+    user: User | None = None,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> list[GroupedMetric]:
-    return _grouped_query(db, Request.provider, days, user_id=user_id)
+    if not user:
+        return []
+    agent_ids = _visible_agent_ids(db, user, scope, deployment)
+    return _grouped_query(db, Request.provider, days, agent_ids=agent_ids)
 
 
 def get_outliers(
-    db: Session, limit: int = 20, user_id: str | None = None
+    db: Session,
+    limit: int = 20,
+    user: User | None = None,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> list[OutlierRecord]:
     query = db.query(Request)
 
-    if user_id:
-        agent_ids = _user_agent_ids(db, user_id)
+    if user:
+        agent_ids = _visible_agent_ids(db, user, scope, deployment)
         if not agent_ids:
             return []
         query = query.filter(Request.agent_id.in_(agent_ids))
@@ -156,6 +189,8 @@ def get_timeseries(
     days: int = 30,
     user: User | None = None,
     agent_id: str | None = None,
+    scope: str = "me",
+    deployment: str | None = None,
 ) -> list[TimeseriesPoint]:
     since = _default_start(days)
     date_col = func.date(Request.timestamp).label("date")
@@ -173,7 +208,7 @@ def get_timeseries(
             return []
         query = query.filter(Request.agent_id == agent_id)
     elif user:
-        agent_ids = _user_agent_ids(db, user.id)
+        agent_ids = _visible_agent_ids(db, user, scope, deployment)
         if not agent_ids:
             return []
         query = query.filter(Request.agent_id.in_(agent_ids))
@@ -189,3 +224,46 @@ def get_timeseries(
         )
         for r in rows
     ]
+
+
+def get_usage_by_key(
+    db: Session,
+    user: User,
+    days: int = 7,
+    scope: str = "me",
+    deployment: str | None = None,
+) -> list[ApiKeyUsageRow]:
+    """Per-agent totals (each agent can hold one hashed API key)."""
+    agent_ids = _visible_agent_ids(db, user, scope, deployment)
+    if not agent_ids:
+        return []
+    since = _default_start(days)
+    agents = (
+        db.query(Agent)
+        .filter(Agent.id.in_(agent_ids))
+        .order_by(Agent.name)
+        .all()
+    )
+    out: list[ApiKeyUsageRow] = []
+    for agent in agents:
+        row = (
+            db.query(
+                func.coalesce(func.sum(Request.cost_usd), 0).label("tc"),
+                func.coalesce(func.sum(Request.total_tokens), 0).label("tt"),
+                func.count(Request.id).label("cnt"),
+            )
+            .filter(Request.agent_id == agent.id, Request.timestamp >= since)
+            .one()
+        )
+        out.append(
+            ApiKeyUsageRow(
+                agent_id=agent.id,
+                agent_name=agent.name,
+                api_key_hint=agent.api_key_hint or "",
+                total_cost=round(float(row.tc), 4),
+                total_tokens=int(row.tt),
+                request_count=int(row.cnt),
+            )
+        )
+    out.sort(key=lambda r: r.total_cost, reverse=True)
+    return out

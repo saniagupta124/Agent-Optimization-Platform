@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
-import { register } from "../../lib/api";
+import { Suspense, useState } from "react";
+import { acceptTeamInvite, register } from "../../lib/api";
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = (searchParams.get("invite") || "").trim();
+  const nextPath = (searchParams.get("next") || "").trim();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,12 +24,22 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      await register({
+      const reg = await register({
         email,
         name,
         password,
         organization_name: organization,
       });
+
+      if (inviteToken) {
+        try {
+          await acceptTeamInvite(reg.access_token, inviteToken);
+        } catch {
+          setError("Account created but team invite could not be applied. Use the invite link again from Team.");
+          setLoading(false);
+          return;
+        }
+      }
 
       const result = await signIn("credentials", {
         email,
@@ -37,7 +50,13 @@ export default function SignUpPage() {
       if (result?.error) {
         setError("Account created but sign-in failed. Please try signing in.");
       } else {
-        router.push("/");
+        const dest =
+          nextPath && nextPath.startsWith("/")
+            ? nextPath
+            : inviteToken
+              ? `/team`
+              : "/";
+        router.push(dest);
         router.refresh();
       }
     } catch (err: any) {
@@ -142,10 +161,27 @@ export default function SignUpPage() {
 
       <p className="mt-6 text-center text-sm text-gray-400">
         Already have an account?{" "}
-        <Link href="/signin" className="font-medium text-orange-400 hover:text-orange-300">
+        <Link
+          href={
+            nextPath
+              ? `/signin?next=${encodeURIComponent(nextPath)}`
+              : inviteToken
+                ? `/signin?next=${encodeURIComponent(`/join?token=${encodeURIComponent(inviteToken)}`)}`
+                : "/signin"
+          }
+          className="font-medium text-orange-400 hover:text-orange-300"
+        >
           Sign in
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-sm animate-pulse rounded-lg bg-gray-900/50 p-8" />}>
+      <SignUpForm />
+    </Suspense>
   );
 }

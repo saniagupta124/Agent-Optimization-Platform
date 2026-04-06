@@ -33,3 +33,14 @@ class TimeseriesPoint(BaseModel):
     date: str
     total_cost: float
     total_tokens: int
+
+
+class ApiKeyUsageRow(BaseModel):
+    """Spend/tokens per registered agent (one API key per agent when key is stored)."""
+
+    agent_id: str
+    agent_name: str
+    api_key_hint: str
+    total_cost: float
+    total_tokens: int
+    request_count: int

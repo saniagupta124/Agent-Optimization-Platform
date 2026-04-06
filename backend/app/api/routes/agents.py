@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.models import User
 from app.db.session import get_db
-from app.schemas.agent import AgentResponse, AgentWithStats, CreateAgentRequest
+from app.schemas.agent import AgentResponse, AgentWithStats, CreateAgentRequest, UpdateAgentRequest
 from app.schemas.optimization import OptimizationResponse
 from app.services.agent_service import (
     create_agent,
@@ -14,6 +14,7 @@ from app.services.agent_service import (
     get_agent_stats_7d,
     get_agents_for_users,
     get_user_agents,
+    update_agent,
 )
 from app.services.optimization_service import get_optimizations
 from app.services.scope import resolve_team_user_ids, team_view_available
@@ -27,16 +28,23 @@ def list_agents(
         default="me",
         description="'me' = your agents; 'team' = all agents in your organization",
     ),
+    deployment: str | None = Query(
+        default=None,
+        description="Optional: internal | production",
+    ),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     if scope not in ("me", "team"):
         scope = "me"
+    dep = deployment if deployment in ("internal", "production") else None
     if scope == "team" and team_view_available(user):
         uids = resolve_team_user_ids(db, user)
         agents = get_agents_for_users(db, uids)
     else:
         agents = get_user_agents(db, user.id)
+    if dep:
+        agents = [a for a in agents if a.deployment_environment == dep]
     result = []
     for agent in agents:
         stats = get_agent_stats_7d(db, agent.id)
@@ -56,6 +64,7 @@ def list_agents(
                 model=agent.model,
                 api_key_hint=agent.api_key_hint,
                 created_at=agent.created_at,
+                deployment_environment=agent.deployment_environment,
                 top_recommendation=top_rec,
                 **stats,
             )
@@ -69,16 +78,47 @@ def create(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    agent = create_agent(
-        db,
-        user.id,
-        payload.name,
-        payload.purpose,
-        payload.provider,
-        payload.model,
-        payload.api_key_hint,
-    )
+    try:
+        agent = create_agent(
+            db,
+            user.id,
+            payload.name,
+            payload.purpose,
+            payload.provider,
+            payload.model,
+            payload.api_key_hint,
+            api_key=payload.api_key,
+            deployment_environment=payload.deployment_environment,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return agent
+
+
+@router.patch("/{agent_id}", response_model=AgentResponse)
+def patch_agent(
+    agent_id: str,
+    payload: UpdateAgentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    agent = get_agent(db, agent_id, user.id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    try:
+        updated = update_agent(
+            db,
+            agent,
+            name=payload.name,
+            purpose=payload.purpose,
+            provider=payload.provider,
+            model=payload.model,
+            api_key=payload.api_key,
+            deployment_environment=payload.deployment_environment,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return updated
 
 
 @router.get("/{agent_id}", response_model=AgentWithStats)
@@ -106,6 +146,7 @@ def get_single(
         model=agent.model,
         api_key_hint=agent.api_key_hint,
         created_at=agent.created_at,
+        deployment_environment=agent.deployment_environment,
         top_recommendation=top_rec,
         **stats,
     )

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") || "/";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +30,7 @@ export default function SignInPage() {
     if (result?.error) {
       setError("Invalid email or password");
     } else {
-      router.push("/");
+      router.push(nextPath.startsWith("/") ? nextPath : "/");
       router.refresh();
     }
   }
@@ -93,10 +95,21 @@ export default function SignInPage() {
 
       <p className="mt-6 text-center text-sm text-gray-400">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-medium text-orange-400 hover:text-orange-300">
+        <Link
+          href={nextPath !== "/" ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
+          className="font-medium text-orange-400 hover:text-orange-300"
+        >
           Sign up
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-sm animate-pulse rounded-lg bg-gray-900/50 p-8" />}>
+      <SignInForm />
+    </Suspense>
   );
 }
