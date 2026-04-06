@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Traeco — Stop paying for AI agent waste</title>
+<meta name="description" content="Traeco surfaces cost at the function level. Find the exact line burning your budget. Fix it in one click."/>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#050506;
+  --s1:#0b0b0c; --s2:#111112; --s3:#181819; --s4:#1f1f20;
+  --bd:rgba(255,255,255,.055); --bd2:rgba(255,255,255,.1);
+  --tx:#EFEFEF; --mu:rgba(239,239,239,.42); --di:rgba(239,239,239,.18);
+  --g:#0E714A; --g2:#1BA86F; --g3:#2de080;
+  --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+  --mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--tx);
+  font-family:'Clash Display',sans-serif;font-weight:400;
+  line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:160px;
+}
+#progress{
+  position:fixed;top:0;left:0;height:2px;width:0;z-index:9998;
+  background:linear-gradient(90deg,var(--g),var(--g3));transition:width .06s;
+}
+.w{max-width:1140px;margin:0 auto;padding:0 48px;position:relative;z-index:2}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  border-bottom:1px solid var(--bd);
+  background:rgba(5,5,6,.72);backdrop-filter:blur(40px) saturate(1.5);
+  transition:background .5s;
+}
+.ni{display:flex;align-items:center;justify-content:space-between;height:58px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx);font-size:15px;font-weight:600;letter-spacing:.01em}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{color:var(--mu);font-size:13px;font-weight:500;text-decoration:none;transition:color .15s}
+.nav-links a:hover{color:var(--tx)}
+.nav-cta{
+  background:transparent;border:1px solid var(--bd2);color:var(--tx);
+  font-family:'Clash Display',sans-serif;font-weight:500;font-size:13px;
+  padding:8px 20px;border-radius:7px;text-decoration:none;
+  transition:border-color .15s,background .15s;display:inline-block;
+}
+.nav-cta:hover{border-color:var(--g2);background:rgba(27,168,111,.08)}
+
+/* HERO */
+#hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  padding:130px 48px 100px;position:relative;overflow:hidden;text-align:center;
+}
+.mesh{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);will-change:transform}
+.o1{width:65vw;height:65vw;max-width:680px;max-height:680px;background:rgba(14,113,74,.17);top:-10%;left:-12%;animation:oa 20s ease-in-out infinite alternate}
+.o2{width:48vw;height:48vw;max-width:500px;max-height:500px;background:rgba(27,168,111,.09);top:25%;right:-8%;animation:ob 24s ease-in-out infinite alternate}
+.o3{width:38vw;height:38vw;max-width:400px;max-height:400px;background:rgba(59,130,246,.09);bottom:-8%;left:22%;animation:oc 18s ease-in-out infinite alternate}
+@keyframes oa{from{transform:translate(0,0)}to{transform:translate(6vw,5vh)}}
+@keyframes ob{from{transform:translate(0,0)}to{transform:translate(-5vw,7vh)}}
+@keyframes oc{from{transform:translate(0,0)}to{transform:translate(4vw,-5vh)}}
+.hero-grid{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+}
+.hero-inner{position:relative;z-index:2;max-width:860px;width:100%}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(27,168,111,.2);background:rgba(14,113,74,.07);
+  color:var(--g2);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+  padding:6px 18px;border-radius:100px;margin-bottom:36px;
+  opacity:0;animation:up .6s .1s var(--ease) forwards;
+}
+.hbd{width:5px;height:5px;border-radius:50%;background:var(--g2);animation:blink 2s ease-in-out infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+h1{
+  font-size:clamp(48px,7.5vw,100px);font-weight:600;
+  letter-spacing:-.028em;line-height:.96;
+  margin-bottom:26px;opacity:0;animation:up .75s .2s var(--ease) forwards;
+}
+.cycle-wrap{
+  display:block;position:relative;height:1.06em;overflow:hidden;
+}
+#sw{
+  position:absolute;left:0;right:0;top:0;
+  background:linear-gradient(125deg,var(--g2) 0%,var(--g3) 65%,#6ee7b7 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  will-change:opacity,filter,transform;
+}
+#sw.sw-exit{
+  animation:swOut .18s cubic-bezier(.4,0,1,1) forwards;
+}
+@keyframes swOut{
+  to{opacity:0;filter:blur(10px);transform:translateY(-14%) scale(1.05)}
+}
+.sc{
+  display:inline-block;
+  opacity:0;
+  transform:translateY(72%);
+  filter:blur(6px);
+  transition:opacity .48s var(--ease),transform .48s var(--ease),filter .42s var(--ease);
+}
+.sc.in{opacity:1;transform:none;filter:none}
+.sc-sp{display:inline-block;opacity:1;white-space:pre}
+.hero-sub{
+  font-size:clamp(15px,1.8vw,19px);color:var(--mu);font-weight:400;
+  max-width:500px;margin:0 auto 44px;line-height:1.7;
+  opacity:0;animation:up .7s .38s var(--ease) forwards;
+}
+.hero-form{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  opacity:0;animation:up .7s .52s var(--ease) forwards;
+}
+.inp{
+  background:rgba(255,255,255,.06);border:1px solid var(--bd2);
+  color:var(--tx);font-family:'Clash Display',sans-serif;font-size:14px;font-weight:400;
+  padding:13px 20px;border-radius:8px;outline:none;width:252px;
+  backdrop-filter:blur(20px);transition:border-color .15s,background .15s;
+}
+.inp::placeholder{color:var(--di)}
+.inp:focus{border-color:var(--g2);background:rgba(27,168,111,.07)}
+.btn{
+  background:var(--g2);color:#fff;
+  font-family:'Clash Display',sans-serif;font-weight:500;font-size:14px;
+  padding:13px 28px;border-radius:8px;border:none;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:background .15s,transform .12s,box-shadow .2s;
+}
+.btn:hover{background:var(--g3);transform:translateY(-1px);box-shadow:0 12px 32px rgba(27,168,111,.28)}
+.hero-note{font-size:12px;color:var(--di);margin-top:14px;opacity:0;animation:up .5s .68s var(--ease) forwards}
+.scroll-hint{
+  position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  font-size:10px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--di);
+  opacity:0;animation:up .5s 1.1s var(--ease) forwards;transition:opacity .4s;
+}
+.scroll-arrow{width:18px;height:18px;border-right:1.5px solid var(--di);border-bottom:1.5px solid var(--di);transform:rotate(45deg);animation:bounce 2s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:rotate(45deg)}50%{transform:rotate(45deg) translateY(5px)}}
+
+/* MARQUEE */
+.marquee-wrap{
+  border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);
+  overflow:hidden;padding:17px 0;position:relative;z-index:2;
+  background:rgba(255,255,255,.01);
+}
+.mi{display:flex;white-space:nowrap;animation:mq 36s linear infinite;width:max-content}
+.mi:hover{animation-play-state:paused}
+.mitem{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--mu);padding:0 30px;transition:color .2s;
+}
+.mitem:hover{color:var(--tx)}
+.mdot{width:3px;height:3px;border-radius:50%;background:var(--g2);flex-shrink:0}
+@keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* TRACE STORY */
+#trace-story{height:380vh;position:relative;z-index:2}
+.ts-sticky{position:sticky;top:0;height:100vh;display:flex;align-items:stretch;overflow:hidden}
+
+.ts-left{
+  flex:1;display:flex;flex-direction:column;justify-content:center;
+  padding:80px 60px 60px 48px;border-right:1px solid var(--bd);position:relative;
+}
+.ts-kicker{
+  font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--g2);margin-bottom:18px;display:flex;align-items:center;gap:10px;
+  opacity:0;transform:translateY(10px);transition:opacity .7s var(--ease),transform .7s var(--ease);
+}
+.ts-kicker.v{opacity:1;transform:none}
+.ts-kicker::before{content:'';flex:1;max-width:28px;height:1px;background:var(--g2);opacity:.4}
+.ts-h{
+  font-size:clamp(28px,3.2vw,46px);font-weight:600;letter-spacing:-.022em;line-height:1.06;
+  margin-bottom:12px;
+  opacity:0;transform:translateY(12px);transition:opacity .7s .08s var(--ease),transform .7s .08s var(--ease);
+}
+.ts-h.v{opacity:1;transform:none}
+.ts-sub{
+  font-size:14px;color:var(--mu);line-height:1.7;margin-bottom:36px;max-width:360px;font-weight:400;
+  opacity:0;transform:translateY(8px);transition:opacity .7s .16s var(--ease),transform .7s .16s var(--ease);
+}
+.ts-sub.v{opacity:1;transform:none}
+.ts-terminal{
+  background:var(--s1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;
+  box-shadow:0 32px 100px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.025);
+  opacity:0;transform:translateY(14px);transition:opacity .8s .22s var(--ease),transform .8s .22s var(--ease);
+}
+.ts-terminal.v{opacity:1;transform:none}
+.ts-chrome{display:flex;align-items:center;gap:8px;padding:12px 18px;border-bottom:1px solid var(--bd);background:rgba(0,0,0,.25)}
+.ts-dot{width:10px;height:10px;border-radius:50%}
+.ts-title{font-family:var(--mono);font-size:11px;color:var(--di);margin-left:8px;letter-spacing:.02em}
+.ts-live-ind{margin-left:auto;font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:6px;color:var(--g2)}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--g2);animation:blink 1.6s ease-in-out infinite}
+.ts-body{padding:18px 22px;font-family:var(--mono);font-size:12.5px;line-height:2.1;min-height:190px}
+.ts-line{
+  display:flex;align-items:baseline;
+  opacity:0;transform:translateX(-6px);
+  transition:opacity .28s var(--ease),transform .28s var(--ease);
+}
+.ts-line.show{opacity:1;transform:none}
+.tl-pre{color:var(--di);white-space:pre;flex-shrink:0}
+.tl-fn{color:var(--tx);flex-shrink:0}
+.tl-fn.red{color:var(--red)}
+.tl-dots{flex:1;border-bottom:1px dotted rgba(255,255,255,.06);margin:0 12px;position:relative;top:-4px}
+.tl-time{color:var(--di);font-size:11px;flex-shrink:0;min-width:52px;text-align:right}
+.tl-cost{font-size:12px;font-weight:500;flex-shrink:0;min-width:54px;text-align:right;margin-left:14px}
+.tl-cost.c-cheap{color:var(--di)}.tl-cost.c-mid{color:var(--mu)}.tl-cost.c-exp{color:var(--red)}.tl-cost.c-ok{color:var(--g2)}
+.tl-badge{font-size:9px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(239,68,68,.12);color:var(--red);margin-left:10px;flex-shrink:0;letter-spacing:.03em}
+.ts-footer{
+  border-top:1px solid var(--bd);padding:11px 22px;
+  display:flex;align-items:center;gap:16px;
+  font-family:var(--mono);font-size:11px;color:var(--mu);
+  opacity:0;transition:opacity .5s;
+}
+.ts-footer.show{opacity:1}
+.tfv{font-weight:600}.tfv.r{color:var(--red)}.tfv.g{color:var(--g2)}
+.tfsep{color:var(--bd2)}
+
+.ts-scroll-hint{
+  position:absolute;bottom:28px;left:48px;
+  font-family:var(--mono);font-size:10px;color:var(--di);
+  display:flex;align-items:center;gap:10px;letter-spacing:.06em;
+  opacity:0;transition:opacity .4s;
+}
+.ts-scroll-hint.show{opacity:1}
+.ts-prog-track{width:72px;height:2px;background:var(--s4);border-radius:1px;overflow:hidden}
+.ts-prog-fill{height:100%;background:var(--g2);width:0;transition:width .1s;border-radius:1px}
+
+/* right panel */
+.ts-right{
+  width:360px;flex-shrink:0;display:flex;flex-direction:column;
+  justify-content:center;padding:80px 48px 60px;position:relative;
+}
+.ts-counter{
+  margin-bottom:36px;
+  opacity:0;transform:translateY(12px);
+  transition:opacity .7s .28s var(--ease),transform .7s .28s var(--ease);
+}
+.ts-counter.v{opacity:1;transform:none}
+.tsc-label{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mu);margin-bottom:10px}
+.tsc-val{
+  font-size:clamp(48px,5vw,68px);font-weight:600;letter-spacing:-.04em;
+  color:var(--red);transition:color .6s;line-height:1;
+}
+.tsc-val.green{color:var(--g2)}
+.tsc-change{font-size:13px;color:var(--mu);margin-top:8px;line-height:1.55;min-height:38px;font-weight:400}
+
+.ts-anomaly{
+  background:var(--s2);border:1px solid rgba(239,68,68,.2);
+  border-radius:12px;padding:20px;
+  opacity:0;transform:translateY(12px);
+  transition:opacity .55s var(--ease),transform .55s var(--ease);
+}
+.ts-anomaly.show{opacity:1;transform:none}
+.ts-anomaly.applied{border-color:rgba(27,168,111,.28);background:rgba(14,113,74,.06)}
+.ta-label{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mu);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.ta-dot{width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0;animation:blink 1.4s ease-in-out infinite}
+.ta-fn{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--red);margin-bottom:3px}
+.ta-pct{font-size:12px;color:var(--mu);margin-bottom:14px;font-weight:400}
+.ta-div{height:1px;background:var(--bd);margin:12px 0}
+.ta-rl{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g2);margin-bottom:8px}
+.ta-rt{color:var(--mu);line-height:1.65;margin-bottom:12px;font-size:13px;font-weight:400}
+.ta-save{font-size:26px;font-weight:600;letter-spacing:-.03em;color:var(--g2)}
+.ta-conf{font-size:10px;color:var(--di);margin-top:3px;margin-bottom:16px;font-weight:400}
+.ta-apply{
+  width:100%;background:rgba(27,168,111,.11);border:1px solid rgba(27,168,111,.25);
+  color:var(--g2);font-family:'Clash Display',sans-serif;font-weight:500;font-size:13px;
+  padding:10px;border-radius:8px;
+  transition:background .15s,border-color .15s;
+}
+.ta-apply:hover{background:rgba(27,168,111,.2);border-color:rgba(27,168,111,.45)}
+.ta-applied{color:var(--g2);font-size:13px;font-weight:500;text-align:center;padding:8px 0;display:none;letter-spacing:.01em}
+
+/* NUMBERS */
+#numbers{padding:200px 0 160px;text-align:center;position:relative;z-index:2;overflow:hidden}
+#numbers::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 70% at 50% 60%,rgba(14,113,74,.07) 0%,transparent 65%);
+}
+.num-pre{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin-bottom:16px;display:block}
+.num-big{
+  font-size:clamp(96px,17vw,210px);font-weight:600;letter-spacing:-.06em;line-height:.86;
+  background:linear-gradient(155deg,#fff 20%,rgba(255,255,255,.18) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;will-change:transform;
+}
+.num-cap{
+  font-size:clamp(20px,2.8vw,36px);font-weight:500;letter-spacing:-.018em;
+  color:var(--mu);max-width:600px;margin:0 auto 100px;line-height:1.4;
+}
+.num-cap em{color:var(--tx);font-style:normal}
+
+.stat-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:14px;overflow:hidden;
+  max-width:880px;margin:0 auto;
+}
+.sg{background:var(--s1);padding:38px 34px;text-align:left;position:relative;overflow:hidden;transition:background .25s}
+.sg:hover{background:var(--s2)}
+.sg::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--g2),transparent);
+  transform:scaleX(0);transform-origin:left;transition:transform .55s var(--ease);
+}
+.sg:hover::before{transform:scaleX(1)}
+.sg-n{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mu);margin-bottom:12px}
+.sg-v{font-size:clamp(38px,5vw,56px);font-weight:600;letter-spacing:-.05em;color:var(--g2);line-height:1}
+.sg-d{font-size:13px;color:var(--mu);margin-top:10px;line-height:1.6;font-weight:400}
+
+/* COST TAPE */
+.tape-section{position:relative;z-index:2;overflow:hidden;border-top:1px solid var(--bd)}
+.tape-row{display:flex;border-bottom:1px solid var(--bd)}
+.tape-row:last-child{border-bottom:none}
+.ti{display:flex;white-space:nowrap;padding:15px 0;will-change:transform}
+.tr1 .ti{animation:tapefwd 30s linear infinite}
+.tr2 .ti{animation:tapebwd 36s linear infinite}
+.titem{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;padding:0 24px;white-space:nowrap;letter-spacing:.01em}
+.titem.exp{color:rgba(239,68,68,.45)}.titem.ok{color:rgba(27,168,111,.45)}.titem.mid{color:rgba(245,158,11,.35)}.titem.def{color:var(--di)}
+.tsep{color:var(--bd2);padding:0 4px}
+@keyframes tapefwd{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes tapebwd{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+
+/* THE GAP */
+#gap{
+  padding:160px 0;text-align:center;
+  position:relative;z-index:2;border-top:1px solid var(--bd);overflow:hidden;
+}
+#gap::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(14,113,74,.065) 0%,transparent 65%);
+}
+.gap-pre{font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--g2);margin-bottom:14px;display:block}
+.gap-h{font-size:clamp(30px,5vw,62px);font-weight:600;letter-spacing:-.03em;line-height:1.06;margin-bottom:14px}
+.gap-s{font-size:15px;color:var(--mu);max-width:480px;margin:0 auto 60px;line-height:1.7;font-weight:400}
+.compare{display:grid;grid-template-columns:1fr 52px 1fr;max-width:840px;margin:0 auto;align-items:stretch}
+.cside{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:30px;text-align:left}
+.cside.after{border-color:rgba(27,168,111,.25);background:rgba(14,113,74,.055)}
+.cside-lbl{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mu);margin-bottom:18px}
+.cside-lbl.g{color:var(--g2)}
+.crow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--bd);font-size:13px;color:var(--mu);line-height:1.5;font-weight:400}
+.crow:last-child{border-bottom:none}
+.crow.active{color:var(--tx)}
+.ci{flex-shrink:0;font-family:var(--mono);margin-top:1px;font-size:12px}
+.cvsep{display:flex;align-items:center;justify-content:center}
+.cvsep-inner{width:38px;height:38px;border-radius:50%;background:var(--s3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--mu)}
+
+/* PRODUCT */
+#product{padding:120px 0 160px;border-top:1px solid var(--bd);position:relative;z-index:2;overflow:hidden}
+#product::before{
+  content:'';position:absolute;top:-180px;left:50%;transform:translateX(-50%);
+  width:1000px;height:600px;pointer-events:none;
+  background:radial-gradient(ellipse,rgba(14,113,74,.07) 0%,transparent 65%);
+}
+.prod-hdr{text-align:center;margin-bottom:64px}
+.sk{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g2);margin-bottom:12px;display:block}
+.sh{font-size:clamp(30px,4.5vw,58px);font-weight:600;letter-spacing:-.028em;line-height:1.06}
+.ss{font-size:15px;color:var(--mu);margin-top:12px;line-height:1.7;max-width:460px;margin-left:auto;margin-right:auto;font-weight:400}
+.mockup-outer{
+  perspective:2200px;
+  opacity:0;transform:translateY(68px) rotateX(12deg) scale(.97);
+  transition:opacity 1.2s var(--ease),transform 1.2s var(--ease);
+}
+.mockup-outer.v{opacity:1;transform:none}
+.mwrap{border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.07);box-shadow:0 80px 240px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.02)}
+.bbar{background:#040404;border-bottom:1px solid var(--bd);padding:11px 16px;display:flex;align-items:center;gap:8px}
+.bdot{width:11px;height:11px;border-radius:50%}
+.burl{flex:1;background:var(--s2);border-radius:6px;height:24px;margin:0 14px;display:flex;align-items:center;padding:0 12px}
+.burl span{font-size:11px;color:var(--di);font-family:var(--mono)}
+.dash{display:flex;background:#0c0c0d;min-height:580px;font-size:12px}
+.sb{width:180px;flex-shrink:0;background:#080808;border-right:1px solid var(--bd);display:flex;flex-direction:column;padding:14px 0}
+.sb-logo{display:flex;align-items:center;gap:8px;padding:2px 14px 16px;font-size:13px;font-weight:600;border-bottom:1px solid var(--bd);margin-bottom:8px;letter-spacing:.02em}
+.sbi{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:12px;color:var(--mu);border-radius:8px;margin:2px 8px;transition:background .12s,color .12s}
+.sbi:hover{background:rgba(255,255,255,.04);color:var(--tx)}
+.sbi.on{background:rgba(59,130,246,.13);color:var(--tx)}
+.sico{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-sp{flex:1}
+.sb-u{display:flex;align-items:center;gap:9px;padding:10px 14px;border-top:1px solid var(--bd)}
+.sb-av{width:26px;height:26px;border-radius:50%;background:var(--g);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.sb-un{font-size:10px;font-weight:500}.sb-ue{font-size:9px;color:var(--mu)}
+.dm{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.dtop{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.dsearch{display:flex;align-items:center;gap:8px;background:var(--s3);border-radius:7px;padding:7px 12px;flex:1;max-width:290px}
+.dsearch input{background:none;border:none;outline:none;color:var(--mu);font-family:'Clash Display',sans-serif;font-size:11px;width:100%}
+.dsearch input::placeholder{color:var(--mu)}
+.tts{display:flex;gap:2px;margin-left:auto}
+.tt{padding:4px 9px;border-radius:6px;font-size:10px;font-weight:500;color:var(--mu);transition:background .12s,color .12s}
+.tt.on{background:var(--s4);color:var(--tx)}
+.ab{background:var(--g2);color:#fff;border:none;border-radius:7px;padding:7px 12px;font-family:'Clash Display',sans-serif;font-weight:500;font-size:11px}
+.dbody{padding:18px;overflow-y:auto;flex:1}
+.dt{font-size:18px;font-weight:600;letter-spacing:-.02em;margin-bottom:3px}
+.ds{font-size:11px;color:var(--mu);margin-bottom:14px;font-weight:400}
+.hcard{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:18px 20px;margin-bottom:12px}
+.hcs{font-size:15px;font-weight:600;letter-spacing:-.015em;margin-bottom:3px}
+.hcv{font-size:15px;font-weight:600;letter-spacing:-.015em;margin-bottom:6px}
+.hcv .amt{color:var(--g2)}.hcd{font-size:10px;color:var(--mu);margin-bottom:12px;font-weight:400}
+.rrow{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.rm{background:var(--s3);border:1px solid var(--bd);border-radius:9px;padding:11px;transform:translateY(14px);opacity:0;transition:transform .55s,opacity .55s}
+.rm.rv{transform:none;opacity:1}
+.rmt{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.rmtl{font-size:10px;font-weight:500}
+.badge{font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px}
+.bh{background:rgba(239,68,68,.14);color:#f87171}.bm{background:rgba(245,158,11,.14);color:#fbbf24}
+.rmd{font-size:10px;color:var(--mu);line-height:1.55;margin-bottom:7px;font-weight:400}
+.rms{font-size:10px;font-weight:500;color:var(--g2)}
+.bcard{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.bcl{font-size:11px;font-weight:500;margin-bottom:10px}
+.btabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:10px}
+.btab{font-size:10px;font-weight:500;padding:0 0 8px;margin-right:16px;color:var(--mu);border-bottom:2px solid transparent}
+.btab.on{color:var(--tx);border-bottom-color:var(--tx)}
+.bdr{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.bdr:last-child{border-bottom:none}
+.bdav{width:24px;height:24px;border-radius:50%;flex-shrink:0}
+.bdinf{flex-shrink:0;width:106px}.bdn{font-size:10px;font-weight:500}.bda{font-size:9px;color:var(--mu);font-weight:400}
+.bdbw{flex:1;height:3px;background:var(--s3);border-radius:2px;overflow:hidden}
+.bdb{height:100%;border-radius:2px;background:var(--g2);width:0;transition:width 1.4s var(--ease)}
+.bdamt{font-size:10px;font-weight:600;width:38px;text-align:right;flex-shrink:0}
+.chg{display:inline-flex;align-items:center;font-size:9px;font-weight:600;padding:2px 6px;border-radius:100px;flex-shrink:0}
+.cu{background:rgba(27,168,111,.12);color:var(--g2)}.cd{background:rgba(239,68,68,.1);color:#f87171}
+.gll{font-size:10px;font-weight:500;color:var(--mu);margin-bottom:8px}
+.glg{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.gc{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:10px}
+.gcl{font-size:9px;color:var(--mu);margin-bottom:4px;font-weight:400}.gcv{font-size:16px;font-weight:600;letter-spacing:-.025em}
+.gcs{font-size:9px;color:var(--mu);margin-top:2px;font-weight:400}.gok{color:var(--g2)}.gbd{color:var(--red)}
+
+/* FEATURES */
+#features{padding:80px 0 160px;border-top:1px solid var(--bd);position:relative;z-index:2}
+.feat-grid{margin-top:64px;border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.fitem{
+  display:grid;grid-template-columns:72px 1fr 1fr;
+  border-bottom:1px solid var(--bd);background:var(--s1);
+  transition:opacity .75s var(--ease),transform .75s var(--ease),background .2s;
+  position:relative;overflow:hidden;
+  opacity:0;transform:translateY(18px);
+}
+.fitem.v{opacity:1;transform:none}
+.fitem:last-child{border-bottom:none}
+.fitem:hover{background:var(--s2)}
+.fitem::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,transparent,var(--g2),transparent);
+  transform:scaleY(0);transition:transform .45s var(--ease);transform-origin:center;
+}
+.fitem:hover::before{transform:scaleY(1)}
+.fnum{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--di);border-right:1px solid var(--bd);padding:28px 0;letter-spacing:.04em}
+.fleft{padding:28px 34px;border-right:1px solid var(--bd)}
+.ftitle{font-size:15px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px}
+.fdesc{font-size:13px;color:var(--mu);line-height:1.7;font-weight:400}
+.fright{padding:28px 34px;display:flex;align-items:center}
+.fdetail{font-size:13px;color:var(--di);line-height:1.78;font-style:italic;font-weight:400}
+.fdetail strong{color:var(--g2);font-style:normal;font-weight:500}
+
+/* CTA */
+#cta{
+  padding:160px 0;border-top:1px solid var(--bd);
+  text-align:center;position:relative;overflow:hidden;z-index:2;
+}
+.cta-glow{
+  position:absolute;top:-120px;left:50%;transform:translateX(-50%);
+  width:1000px;height:800px;pointer-events:none;
+  background:radial-gradient(ellipse 55% 55% at 50% 40%,rgba(14,113,74,.19) 0%,transparent 60%);
+  animation:breathe 14s ease-in-out infinite;
+}
+@keyframes breathe{0%,100%{opacity:.7;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.08)}}
+.cta-h{font-size:clamp(38px,6.5vw,80px);font-weight:600;letter-spacing:-.03em;line-height:1;margin:12px 0 14px;position:relative}
+.cta-s{font-size:17px;color:var(--mu);margin-bottom:36px;position:relative;line-height:1.65;font-weight:400}
+.cta-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;position:relative}
+.ctan{font-size:12px;color:var(--di);margin-top:14px;position:relative;font-weight:400}
+
+/* FOOTER */
+footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2}
+.fi{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.flogo{font-size:14px;font-weight:600;color:var(--tx);text-decoration:none;display:flex;align-items:center;gap:9px;letter-spacing:.01em}
+.flinks{display:flex;gap:22px;list-style:none}
+.flinks a{font-size:12px;color:var(--mu);text-decoration:none;transition:color .15s;font-weight:400}
+.flinks a:hover{color:var(--tx)}
+.fcopy{font-size:11px;color:rgba(255,255,255,.14);font-weight:400}
+
+.g{background:linear-gradient(120deg,var(--g2) 0%,var(--g3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.r{opacity:0;transform:translateY(24px);transition:opacity .85s var(--ease),transform .85s var(--ease)}
+.r.v{opacity:1;transform:none}
+.d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}.d4{transition-delay:.32s}
+
+@media(max-width:900px){
+  .nav-links{display:none}
+  .ts-right{display:none}
+  .ts-left{padding:80px 28px 60px}
+  .compare{grid-template-columns:1fr}
+  .cvsep{display:none}
+  .fitem{grid-template-columns:1fr}
+  .fnum,.fright{display:none}
+  .stat-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<nav id="nav">
+  <div class="w ni">
+    <a href="index.html" class="logo">
+      <svg width="20" height="22" viewBox="0 0 52 56" fill="none"><defs><radialGradient id="lg0" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#2bdb82"/><stop offset="45%" stop-color="#1BA86F"/><stop offset="100%" stop-color="#084830"/></radialGradient></defs><circle cx="16" cy="12" r="12" fill="url(#lg0)"/><circle cx="37" cy="14" r="10" fill="url(#lg0)"/><circle cx="11" cy="36" r="9" fill="url(#lg0)"/><circle cx="34" cy="42" r="8" fill="url(#lg0)"/><ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg0)"/></svg>
+      TRAECO
+    </a>
+    <ul class="nav-links">
+      <li><a href="#product">Product</a></li>
+      <li><a href="integrate.html">Integrate</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+    </ul>
+    <a href="#cta" class="nav-cta">Get early access</a>
+  </div>
+</nav>
+
+<section id="hero">
+  <div class="mesh">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+  </div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="hero-badge"><span class="hbd"></span>Now in private beta</div>
+    <h1>
+      <span style="display:block">Your AI agents are</span>
+      <span class="cycle-wrap">
+        <span id="sw"></span>
+        <span style="visibility:hidden;display:block;pointer-events:none;position:relative;z-index:-1">scaling wrong.</span>
+      </span>
+    </h1>
+    <p class="hero-sub">Traeco instruments your code and surfaces cost at the function level. Find the exact call draining your budget. Fix it in one click.</p>
+    <form class="hero-form" onsubmit="fsub(event,'h')">
+      <input class="inp" type="email" placeholder="work@company.com" required id="h-email"/>
+      <button type="submit" class="btn" id="h-btn">Get early access &rarr;</button>
+    </form>
+    <p class="hero-note">No credit card &mdash; we&rsquo;ll reach out within 24 hours.</p>
+  </div>
+  <div class="scroll-hint" id="scroll-hint">
+    <span>Scroll to explore</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<div class="marquee-wrap">
+  <div class="mi">
+    <span class="mitem"><span class="mdot"></span>Function-level cost attribution</span>
+    <span class="mitem"><span class="mdot"></span>Confidence-scored recommendations</span>
+    <span class="mitem"><span class="mdot"></span>Real-time anomaly detection</span>
+    <span class="mitem"><span class="mdot"></span>One-click model swaps</span>
+    <span class="mitem"><span class="mdot"></span>Cross-provider what-if analysis</span>
+    <span class="mitem"><span class="mdot"></span>OpenTelemetry compatible</span>
+    <span class="mitem"><span class="mdot"></span>LangChain &middot; CrewAI &middot; LangGraph</span>
+    <span class="mitem"><span class="mdot"></span>3-line integration</span>
+    <span class="mitem"><span class="mdot"></span>Zero savings, zero charge</span>
+    <span class="mitem"><span class="mdot"></span>Function-level cost attribution</span>
+    <span class="mitem"><span class="mdot"></span>Confidence-scored recommendations</span>
+    <span class="mitem"><span class="mdot"></span>Real-time anomaly detection</span>
+    <span class="mitem"><span class="mdot"></span>One-click model swaps</span>
+    <span class="mitem"><span class="mdot"></span>Cross-provider what-if analysis</span>
+    <span class="mitem"><span class="mdot"></span>OpenTelemetry compatible</span>
+    <span class="mitem"><span class="mdot"></span>LangChain &middot; CrewAI &middot; LangGraph</span>
+    <span class="mitem"><span class="mdot"></span>3-line integration</span>
+    <span class="mitem"><span class="mdot"></span>Zero savings, zero charge</span>
+  </div>
+</div>
+
+<section id="trace-story">
+  <div class="ts-sticky" id="ts-sticky">
+    <div class="ts-left">
+      <span class="ts-kicker" id="ts-kicker">Live agent trace</span>
+      <h2 class="ts-h" id="ts-h">Step through your<br/>agent&rsquo;s real cost.</h2>
+      <p class="ts-sub" id="ts-sub">Scroll to walk through a trace. Watch Traeco surface the exact function draining your budget &mdash; and show you the fix.</p>
+      <div class="ts-terminal" id="ts-terminal">
+        <div class="ts-chrome">
+          <div class="ts-dot" style="background:#ef4444"></div>
+          <div class="ts-dot" style="background:#f59e0b"></div>
+          <div class="ts-dot" style="background:#22c55e"></div>
+          <span class="ts-title">traeco &mdash; trace.live</span>
+          <div class="ts-live-ind"><span class="live-dot"></span><span id="ts-status">Waiting...</span></div>
+        </div>
+        <div class="ts-body" id="ts-body"></div>
+        <div class="ts-footer" id="ts-footer">
+          <span>Total:</span><span class="tfv r" id="ts-total">$0.000</span>
+          <span class="tfsep">/</span>
+          <span>Duration:</span><span class="tfv" id="ts-dur">&mdash;</span>
+          <span class="tfsep">/</span>
+          <span>Anomalies:</span><span class="tfv r" id="ts-anom">0</span>
+        </div>
+      </div>
+      <div class="ts-scroll-hint" id="ts-scroll-hint">
+        <div class="ts-prog-track"><div class="ts-prog-fill" id="ts-prog-fill"></div></div>
+        <span id="ts-prog-txt">scroll to reveal</span>
+      </div>
+    </div>
+    <div class="ts-right">
+      <div class="ts-counter" id="ts-counter">
+        <div class="tsc-label">Running cost</div>
+        <div class="tsc-val" id="tsc-val">$0.000</div>
+        <div class="tsc-change" id="tsc-change">Trace starting&hellip;</div>
+      </div>
+      <div class="ts-anomaly" id="ts-anomaly">
+        <div class="ta-label"><span class="ta-dot" id="ta-dot"></span><span id="ta-label-txt">Cost anomaly detected</span></div>
+        <div class="ta-fn" id="ta-fn">gpt4o_complete()</div>
+        <div class="ta-pct">94% of this run&rsquo;s total cost</div>
+        <div class="ta-div"></div>
+        <div class="ta-rl">Recommendation</div>
+        <div class="ta-rt">Switch to <strong style="color:var(--tx);font-family:var(--mono)">claude-3-5-sonnet</strong> for this step. Equivalent output, 63% lower cost.</div>
+        <div class="ta-save">Save $847/mo</div>
+        <div class="ta-conf">92% confidence &middot; 847 similar workloads</div>
+        <button class="ta-apply" id="ta-apply" onclick="applyTS()">Apply recommendation &rarr;</button>
+        <div class="ta-applied" id="ta-applied">&#10003;&nbsp; Applied &mdash; saving $847/mo</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="w">
+    <span class="num-pre r">The scale of the problem</span>
+    <div class="num-big r d1" id="num-big">3&mdash;10&times;</div>
+    <p class="num-cap r d2">over budget. And <em>nobody knows</em><br/>which function is responsible.</p>
+    <div class="stat-grid r d3">
+      <div class="sg">
+        <div class="sg-n">Average waste recovered</div>
+        <div class="sg-v g" data-count="72" data-sfx="%">0%</div>
+        <div class="sg-d">of AI agent spend is recoverable with the right model choices and token caps</div>
+      </div>
+      <div class="sg">
+        <div class="sg-n">Cost per failed project</div>
+        <div class="sg-v">$340K</div>
+        <div class="sg-d">average loss when agent projects are canceled due to uncontrolled costs at scale</div>
+      </div>
+      <div class="sg">
+        <div class="sg-n">Time to first insight</div>
+        <div class="sg-v">&lt;1 hr</div>
+        <div class="sg-d">from SDK install to your first function-level cost anomaly detected and surfaced</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="tape-section">
+  <div class="tape-row tr1"><div class="ti">
+    <span class="titem exp">agent_research()&nbsp;&nbsp;$2.40</span><span class="tsep">·</span>
+    <span class="titem ok">route_request()&nbsp;&nbsp;$0.004</span><span class="tsep">·</span>
+    <span class="titem exp">gpt4o_complete()&nbsp;&nbsp;$2.39</span><span class="tsep">·</span>
+    <span class="titem ok">embed_query()&nbsp;&nbsp;$0.002</span><span class="tsep">·</span>
+    <span class="titem mid">summarize()&nbsp;&nbsp;$0.18</span><span class="tsep">·</span>
+    <span class="titem ok">send_response()&nbsp;&nbsp;$0.001</span><span class="tsep">·</span>
+    <span class="titem exp">classify_intent()&nbsp;&nbsp;$0.84</span><span class="tsep">·</span>
+    <span class="titem ok">cache_lookup()&nbsp;&nbsp;$0.0002</span><span class="tsep">·</span>
+    <span class="titem exp">reasoning_loop()&nbsp;&nbsp;$4.20</span><span class="tsep">·</span>
+    <span class="titem mid">tool_call()&nbsp;&nbsp;$0.22</span><span class="tsep">·</span>
+    <span class="titem exp">agent_research()&nbsp;&nbsp;$2.40</span><span class="tsep">·</span>
+    <span class="titem ok">route_request()&nbsp;&nbsp;$0.004</span><span class="tsep">·</span>
+    <span class="titem exp">gpt4o_complete()&nbsp;&nbsp;$2.39</span><span class="tsep">·</span>
+    <span class="titem ok">embed_query()&nbsp;&nbsp;$0.002</span><span class="tsep">·</span>
+    <span class="titem mid">summarize()&nbsp;&nbsp;$0.18</span><span class="tsep">·</span>
+    <span class="titem ok">send_response()&nbsp;&nbsp;$0.001</span><span class="tsep">·</span>
+    <span class="titem exp">classify_intent()&nbsp;&nbsp;$0.84</span><span class="tsep">·</span>
+    <span class="titem ok">cache_lookup()&nbsp;&nbsp;$0.0002</span><span class="tsep">·</span>
+    <span class="titem exp">reasoning_loop()&nbsp;&nbsp;$4.20</span><span class="tsep">·</span>
+    <span class="titem mid">tool_call()&nbsp;&nbsp;$0.22</span><span class="tsep">·</span>
+  </div></div>
+  <div class="tape-row tr2"><div class="ti">
+    <span class="titem ok">haiku_complete()&nbsp;&nbsp;$0.09</span><span class="tsep">·</span>
+    <span class="titem exp">vision_analyze()&nbsp;&nbsp;$1.88</span><span class="tsep">·</span>
+    <span class="titem ok">vector_search()&nbsp;&nbsp;$0.001</span><span class="tsep">·</span>
+    <span class="titem mid">format_output()&nbsp;&nbsp;$0.11</span><span class="tsep">·</span>
+    <span class="titem exp">plan_subtasks()&nbsp;&nbsp;$1.43</span><span class="tsep">·</span>
+    <span class="titem ok">validate_schema()&nbsp;&nbsp;$0.003</span><span class="tsep">·</span>
+    <span class="titem mid">stream_response()&nbsp;&nbsp;$0.31</span><span class="tsep">·</span>
+    <span class="titem exp">generate_report()&nbsp;&nbsp;$3.12</span><span class="tsep">·</span>
+    <span class="titem ok">retrieve_context()&nbsp;&nbsp;$0.017</span><span class="tsep">·</span>
+    <span class="titem mid">rerank_results()&nbsp;&nbsp;$0.06</span><span class="tsep">·</span>
+    <span class="titem ok">haiku_complete()&nbsp;&nbsp;$0.09</span><span class="tsep">·</span>
+    <span class="titem exp">vision_analyze()&nbsp;&nbsp;$1.88</span><span class="tsep">·</span>
+    <span class="titem ok">vector_search()&nbsp;&nbsp;$0.001</span><span class="tsep">·</span>
+    <span class="titem mid">format_output()&nbsp;&nbsp;$0.11</span><span class="tsep">·</span>
+    <span class="titem exp">plan_subtasks()&nbsp;&nbsp;$1.43</span><span class="tsep">·</span>
+    <span class="titem ok">validate_schema()&nbsp;&nbsp;$0.003</span><span class="tsep">·</span>
+    <span class="titem mid">stream_response()&nbsp;&nbsp;$0.31</span><span class="tsep">·</span>
+    <span class="titem exp">generate_report()&nbsp;&nbsp;$3.12</span><span class="tsep">·</span>
+    <span class="titem ok">retrieve_context()&nbsp;&nbsp;$0.017</span><span class="tsep">·</span>
+    <span class="titem mid">rerank_results()&nbsp;&nbsp;$0.06</span><span class="tsep">·</span>
+  </div></div>
+</div>
+
+<section id="gap">
+  <div class="w">
+    <span class="gap-pre r">The gap no one filled</span>
+    <h2 class="gap-h r d1">Your observability tool shows spans.<br/><span class="g">Traeco shows dollars.</span></h2>
+    <p class="gap-s r d2">Langfuse and LangSmith are built for debugging. Traeco is built for efficiency. Same trace data, entirely different lens.</p>
+    <div class="compare r d3">
+      <div class="cside">
+        <div class="cside-lbl">Without Traeco</div>
+        <div class="crow"><span class="ci" style="color:var(--di)">&#10003;</span>Trace spans and latencies</div>
+        <div class="crow"><span class="ci" style="color:var(--di)">&#10003;</span>Request logs and metadata</div>
+        <div class="crow"><span class="ci" style="color:var(--di)">&#10003;</span>Token counts per request</div>
+        <div class="crow"><span class="ci">&times;</span>Cost per function call</div>
+        <div class="crow"><span class="ci">&times;</span>Which function is the culprit</div>
+        <div class="crow"><span class="ci">&times;</span>What to change and by how much</div>
+      </div>
+      <div class="cvsep"><div class="cvsep-inner">vs</div></div>
+      <div class="cside after">
+        <div class="cside-lbl g">With Traeco</div>
+        <div class="crow active"><span class="ci" style="color:var(--g2)">&#10003;</span>Trace spans and latencies</div>
+        <div class="crow active"><span class="ci" style="color:var(--g2)">&#10003;</span>Request logs and metadata</div>
+        <div class="crow active"><span class="ci" style="color:var(--g2)">&#10003;</span>Token counts per request</div>
+        <div class="crow active"><span class="ci" style="color:var(--g2)">&#10003;</span><strong>Cost per function call</strong></div>
+        <div class="crow active"><span class="ci" style="color:var(--g2)">&#10003;</span><strong>Exact function driving waste</strong></div>
+        <div class="crow active"><span class="ci" style="color:var(--g2)">&#10003;</span><strong>Specific fix with $ savings estimate</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="product">
+  <div class="w">
+    <div class="prod-hdr r">
+      <span class="sk">The product</span>
+      <h2 class="sh">One view. <span class="g">Every dollar accounted for.</span></h2>
+      <p class="ss">Your real dashboard &mdash; spend by function, ranked recommendations, one-click fixes.</p>
+    </div>
+    <div class="mockup-outer r">
+      <div class="mwrap">
+        <div class="bbar">
+          <div class="bdot" style="background:#ef4444"></div>
+          <div class="bdot" style="background:#f59e0b"></div>
+          <div class="bdot" style="background:#22c55e"></div>
+          <div class="burl"><span>app.traeco.ai/dashboard</span></div>
+        </div>
+        <div class="dash">
+          <div class="sb">
+            <div class="sb-logo">
+              <svg width="14" height="16" viewBox="0 0 52 56" fill="none"><defs><radialGradient id="lg2" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#2bdb82"/><stop offset="45%" stop-color="#1BA86F"/><stop offset="100%" stop-color="#084830"/></radialGradient></defs><circle cx="16" cy="12" r="12" fill="url(#lg2)"/><circle cx="37" cy="14" r="10" fill="url(#lg2)"/><circle cx="11" cy="36" r="9" fill="url(#lg2)"/><circle cx="34" cy="42" r="8" fill="url(#lg2)"/><ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg2)"/></svg>
+              TRAECO
+            </div>
+            <div class="sbi on"><div class="sico" style="background:#3B82F6"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="4" height="4" rx="1" fill="white"/><rect x="7" y="1" width="4" height="4" rx="1" fill="white" opacity=".6"/><rect x="1" y="7" width="4" height="4" rx="1" fill="white" opacity=".6"/><rect x="7" y="7" width="4" height="4" rx="1" fill="white" opacity=".3"/></svg></div>Dashboard</div>
+            <div class="sbi"><div class="sico" style="background:#7c3aed"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.2 2.4L10 4.2l-2 1.9.5 2.9L6 7.8l-2.5 1.2.5-2.9-2-1.9 2.8-.8L6 1z" fill="white"/></svg></div>Recommendations</div>
+            <div class="sbi"><div class="sico" style="background:#0d9488"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="2.5" fill="white"/><path d="M2 10c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity=".7"/></svg></div>Agents</div>
+            <div class="sbi"><div class="sico" style="background:#4f46e5"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="4" cy="4" r="2" fill="white"/><circle cx="8" cy="4" r="2" fill="white" opacity=".6"/><path d="M1 10c0-1.7 1.3-3 3-3h4c1.7 0 3 1.3 3 3" stroke="white" stroke-width="1.2" stroke-linecap="round" opacity=".7"/></svg></div>Team</div>
+            <div class="sbi"><div class="sico" style="background:#374151"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="2" stroke="white" stroke-width="1.5" opacity=".8"/><path d="M6 1v1M6 10v1M1 6h1M10 6h1" stroke="white" stroke-width="1.2" stroke-linecap="round" opacity=".5"/></svg></div>Settings</div>
+            <div class="sb-sp"></div>
+            <div class="sb-u"><div class="sb-av">SW</div><div><div class="sb-un">Sam Wheeler</div><div class="sb-ue">sam@traeco.ai</div></div></div>
+          </div>
+          <div class="dm">
+            <div class="dtop">
+              <div class="dsearch"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="#3B82F6" stroke-width="1.5"/><path d="M8.5 8.5l2 2" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round"/></svg><input placeholder="Search agents, functions..."/></div>
+              <div class="tts"><div class="tt">7d</div><div class="tt">14d</div><div class="tt on">30d</div></div>
+              <button class="ab">+ Add agent</button>
+            </div>
+            <div class="dbody">
+              <div class="dt">Spend &amp; Behavior</div>
+              <div class="ds">What it cost, what changed, and where your budget goes</div>
+              <div class="hcard">
+                <div class="hcs">You spent <strong>$138.18</strong> last month.</div>
+                <div class="hcv">You could save <span class="amt">$31.40.</span></div>
+                <div class="hcd">3 changes across your agents, ranked by estimated monthly impact.</div>
+                <div class="rrow">
+                  <div class="rm"><div class="rmt"><span class="rmtl">01 &mdash; Add max_token limits</span><span class="badge bh">High</span></div><div class="rmd">Top 5% of requests cost 10&times; the median. Cap runaway completions on Support, Code, Research.</div><div class="rms">Save ~$18.20/mo</div></div>
+                  <div class="rm"><div class="rmt"><span class="rmtl">02 &mdash; Swap Support Agent</span><span class="badge bm">Med</span></div><div class="rmd">Support averages 4,100 tokens/req. Switch routing step to claude-3-haiku.</div><div class="rms">Save ~$9.10/mo</div></div>
+                  <div class="rm"><div class="rmt"><span class="rmtl">03 &mdash; Reduce tool calls</span><span class="badge bm">Med</span></div><div class="rmd">Batch sequential tool calls. 2.99 avg vs 1.4 peer median.</div><div class="rms">Save ~$4.10/mo</div></div>
+                </div>
+              </div>
+              <div class="bcard">
+                <div class="bcl">Spend Breakdown</div>
+                <div class="btabs"><div class="btab on">By team member</div><div class="btab">By tool spend</div></div>
+                <div class="bdr"><div class="bdav" style="background:var(--g2)"></div><div class="bdinf"><div class="bdn">Sam Wheeler</div><div class="bda">Support Agent</div></div><div class="bdbw"><div class="bdb" data-w="85"></div></div><div class="bdamt">$52.10</div><span class="chg cu">&#8593;4%</span></div>
+                <div class="bdr"><div class="bdav" style="background:#0E714A"></div><div class="bdinf"><div class="bdn">Priya Nair</div><div class="bda">Research Agent</div></div><div class="bdbw"><div class="bdb" data-w="72"></div></div><div class="bdamt">$44.30</div><span class="chg cd">&#8593;12%</span></div>
+                <div class="bdr"><div class="bdav" style="background:#4f46e5"></div><div class="bdinf"><div class="bdn">Jordan Lee</div><div class="bda">Code Agent</div></div><div class="bdbw"><div class="bdb" data-w="52"></div></div><div class="bdamt">$31.40</div><span class="chg cu">&#8593;1%</span></div>
+                <div class="bdr"><div class="bdav" style="background:#7c3aed"></div><div class="bdinf"><div class="bdn">Mia Torres</div><div class="bda">Ingest Agent</div></div><div class="bdbw"><div class="bdb" data-w="18"></div></div><div class="bdamt">$10.38</div><span class="chg cd">&#8595;3%</span></div>
+              </div>
+              <div class="gll">At a glance &mdash; Last 14 days</div>
+              <div class="glg">
+                <div class="gc"><div class="gcl">Total Cost</div><div class="gcv">$92.73</div><div class="gcs gbd">+1.8%</div></div>
+                <div class="gc"><div class="gcl">Avg tokens/req</div><div class="gcv">2,075</div><div class="gcs">Growing</div></div>
+                <div class="gc"><div class="gcl">Tool calls/req</div><div class="gcv">2.99</div><div class="gcs">Above median</div></div>
+                <div class="gc"><div class="gcl">Stability</div><div class="gcv">98%</div><div class="gcs gok">All good</div></div>
+                <div class="gc"><div class="gcl">Month to date</div><div class="gcv">$138.18</div><div class="gcs">28% of budget</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="w">
+    <div class="r">
+      <span class="sk">Capabilities</span>
+      <h2 class="sh">Built for engineers. Priced in <span class="g">dollars saved.</span></h2>
+    </div>
+    <div class="feat-grid">
+      <div class="fitem" data-delay="0">
+        <div class="fnum">01</div>
+        <div class="fleft">
+          <div class="ftitle">Function-level attribution</div>
+          <div class="fdesc">Cost broken down per function, per agent, per team member. Know exactly which call is responsible for 94% of your bill.</div>
+        </div>
+        <div class="fright"><div class="fdetail">Instead of &ldquo;your agent cost $2.59&rdquo;, Traeco tells you <strong>agent_research() &rarr; gpt4o_complete() costs $2.39 &mdash; switch models here</strong>.</div></div>
+      </div>
+      <div class="fitem" data-delay="70">
+        <div class="fnum">02</div>
+        <div class="fleft">
+          <div class="ftitle">Confidence-scored recommendations</div>
+          <div class="fdesc">Not &ldquo;you might save money.&rdquo; Specific changes with dollar amounts, confidence scores, and one-click apply.</div>
+        </div>
+        <div class="fright"><div class="fdetail">&ldquo;<strong>Switch step 3 to claude-3-haiku &rarr; save $847/mo, 92% confidence</strong>, based on 847 similar workloads.&rdquo;</div></div>
+      </div>
+      <div class="fitem" data-delay="140">
+        <div class="fnum">03</div>
+        <div class="fleft">
+          <div class="ftitle">Real-time anomaly detection</div>
+          <div class="fdesc">Cost spikes surface the moment they happen, with the exact deploy or config change that caused them.</div>
+        </div>
+        <div class="fright"><div class="fdetail">&ldquo;agent_research() cost spiked 340% at 14:22. <strong>Token cap removed in deploy #a4f2c</strong> two minutes ago.&rdquo;</div></div>
+      </div>
+      <div class="fitem" data-delay="210">
+        <div class="fnum">04</div>
+        <div class="fleft">
+          <div class="ftitle">Cross-provider what-if analysis</div>
+          <div class="fdesc">Run your exact trace against any model on any provider. See cost, quality, and latency tradeoffs before you commit.</div>
+        </div>
+        <div class="fright"><div class="fdetail">&ldquo;Running this trace on claude-3-5-sonnet instead of GPT-4o: <strong>$0.89 vs $2.40/call</strong>, estimated quality parity.&rdquo;</div></div>
+      </div>
+      <div class="fitem" data-delay="280">
+        <div class="fnum">05</div>
+        <div class="fleft">
+          <div class="ftitle">Cross-customer benchmarks</div>
+          <div class="fdesc">Every customer makes recommendations smarter. The data flywheel no single team can build alone.</div>
+        </div>
+        <div class="fright"><div class="fdetail">&ldquo;Teams with similar architectures spend <strong>30% less on routing steps</strong>. Your routing step is 4&times; above the benchmark.&rdquo;</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="cta-glow"></div>
+  <div class="w r">
+    <span class="sk">Get early access</span>
+    <h2 class="cta-h">Your agents work hard.<br/><span class="g">Now prove it costs less.</span></h2>
+    <p class="cta-s">Join the waitlist &mdash; we&rsquo;ll reach out to schedule your integration call.</p>
+    <form class="cta-form" onsubmit="fsub(event,'c')">
+      <input class="inp" type="email" placeholder="work@company.com" required id="c-email"/>
+      <button type="submit" class="btn" id="c-btn">Join the waitlist &rarr;</button>
+    </form>
+    <p class="ctan" id="c-note">No spam. We&rsquo;ll reply within 24 hours.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="w fi">
+    <a href="index.html" class="flogo">
+      <svg width="16" height="18" viewBox="0 0 52 56" fill="none"><defs><radialGradient id="lg3" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#2bdb82"/><stop offset="45%" stop-color="#1BA86F"/><stop offset="100%" stop-color="#084830"/></radialGradient></defs><circle cx="16" cy="12" r="12" fill="url(#lg3)"/><circle cx="37" cy="14" r="10" fill="url(#lg3)"/><circle cx="11" cy="36" r="9" fill="url(#lg3)"/><circle cx="34" cy="42" r="8" fill="url(#lg3)"/><ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg3)"/></svg>
+      TRAECO
+    </a>
+    <ul class="flinks">
+      <li><a href="#product">Product</a></li>
+      <li><a href="integrate.html">Integrate</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="mailto:hello@traeco.ai">Contact</a></li>
+    </ul>
+    <span class="fcopy">&copy; 2026 Traeco</span>
+  </div>
+</footer>
+
+<script>
+/* PROGRESS */
+window.addEventListener('scroll',()=>{
+  const max=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('progress').style.width=(window.scrollY/max*100)+'%';
+},{passive:true});
+
+/* WORD CYCLE — per-char blur-wipe reveal */
+const WORDS=['bleeding money.','flying blind.','scaling wrong.'];
+let wi=0;
+const sw=document.getElementById('sw');
+
+function revealWord(word){
+  sw.innerHTML=word.split('').map(c=>{
+    if(c===' ')return '<span class="sc-sp"> </span>';
+    return `<span class="sc">${c}</span>`;
+  }).join('');
+  sw.querySelectorAll('.sc').forEach((s,i)=>{
+    setTimeout(()=>s.classList.add('in'), i*42+16);
+  });
+}
+
+function cycleWord(){
+  sw.classList.add('sw-exit');
+  setTimeout(()=>{
+    sw.classList.remove('sw-exit');
+    wi=(wi+1)%WORDS.length;
+    revealWord(WORDS[wi]);
+  },190);
+}
+
+revealWord(WORDS[0]);
+setInterval(cycleWord,2900);
+
+/* SCROLL-DRIVEN TRACE */
+const TLINES=[
+  {pre:'',         fn:'handle_request()',  t:'1.4s',  c:2.59,  cls:'c-mid',   thresh:0.04},
+  {pre:'├── ',     fn:'route_request()',   t:'2ms',   c:0.004, cls:'c-cheap', thresh:0.16},
+  {pre:'├── ',     fn:'agent_research()',  t:'1.2s',  c:2.40,  cls:'c-exp',   thresh:0.27, warn:'94% of cost',isExp:true},
+  {pre:'│   ├── ', fn:'embed_query()',     t:'82ms',  c:0.002, cls:'c-cheap', thresh:0.38},
+  {pre:'│   └── ', fn:'gpt4o_complete()', t:'838ms', c:2.39,  cls:'c-exp',   thresh:0.50, warn:'bottleneck',isExp:true},
+  {pre:'├── ',     fn:'summarize()',       t:'201ms', c:0.18,  cls:'c-cheap', thresh:0.60},
+  {pre:'└── ',     fn:'send_response()',   t:'1ms',   c:0.001, cls:'c-cheap', thresh:0.68},
+];
+const TLINES2=[
+  {pre:'',         fn:'handle_request()',   t:'0.86s',c:0.56,  cls:'c-mid',   thresh:0.04},
+  {pre:'├── ',     fn:'route_request()',    t:'2ms',  c:0.004, cls:'c-cheap', thresh:0.16},
+  {pre:'├── ',     fn:'classify_intent()', t:'180ms',c:0.11,  cls:'c-cheap', thresh:0.27},
+  {pre:'├── ',     fn:'retrieve_context()',t:'320ms',c:0.17,  cls:'c-cheap', thresh:0.38},
+  {pre:'├── ',     fn:'sonnet_complete()', t:'350ms',c:0.26,  cls:'c-ok',    thresh:0.50},
+  {pre:'└── ',     fn:'format_response()', t:'12ms', c:0.002, cls:'c-cheap', thresh:0.60},
+];
+let tsApplied=false;
+
+function buildTrace(lines){
+  const body=document.getElementById('ts-body');
+  body.innerHTML='';
+  lines.forEach((l,i)=>{
+    const d=document.createElement('div');
+    d.className='ts-line';d.id='tsl'+i;
+    const cost=l.c<0.01?'$'+l.c.toFixed(4):'$'+l.c.toFixed(3);
+    d.innerHTML=`<span class="tl-pre">${l.pre}</span>`+
+      `<span class="tl-fn${l.isExp?' red':''}">${l.fn}</span>`+
+      `<span class="tl-dots"></span>`+
+      `<span class="tl-time">${l.t}</span>`+
+      `<span class="tl-cost ${l.cls}">${cost}</span>`+
+      (l.warn?`<span class="tl-badge">⚠ ${l.warn}</span>`:'');
+    body.appendChild(d);
+  });
+}
+buildTrace(TLINES);
+
+const tsIntroObs=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      document.getElementById('ts-kicker').classList.add('v');
+      setTimeout(()=>document.getElementById('ts-h').classList.add('v'),80);
+      setTimeout(()=>document.getElementById('ts-sub').classList.add('v'),160);
+      setTimeout(()=>document.getElementById('ts-terminal').classList.add('v'),240);
+      setTimeout(()=>document.getElementById('ts-counter').classList.add('v'),320);
+      setTimeout(()=>document.getElementById('ts-scroll-hint').classList.add('show'),600);
+      tsIntroObs.unobserve(e.target);
+    }
+  });
+},{threshold:0.15});
+tsIntroObs.observe(document.getElementById('ts-sticky'));
+
+function updateTrace(p){
+  const lines=tsApplied?TLINES2:TLINES;
+  let total=0,hasExp=false;
+  lines.forEach((l,i)=>{
+    const el=document.getElementById('tsl'+i);
+    if(!el)return;
+    const show=p>l.thresh;
+    el.classList.toggle('show',show);
+    if(show){total+=l.c;if(l.isExp)hasExp=true;}
+  });
+  const valEl=document.getElementById('tsc-val');
+  const changeEl=document.getElementById('tsc-change');
+  valEl.textContent='$'+total.toFixed(3);
+  if(tsApplied){
+    valEl.classList.add('green');
+    changeEl.textContent='↓ 78% vs previous run';
+    changeEl.style.color='var(--g2)';
+  } else {
+    valEl.classList.remove('green');
+    if(total<0.01){changeEl.textContent='Trace starting…';changeEl.style.color='var(--mu)';}
+    else if(total<0.5){changeEl.textContent='Routing layer — efficient.';changeEl.style.color='var(--mu)';}
+    else if(total<2.5){changeEl.textContent='⚠ agent_research() is expensive.';changeEl.style.color='var(--red)';}
+    else{changeEl.textContent='94% of cost in one function.';changeEl.style.color='var(--red)';}
+  }
+  const footer=document.getElementById('ts-footer');
+  if(p>0.72){
+    footer.classList.add('show');
+    document.getElementById('ts-total').textContent='$'+total.toFixed(3);
+    document.getElementById('ts-total').className='tfv'+(tsApplied?' g':' r');
+    document.getElementById('ts-dur').textContent=tsApplied?'0.86s':'1.4s';
+    document.getElementById('ts-anom').textContent=(hasExp&&!tsApplied)?'1':'0';
+  } else {footer.classList.remove('show');}
+  document.getElementById('ts-status').textContent=tsApplied?'Optimized ✓':p>0.72?'Complete':p>0?'Recording...':'Waiting...';
+  const anom=document.getElementById('ts-anomaly');
+  if(tsApplied){
+    anom.classList.add('show','applied');
+    document.getElementById('ta-dot').style.cssText='background:var(--g2);animation:none';
+    document.getElementById('ta-label-txt').textContent='Applied';
+    document.getElementById('ta-fn').style.color='var(--g2)';
+    document.getElementById('ta-apply').style.display='none';
+    document.getElementById('ta-applied').style.display='block';
+  } else {anom.classList.toggle('show',p>0.8);}
+  const fill=document.getElementById('ts-prog-fill');
+  const txt=document.getElementById('ts-prog-txt');
+  if(fill)fill.style.width=(p*100).toFixed(1)+'%';
+  if(txt)txt.textContent=tsApplied?'optimization applied':p>0.8?'recommendation ready':p>0.5?'anomaly detected':'scroll to reveal';
+}
+
+function applyTS(){
+  tsApplied=true;
+  buildTrace(TLINES2);
+  const s=document.getElementById('trace-story');
+  const p=Math.max(0,Math.min(1,-s.getBoundingClientRect().top/(s.offsetHeight-window.innerHeight)));
+  updateTrace(p);
+}
+
+let raf=false;
+window.addEventListener('scroll',()=>{
+  if(raf)return;raf=true;
+  requestAnimationFrame(()=>{
+    raf=false;
+    const s=document.getElementById('trace-story');
+    const denom=s.offsetHeight-window.innerHeight;
+    if(denom>0)updateTrace(Math.max(0,Math.min(1,-s.getBoundingClientRect().top/denom)));
+    const nb=document.getElementById('num-big');
+    if(nb){const nr=nb.getBoundingClientRect();nb.style.transform=`translateY(${(nr.top+nr.height/2-window.innerHeight/2)*-.06}px)`;}
+    document.getElementById('nav').style.background=window.scrollY>60?'rgba(5,5,6,.96)':'rgba(5,5,6,.72)';
+    if(window.scrollY>80)document.getElementById('scroll-hint').style.opacity='0';
+  });
+},{passive:true});
+
+/* REVEALS */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('v');}),{threshold:0.06});
+document.querySelectorAll('.r').forEach(el=>io.observe(el));
+
+const fio=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      const d=parseInt(e.target.dataset.delay)||0;
+      setTimeout(()=>e.target.classList.add('v'),d);
+      fio.unobserve(e.target);
+    }
+  });
+},{threshold:0.1});
+document.querySelectorAll('.fitem').forEach(el=>fio.observe(el));
+
+/* DASHBOARD */
+const mo=document.querySelector('.mockup-outer');
+if(mo){
+  const mo2=new IntersectionObserver(es=>{
+    es.forEach(e=>{
+      if(e.isIntersecting){
+        e.target.classList.add('v');
+        setTimeout(()=>{
+          document.querySelectorAll('.bdb').forEach(b=>{b.style.width=b.dataset.w+'%';});
+          document.querySelectorAll('.rm').forEach((rm,i)=>setTimeout(()=>rm.classList.add('rv'),i*150));
+        },480);
+        mo2.unobserve(e.target);
+      }
+    });
+  },{threshold:0.08});
+  mo2.observe(mo);
+}
+
+/* COUNT-UP */
+const cio=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.querySelectorAll('[data-count]').forEach(el=>{
+        const target=+el.dataset.count,sfx=el.dataset.sfx||'';
+        let s=null;
+        (function step(ts){
+          if(!s)s=ts;
+          const p=Math.min((ts-s)/1800,1),e2=1-Math.pow(1-p,3);
+          el.textContent=Math.floor(e2*target)+sfx;
+          if(p<1)requestAnimationFrame(step);
+        })(performance.now());
+      });
+      cio.unobserve(e.target);
+    }
+  });
+},{threshold:0.3});
+document.querySelectorAll('.stat-grid').forEach(el=>cio.observe(el));
+
+/* FORMS */
+function fsub(e,id){
+  e.preventDefault();
+  const btn=document.getElementById(id+'-btn');
+  const note=document.getElementById(id+'-note')||document.getElementById('c-note');
+  const inp=document.getElementById(id+'-email');
+  btn.innerHTML="You&rsquo;re on the list ✓";
+  btn.style.background='var(--g)';btn.style.transform='none';
+  btn.disabled=inp.disabled=true;
+  if(note){note.textContent="We'll be in touch within 24 hours.";note.style.color='var(--g2)';}
+}
+</script>
+</body>
+</html>

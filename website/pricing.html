@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Traeco — Pricing</title>
+<meta name="description" content="Traeco pricing. You only pay when we save you money. Zero savings, zero charge."/>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#050506;
+  --s1:#0b0b0c; --s2:#111112; --s3:#181819; --s4:#1f1f20;
+  --bd:rgba(255,255,255,.055); --bd2:rgba(255,255,255,.1);
+  --tx:#EFEFEF; --mu:rgba(239,239,239,.42); --di:rgba(239,239,239,.18);
+  --g:#0E714A; --g2:#1BA86F; --g3:#2de080;
+  --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+  --mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--tx);
+  font-family:'Clash Display',sans-serif;font-weight:400;
+  line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:160px;
+}
+#progress{
+  position:fixed;top:0;left:0;height:2px;width:0;z-index:9998;
+  background:linear-gradient(90deg,var(--g),var(--g3));transition:width .06s;
+}
+.w{max-width:1140px;margin:0 auto;padding:0 48px;position:relative;z-index:2}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  border-bottom:1px solid var(--bd);
+  background:rgba(5,5,6,.72);backdrop-filter:blur(40px) saturate(1.5);
+}
+.ni{display:flex;align-items:center;justify-content:space-between;height:58px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx);font-size:15px;font-weight:600;letter-spacing:.01em}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{color:var(--mu);font-size:13px;font-weight:500;text-decoration:none;transition:color .15s}
+.nav-links a:hover,.nav-links a.active{color:var(--tx)}
+.nav-cta{
+  background:transparent;border:1px solid var(--bd2);color:var(--tx);
+  font-family:'Clash Display',sans-serif;font-weight:500;font-size:13px;
+  padding:8px 20px;border-radius:7px;text-decoration:none;
+  transition:border-color .15s,background .15s;display:inline-block;
+}
+.nav-cta:hover{border-color:var(--g2);background:rgba(27,168,111,.08)}
+
+/* MESH */
+.mesh{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);will-change:transform}
+.o1{width:65vw;height:65vw;max-width:680px;max-height:680px;background:rgba(14,113,74,.14);top:-15%;left:-10%;animation:oa 22s ease-in-out infinite alternate}
+.o2{width:42vw;height:42vw;max-width:440px;max-height:440px;background:rgba(27,168,111,.08);top:20%;right:-6%;animation:ob 26s ease-in-out infinite alternate}
+.o3{width:30vw;height:30vw;max-width:320px;max-height:320px;background:rgba(59,130,246,.07);bottom:10%;left:30%;animation:oc 19s ease-in-out infinite alternate}
+@keyframes oa{from{transform:translate(0,0)}to{transform:translate(6vw,5vh)}}
+@keyframes ob{from{transform:translate(0,0)}to{transform:translate(-5vw,7vh)}}
+@keyframes oc{from{transform:translate(0,0)}to{transform:translate(4vw,-5vh)}}
+
+/* PAGE HERO */
+.page-hero{
+  padding:160px 48px 100px;text-align:center;position:relative;overflow:hidden;
+}
+.hero-grid{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+}
+.ph-inner{position:relative;z-index:2;max-width:700px;margin:0 auto}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(27,168,111,.2);background:rgba(14,113,74,.07);
+  color:var(--g2);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+  padding:6px 18px;border-radius:100px;margin-bottom:32px;
+  opacity:0;animation:up .6s .1s var(--ease) forwards;
+}
+.hbd{width:5px;height:5px;border-radius:50%;background:var(--g2);animation:blink 2s ease-in-out infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.page-h1{
+  font-size:clamp(42px,6.5vw,84px);font-weight:600;
+  letter-spacing:-.028em;line-height:.96;
+  margin-bottom:22px;opacity:0;animation:up .75s .18s var(--ease) forwards;
+}
+.page-sub{
+  font-size:clamp(15px,1.8vw,18px);color:var(--mu);font-weight:400;
+  max-width:480px;margin:0 auto 0;line-height:1.7;
+  opacity:0;animation:up .7s .3s var(--ease) forwards;
+}
+.g{background:linear-gradient(120deg,var(--g2) 0%,var(--g3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* MODEL TOGGLE */
+.toggle-wrap{
+  display:flex;justify-content:center;margin:52px 0 60px;
+  opacity:0;animation:up .6s .4s var(--ease) forwards;
+}
+.toggle{
+  display:flex;align-items:center;gap:0;
+  background:var(--s2);border:1px solid var(--bd);border-radius:100px;padding:4px;
+}
+.tg-opt{
+  font-size:12px;font-weight:500;color:var(--mu);padding:7px 20px;border-radius:100px;
+  cursor:pointer;transition:all .2s;letter-spacing:.01em;
+}
+.tg-opt.on{background:rgba(27,168,111,.15);color:var(--g2);border:1px solid rgba(27,168,111,.2)}
+.tg-note{font-size:11px;color:var(--g2);margin-left:14px;background:rgba(27,168,111,.1);padding:4px 12px;border-radius:100px;letter-spacing:.02em}
+
+/* PRICING CARDS */
+.price-section{position:relative;z-index:2;padding:0 48px 120px}
+.price-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;
+  max-width:1060px;margin:0 auto;
+}
+.pcard{
+  background:var(--s1);border:1px solid var(--bd);border-radius:20px;
+  padding:44px 36px;display:flex;flex-direction:column;
+  position:relative;overflow:hidden;
+  opacity:0;transform:translateY(28px);
+  transition:opacity .8s var(--ease),transform .8s var(--ease),border-color .2s,box-shadow .2s;
+}
+.pcard.v{opacity:1;transform:none}
+.pcard:hover{border-color:var(--bd2);box-shadow:0 24px 80px rgba(0,0,0,.4)}
+.pcard.featured{
+  border-color:rgba(27,168,111,.25);
+  background:linear-gradient(160deg,rgba(14,113,74,.07) 0%,var(--s1) 60%);
+}
+.pcard.featured:hover{border-color:rgba(27,168,111,.45);box-shadow:0 24px 80px rgba(14,113,74,.12)}
+.feat-glow{
+  position:absolute;top:-40px;right:-40px;width:180px;height:180px;
+  border-radius:50%;background:radial-gradient(circle,rgba(27,168,111,.12),transparent 70%);
+  pointer-events:none;
+}
+.popular-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--g2);background:rgba(27,168,111,.1);border:1px solid rgba(27,168,111,.2);
+  padding:4px 12px;border-radius:100px;margin-bottom:28px;align-self:flex-start;
+}
+.plan-name{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mu);margin-bottom:12px}
+.plan-price{
+  font-size:clamp(38px,4.5vw,56px);font-weight:600;letter-spacing:-.03em;
+  line-height:1;margin-bottom:8px;display:flex;align-items:flex-start;gap:4px;
+}
+.plan-price-pct{
+  font-size:clamp(38px,4.5vw,56px);font-weight:600;letter-spacing:-.03em;
+  line-height:1;margin-bottom:8px;
+}
+.plan-price-pct .pct-num{
+  background:linear-gradient(120deg,var(--g2),var(--g3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.plan-desc{font-size:14px;color:var(--mu);line-height:1.65;margin-bottom:32px;font-weight:400;min-height:44px}
+.plan-cta{
+  background:var(--s3);border:1px solid var(--bd);color:var(--tx);
+  font-family:'Clash Display',sans-serif;font-weight:500;font-size:13px;
+  padding:12px 24px;border-radius:8px;text-align:center;text-decoration:none;
+  transition:all .2s;display:block;margin-bottom:32px;cursor:pointer;
+}
+.plan-cta:hover{border-color:var(--bd2);background:var(--s4)}
+.plan-cta.primary{
+  background:var(--g2);border-color:transparent;color:#fff;
+}
+.plan-cta.primary:hover{background:var(--g3);box-shadow:0 10px 28px rgba(27,168,111,.28)}
+.plan-div{height:1px;background:var(--bd);margin-bottom:28px}
+.feat-list{list-style:none;display:flex;flex-direction:column;gap:12px;flex:1}
+.feat-list li{
+  display:flex;align-items:flex-start;gap:12px;
+  font-size:13.5px;color:var(--mu);font-weight:400;line-height:1.5;
+}
+.feat-list li strong{color:var(--tx);font-weight:500}
+.fcheck{
+  width:16px;height:16px;border-radius:4px;background:rgba(27,168,111,.12);
+  border:1px solid rgba(27,168,111,.22);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+.fcheck svg{display:block}
+.fcheck-dim{
+  width:16px;height:16px;border-radius:4px;background:var(--s3);
+  border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px;
+}
+
+/* FAQ */
+.faq-section{padding:0 48px 120px;position:relative;z-index:2}
+.faq-inner{max-width:720px;margin:0 auto}
+.faq-header{text-align:center;margin-bottom:52px;opacity:0;transform:translateY(20px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.faq-header.v{opacity:1;transform:none}
+.sk{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g2);display:block;margin-bottom:14px}
+.sh{font-size:clamp(28px,4vw,46px);font-weight:600;letter-spacing:-.025em;line-height:1.06}
+.faq-item{
+  border-bottom:1px solid var(--bd);padding:24px 0;
+  opacity:0;transform:translateY(14px);transition:opacity .6s var(--ease),transform .6s var(--ease);
+}
+.faq-item.v{opacity:1;transform:none}
+.faq-q{
+  font-size:15px;font-weight:500;color:var(--tx);cursor:pointer;
+  display:flex;justify-content:space-between;align-items:center;gap:16px;
+  letter-spacing:-.01em;
+}
+.faq-arrow{
+  width:22px;height:22px;border-radius:50%;border:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:transform .25s var(--ease),border-color .2s;color:var(--di);font-size:13px;
+}
+.faq-q:hover .faq-arrow{border-color:var(--bd2);color:var(--mu)}
+.faq-item.open .faq-arrow{transform:rotate(45deg);border-color:var(--g2);color:var(--g2)}
+.faq-a{
+  font-size:14px;color:var(--mu);line-height:1.75;font-weight:400;
+  max-height:0;overflow:hidden;transition:max-height .4s var(--ease),padding .3s;
+}
+.faq-item.open .faq-a{max-height:200px;padding-top:14px}
+
+/* CTA */
+#cta{
+  padding:100px 48px 120px;text-align:center;position:relative;overflow:hidden;
+}
+.cta-glow{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:600px;height:300px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(14,113,74,.16),transparent 70%);
+  pointer-events:none;
+}
+.cta-h{font-size:clamp(36px,5.5vw,68px);font-weight:600;letter-spacing:-.03em;line-height:1.0;margin-bottom:18px}
+.cta-s{font-size:16px;color:var(--mu);margin-bottom:36px;font-weight:400}
+.cta-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.inp{
+  background:rgba(255,255,255,.06);border:1px solid var(--bd2);
+  color:var(--tx);font-family:'Clash Display',sans-serif;font-size:14px;font-weight:400;
+  padding:13px 20px;border-radius:8px;outline:none;width:252px;
+  backdrop-filter:blur(20px);transition:border-color .15s,background .15s;
+}
+.inp::placeholder{color:var(--di)}
+.inp:focus{border-color:var(--g2);background:rgba(27,168,111,.07)}
+.btn{
+  background:var(--g2);color:#fff;
+  font-family:'Clash Display',sans-serif;font-weight:500;font-size:14px;
+  padding:13px 28px;border-radius:8px;border:none;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:background .15s,transform .12s,box-shadow .2s;
+}
+.btn:hover{background:var(--g3);transform:translateY(-1px);box-shadow:0 12px 32px rgba(27,168,111,.28)}
+.ctan{font-size:12px;color:var(--di);margin-top:14px}
+.r{opacity:0;transform:translateY(24px);transition:opacity .85s var(--ease),transform .85s var(--ease)}
+.r.v{opacity:1;transform:none}
+
+/* FOOTER */
+footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2}
+.fi{display:flex;align-items:center;justify-content:space-between;gap:32px}
+.flogo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--tx);font-size:13px;font-weight:600;letter-spacing:.02em}
+.flinks{display:flex;gap:24px;list-style:none}
+.flinks a{font-size:12px;color:var(--mu);text-decoration:none;transition:color .15s;font-weight:400}
+.flinks a:hover{color:var(--tx)}
+.fcopy{font-size:11px;color:rgba(255,255,255,.14);font-weight:400}
+
+@media(max-width:900px){
+  .nav-links{display:none}
+  .price-grid{grid-template-columns:1fr}
+  .savings-strip{flex-direction:column;text-align:center}
+  .ss-nums{justify-content:center}
+}
+@media(max-width:640px){
+  .w,.price-section,.faq-section,#cta{padding-left:24px;padding-right:24px}
+  .page-hero{padding:140px 24px 80px}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<nav id="nav">
+  <div class="w ni">
+    <a href="index.html" class="logo">
+      <svg width="20" height="22" viewBox="0 0 52 56" fill="none"><defs><radialGradient id="lg0" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#2bdb82"/><stop offset="45%" stop-color="#1BA86F"/><stop offset="100%" stop-color="#084830"/></radialGradient></defs><circle cx="16" cy="12" r="12" fill="url(#lg0)"/><circle cx="37" cy="14" r="10" fill="url(#lg0)"/><circle cx="11" cy="36" r="9" fill="url(#lg0)"/><circle cx="34" cy="42" r="8" fill="url(#lg0)"/><ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg0)"/></svg>
+      TRAECO
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html#product">Product</a></li>
+      <li><a href="integrate.html">Integrate</a></li>
+      <li><a href="pricing.html" class="active">Pricing</a></li>
+    </ul>
+    <a href="index.html#cta" class="nav-cta">Get early access</a>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="mesh">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+  </div>
+  <div class="hero-grid"></div>
+  <div class="ph-inner">
+    <div class="hero-badge"><span class="hbd"></span>Simple, aligned pricing</div>
+    <h1 class="page-h1">You only pay when<br/><span class="g">we save you money.</span></h1>
+    <p class="page-sub">Traeco charges a percentage of verified savings. If we don&rsquo;t reduce your AI costs, you don&rsquo;t owe us anything.</p>
+  </div>
+</section>
+
+<section class="price-section">
+
+  <div class="price-grid">
+
+    <!-- Starter -->
+    <div class="pcard" data-delay="0" id="pc0">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price-pct"><span class="pct-num">20%</span></div>
+      <div class="plan-desc">of verified monthly savings<br/>Up to 5 agents</div>
+      <a href="index.html#cta" class="plan-cta">Join waitlist</a>
+      <div class="plan-div"></div>
+      <ul class="feat-list">
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Up to <strong>5 agents</strong> monitored</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Function-level cost attribution</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Confidence-scored recommendations</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Real-time anomaly detection</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>3-line SDK integration</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Email support</span></li>
+        <li><div class="fcheck-dim"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M2 3h4" stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linecap="round"/></svg></div><span style="color:var(--di)">Team benchmarks</span></li>
+        <li><div class="fcheck-dim"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M2 3h4" stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linecap="round"/></svg></div><span style="color:var(--di)">Custom retention</span></li>
+      </ul>
+    </div>
+
+    <!-- Growth (featured) -->
+    <div class="pcard featured" data-delay="100" id="pc1">
+      <div class="feat-glow"></div>
+      <div class="popular-badge">
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" fill="#1BA86F"/></svg>
+        Most popular
+      </div>
+      <div class="plan-name">Growth</div>
+      <div class="plan-price-pct"><span class="pct-num">15%</span></div>
+      <div class="plan-desc">of verified monthly savings<br/>Up to 25 agents</div>
+      <a href="index.html#cta" class="plan-cta primary">Join waitlist</a>
+      <div class="plan-div"></div>
+      <ul class="feat-list">
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Up to <strong>25 agents</strong> monitored</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Everything in Starter</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span><strong>Team &amp; org-level benchmarks</strong></span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Cross-provider what-if analysis</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span><strong>One-click model swaps</strong></span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>90-day trace history</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Slack &amp; email alerts</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Priority support</span></li>
+      </ul>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="pcard" data-delay="200" id="pc2">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price-pct"><span style="font-size:clamp(30px,3.5vw,42px);font-weight:600;letter-spacing:-.025em;color:var(--tx)">Custom</span></div>
+      <div class="plan-desc">Negotiated rate on savings<br/>Unlimited agents</div>
+      <a href="mailto:hello@traeco.ai" class="plan-cta">Talk to us</a>
+      <div class="plan-div"></div>
+      <ul class="feat-list">
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span><strong>Unlimited agents</strong></span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Everything in Growth</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Custom data retention</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>SOC 2 Type II &amp; SSO</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Dedicated onboarding engineer</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>SLA guarantees</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>On-prem or VPC deployment</span></li>
+        <li><div class="fcheck"><svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3l2 2 4-4" stroke="#1BA86F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Custom integrations</span></li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<section class="faq-section">
+  <div class="faq-inner">
+    <div class="faq-header" id="faq-hdr">
+      <span class="sk">Common questions</span>
+      <h2 class="sh">How does it work?</h2>
+    </div>
+
+    <div class="faq-item" data-delay="0">
+      <div class="faq-q">How do you measure "verified savings"? <div class="faq-arrow">+</div></div>
+      <div class="faq-a">We baseline your cost per agent over a 14-day window, then measure reduction after applying our recommendations. Savings are the difference between your baseline trajectory and actual spend, adjusted for volume changes. You can see the exact calculation in your dashboard at any time.</div>
+    </div>
+    <div class="faq-item" data-delay="60">
+      <div class="faq-q">What if my costs go down for unrelated reasons? <div class="faq-arrow">+</div></div>
+      <div class="faq-a">We only attribute savings to Traeco recommendations that were applied. If your costs drop because you shipped fewer requests, we credit that to volume change, not Traeco. Our attribution model is conservative by design — we&rsquo;d rather under-bill than overcharge.</div>
+    </div>
+    <div class="faq-item" data-delay="120">
+      <div class="faq-q">What does "zero savings, zero charge" mean exactly? <div class="faq-arrow">+</div></div>
+      <div class="faq-a">If Traeco&rsquo;s recommendations don&rsquo;t measurably reduce your AI costs in a given month, you pay $0 for that month. There are no platform fees, seat fees, or minimum charges. We eat the cost of running the platform until we can prove value.</div>
+    </div>
+    <div class="faq-item" data-delay="180">
+      <div class="faq-q">Can I see my projected savings before committing? <div class="faq-arrow">+</div></div>
+      <div class="faq-a">Yes. During your 30-minute onboarding call, we run a read-only analysis of your existing traces (or a representative sample) and give you a projected monthly savings estimate before you wire anything up. No obligation.</div>
+    </div>
+    <div class="faq-item" data-delay="240">
+      <div class="faq-q">Which providers does Traeco support? <div class="faq-arrow">+</div></div>
+      <div class="faq-a">OpenAI, Anthropic, Google (Gemini), Cohere, and Mistral are fully supported. We have experimental support for Azure OpenAI and AWS Bedrock. If you&rsquo;re using a provider not listed, reach out — we add providers within two weeks when there&rsquo;s demand.</div>
+    </div>
+    <div class="faq-item" data-delay="300">
+      <div class="faq-q">How long does integration take? <div class="faq-arrow">+</div></div>
+      <div class="faq-a">Most teams are ingesting traces within 30 minutes. Add 3 lines of code, point to your API key, and the first insights appear within 24 hours. See the <a href="integrate.html" style="color:var(--g2);text-decoration:none">integration guide</a> for the exact steps.</div>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="cta-glow"></div>
+  <div class="w r" id="cta-inner">
+    <span class="sk">Get started</span>
+    <h2 class="cta-h">Try it risk-free.<br/><span class="g">Pay only for results.</span></h2>
+    <p class="cta-s">Join the waitlist &mdash; we&rsquo;ll send your projected savings estimate within 24 hours.</p>
+    <form class="cta-form" onsubmit="fsub(event)">
+      <input class="inp" type="email" placeholder="work@company.com" required id="cta-email"/>
+      <button type="submit" class="btn" id="cta-btn">Join the waitlist &rarr;</button>
+    </form>
+    <p class="ctan" id="cta-note">No credit card. No commitment.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="w fi">
+    <a href="index.html" class="flogo">
+      <svg width="16" height="18" viewBox="0 0 52 56" fill="none"><defs><radialGradient id="lg3" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#2bdb82"/><stop offset="45%" stop-color="#1BA86F"/><stop offset="100%" stop-color="#084830"/></radialGradient></defs><circle cx="16" cy="12" r="12" fill="url(#lg3)"/><circle cx="37" cy="14" r="10" fill="url(#lg3)"/><circle cx="11" cy="36" r="9" fill="url(#lg3)"/><circle cx="34" cy="42" r="8" fill="url(#lg3)"/><ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg3)"/></svg>
+      TRAECO
+    </a>
+    <ul class="flinks">
+      <li><a href="index.html#product">Product</a></li>
+      <li><a href="integrate.html">Integrate</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="mailto:hello@traeco.ai">Contact</a></li>
+    </ul>
+    <span class="fcopy">&copy; 2026 Traeco</span>
+  </div>
+</footer>
+
+<script>
+/* PROGRESS */
+window.addEventListener('scroll',()=>{
+  const max=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('progress').style.width=(window.scrollY/max*100)+'%';
+},{passive:true});
+
+/* INTERSECTION OBSERVER */
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){e.target.classList.add('v');io.unobserve(e.target)}
+  });
+},{threshold:.12});
+
+// pricing cards with stagger
+['pc0','pc1','pc2'].forEach((id,i)=>{
+  const el=document.getElementById(id);
+  if(el){
+    el.style.transitionDelay=(i*100)+'ms';
+    io.observe(el);
+  }
+});
+
+// faq items
+document.querySelectorAll('.faq-item').forEach((el,i)=>{
+  el.style.transitionDelay=(i*60)+'ms';
+  io.observe(el);
+});
+
+// faq header
+const fh=document.getElementById('faq-hdr');if(fh)io.observe(fh);
+
+// cta
+const ci=document.getElementById('cta-inner');if(ci)io.observe(ci);
+
+/* FAQ TOGGLE */
+document.querySelectorAll('.faq-q').forEach(q=>{
+  q.addEventListener('click',()=>{
+    const item=q.parentElement;
+    const wasOpen=item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
+    if(!wasOpen)item.classList.add('open');
+  });
+});
+
+/* CTA FORM */
+function fsub(e){
+  e.preventDefault();
+  const btn=document.getElementById('cta-btn');
+  const note=document.getElementById('cta-note');
+  btn.textContent='You\'re on the list ✓';
+  btn.style.background='var(--g)';
+  btn.disabled=true;
+  note.textContent='We\'ll be in touch within 24 hours.';
+  note.style.color='var(--g2)';
+}
+</script>
+</body>
+</html>

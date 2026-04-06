@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Traeco — Integrate</title>
+<meta name="description" content="Add Traeco in 3 lines of code. First cost insight in 24 hours. Works with OpenAI, Anthropic, LangChain, CrewAI, and more."/>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#050506;
+  --s1:#0b0b0c; --s2:#111112; --s3:#181819; --s4:#1f1f20;
+  --bd:rgba(255,255,255,.055); --bd2:rgba(255,255,255,.1);
+  --tx:#EFEFEF; --mu:rgba(239,239,239,.42); --di:rgba(239,239,239,.18);
+  --g:#0E714A; --g2:#1BA86F; --g3:#2de080;
+  --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+  --mono:'SF Mono','Fira Code','Cascadia Code',monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--tx);
+  font-family:'Clash Display',sans-serif;font-weight:400;
+  line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:160px;
+}
+#progress{
+  position:fixed;top:0;left:0;height:2px;width:0;z-index:9998;
+  background:linear-gradient(90deg,var(--g),var(--g3));transition:width .06s;
+}
+.w{max-width:1140px;margin:0 auto;padding:0 48px;position:relative;z-index:2}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  border-bottom:1px solid var(--bd);
+  background:rgba(5,5,6,.72);backdrop-filter:blur(40px) saturate(1.5);
+}
+.ni{display:flex;align-items:center;justify-content:space-between;height:58px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--tx);font-size:15px;font-weight:600;letter-spacing:.01em}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{color:var(--mu);font-size:13px;font-weight:500;text-decoration:none;transition:color .15s}
+.nav-links a:hover,.nav-links a.active{color:var(--tx)}
+.nav-cta{
+  background:transparent;border:1px solid var(--bd2);color:var(--tx);
+  font-family:'Clash Display',sans-serif;font-weight:500;font-size:13px;
+  padding:8px 20px;border-radius:7px;text-decoration:none;
+  transition:border-color .15s,background .15s;display:inline-block;
+}
+.nav-cta:hover{border-color:var(--g2);background:rgba(27,168,111,.08)}
+
+/* MESH */
+.mesh{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(100px);will-change:transform}
+.o1{width:55vw;height:55vw;max-width:600px;max-height:600px;background:rgba(14,113,74,.15);top:-10%;left:-8%;animation:oa 22s ease-in-out infinite alternate}
+.o2{width:40vw;height:40vw;max-width:420px;max-height:420px;background:rgba(27,168,111,.08);top:30%;right:-5%;animation:ob 28s ease-in-out infinite alternate}
+.o3{width:32vw;height:32vw;max-width:340px;max-height:340px;background:rgba(59,130,246,.07);bottom:5%;left:25%;animation:oc 20s ease-in-out infinite alternate}
+@keyframes oa{from{transform:translate(0,0)}to{transform:translate(6vw,5vh)}}
+@keyframes ob{from{transform:translate(0,0)}to{transform:translate(-5vw,7vh)}}
+@keyframes oc{from{transform:translate(0,0)}to{transform:translate(4vw,-5vh)}}
+
+/* PAGE HERO */
+.page-hero{
+  padding:160px 48px 80px;position:relative;overflow:hidden;
+}
+.hero-grid{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+}
+.ph-inner{
+  position:relative;z-index:2;
+  display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;
+  max-width:1060px;margin:0 auto;
+}
+.ph-left{}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(27,168,111,.2);background:rgba(14,113,74,.07);
+  color:var(--g2);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+  padding:6px 18px;border-radius:100px;margin-bottom:28px;
+  opacity:0;animation:up .6s .1s var(--ease) forwards;
+}
+.hbd{width:5px;height:5px;border-radius:50%;background:var(--g2);animation:blink 2s ease-in-out infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.page-h1{
+  font-size:clamp(38px,5.5vw,72px);font-weight:600;
+  letter-spacing:-.028em;line-height:.96;
+  margin-bottom:20px;opacity:0;animation:up .75s .18s var(--ease) forwards;
+}
+.page-sub{
+  font-size:clamp(14px,1.6vw,17px);color:var(--mu);font-weight:400;
+  line-height:1.7;margin-bottom:32px;
+  opacity:0;animation:up .7s .3s var(--ease) forwards;
+}
+.hero-providers{
+  display:flex;flex-wrap:wrap;gap:8px;
+  opacity:0;animation:up .6s .44s var(--ease) forwards;
+}
+.hp{
+  font-size:11px;font-weight:500;letter-spacing:.03em;
+  color:var(--di);background:var(--s2);border:1px solid var(--bd);
+  padding:5px 12px;border-radius:6px;
+}
+.g{background:linear-gradient(120deg,var(--g2) 0%,var(--g3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* HERO TERMINAL */
+.ph-right{
+  opacity:0;animation:up .85s .25s var(--ease) forwards;
+}
+.hero-term{
+  background:var(--s1);border:1px solid var(--bd);border-radius:14px;overflow:hidden;
+  box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.025);
+}
+.ht-chrome{
+  display:flex;align-items:center;gap:8px;padding:13px 18px;
+  border-bottom:1px solid var(--bd);background:rgba(0,0,0,.3);
+}
+.ht-dot{width:10px;height:10px;border-radius:50%}
+.ht-title{font-family:var(--mono);font-size:11px;color:var(--di);margin-left:8px}
+.ht-body{padding:24px 26px;font-family:var(--mono);font-size:13px;line-height:2.0}
+.ht-line{display:block;white-space:pre}
+.ht-cmt{color:rgba(27,168,111,.55)}
+.ht-kw{color:#7dd3fc}
+.ht-fn{color:#c4b5fd}
+.ht-str{color:#86efac}
+.ht-num{color:#fbbf24}
+.ht-op{color:var(--di)}
+.ht-cursor{
+  display:inline-block;width:8px;height:1.2em;background:var(--g2);
+  vertical-align:text-bottom;animation:cur .9s step-end infinite;
+}
+@keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
+.ht-output{
+  border-top:1px solid var(--bd);padding:16px 26px;
+  font-family:var(--mono);font-size:11.5px;line-height:1.8;
+}
+.out-line{display:flex;align-items:baseline;gap:12px}
+.out-key{color:var(--di);flex-shrink:0;min-width:140px}
+.out-val{color:var(--tx)}
+.out-val.g2{color:var(--g2)}
+.out-val.red{color:var(--red)}
+
+/* STEPS */
+.steps-section{padding:60px 48px 100px;position:relative;z-index:2}
+.steps-inner{max-width:1060px;margin:0 auto}
+.steps-header{margin-bottom:64px;opacity:0;transform:translateY(20px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.steps-header.v{opacity:1;transform:none}
+.sk{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g2);display:block;margin-bottom:14px}
+.sh{font-size:clamp(28px,4vw,46px);font-weight:600;letter-spacing:-.025em;line-height:1.06}
+.ss{font-size:15px;color:var(--mu);font-weight:400;margin-top:10px;line-height:1.65}
+
+.step-list{display:flex;flex-direction:column;gap:0}
+.step{
+  display:grid;grid-template-columns:60px 1fr 1fr;gap:40px;align-items:start;
+  padding:48px 0;border-bottom:1px solid var(--bd);
+  opacity:0;transform:translateY(24px);transition:opacity .8s var(--ease),transform .8s var(--ease);
+}
+.step:last-child{border-bottom:none}
+.step.v{opacity:1;transform:none}
+.step-num{
+  font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--g2);
+  font-family:var(--mono);
+  width:36px;height:36px;border-radius:8px;
+  background:rgba(27,168,111,.08);border:1px solid rgba(27,168,111,.18);
+  display:flex;align-items:center;justify-content:center;margin-top:3px;
+  flex-shrink:0;
+}
+.step-content{}
+.step-title{font-size:clamp(18px,2.2vw,24px);font-weight:600;letter-spacing:-.02em;line-height:1.2;margin-bottom:10px}
+.step-desc{font-size:14px;color:var(--mu);font-weight:400;line-height:1.7;max-width:360px}
+.step-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.chip{
+  font-size:11px;font-weight:500;color:var(--di);
+  background:var(--s2);border:1px solid var(--bd);
+  padding:4px 10px;border-radius:5px;letter-spacing:.02em;
+}
+.step-visual{}
+.code-block{
+  background:var(--s1);border:1px solid var(--bd);border-radius:10px;overflow:hidden;
+  box-shadow:0 16px 48px rgba(0,0,0,.4);
+}
+.cb-chrome{
+  display:flex;align-items:center;gap:7px;padding:11px 16px;
+  border-bottom:1px solid var(--bd);background:rgba(0,0,0,.25);
+}
+.cb-dot{width:9px;height:9px;border-radius:50%}
+.cb-title{font-family:var(--mono);font-size:10.5px;color:var(--di);margin-left:6px}
+.cb-body{padding:18px 20px;font-family:var(--mono);font-size:12.5px;line-height:1.85}
+.cb-line{display:block;white-space:pre}
+.ck{color:#7dd3fc}.cf{color:#c4b5fd}.cs{color:#86efac}.cn{color:#fbbf24}
+.co{color:var(--di)}.cx{color:var(--tx)}.cc{color:rgba(27,168,111,.5)}
+
+/* insight card */
+.insight-card{
+  background:var(--s1);border:1px solid var(--bd);border-radius:12px;overflow:hidden;
+}
+.ic-top{
+  padding:16px 20px;border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ic-label{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mu)}
+.ic-live{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--g2)}
+.ic-dot{width:5px;height:5px;border-radius:50%;background:var(--g2);animation:blink 1.6s ease-in-out infinite}
+.ic-body{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.ic-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.ic-key{color:var(--mu);font-weight:400}
+.ic-val{font-weight:600;color:var(--tx)}
+.ic-val.g{background:linear-gradient(120deg,var(--g2),var(--g3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:600}
+.ic-val.red{color:var(--red)}
+.ic-rec{
+  margin:8px 0 0;padding:14px 16px;
+  background:rgba(27,168,111,.06);border:1px solid rgba(27,168,111,.14);border-radius:8px;
+}
+.ic-rec-title{font-size:11px;font-weight:600;color:var(--g2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.ic-rec-body{font-size:12.5px;color:var(--mu);font-weight:400;line-height:1.6}
+.ic-save{font-size:13px;font-weight:600;color:var(--g2);margin-top:8px}
+
+/* providers */
+.providers-section{padding:0 48px 100px;position:relative;z-index:2}
+.prov-inner{max-width:1060px;margin:0 auto}
+.prov-header{margin-bottom:44px;opacity:0;transform:translateY(20px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.prov-header.v{opacity:1;transform:none}
+.prov-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;
+}
+.prov-card{
+  background:var(--s1);border:1px solid var(--bd);border-radius:12px;
+  padding:24px 24px;display:flex;align-items:center;gap:16px;
+  opacity:0;transform:translateY(16px);transition:opacity .7s var(--ease),transform .7s var(--ease),border-color .2s;
+}
+.prov-card.v{opacity:1;transform:none}
+.prov-card:hover{border-color:var(--bd2)}
+.prov-icon{
+  width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;font-weight:700;font-family:var(--mono);
+}
+.prov-info{}
+.prov-name{font-size:14px;font-weight:500;color:var(--tx);margin-bottom:2px}
+.prov-status{font-size:11px;font-weight:500;letter-spacing:.03em}
+.prov-status.full{color:var(--g2)}
+.prov-status.exp{color:var(--amber)}
+
+/* CTA */
+#cta{
+  padding:100px 48px 120px;text-align:center;position:relative;overflow:hidden;
+}
+.cta-glow{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:600px;height:300px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(14,113,74,.16),transparent 70%);
+  pointer-events:none;
+}
+.cta-h{font-size:clamp(36px,5.5vw,68px);font-weight:600;letter-spacing:-.03em;line-height:1.0;margin-bottom:18px}
+.cta-s{font-size:16px;color:var(--mu);margin-bottom:36px;font-weight:400}
+.cta-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.inp{
+  background:rgba(255,255,255,.06);border:1px solid var(--bd2);
+  color:var(--tx);font-family:'Clash Display',sans-serif;font-size:14px;font-weight:400;
+  padding:13px 20px;border-radius:8px;outline:none;width:252px;
+  backdrop-filter:blur(20px);transition:border-color .15s,background .15s;
+}
+.inp::placeholder{color:var(--di)}
+.inp:focus{border-color:var(--g2);background:rgba(27,168,111,.07)}
+.btn{
+  background:var(--g2);color:#fff;
+  font-family:'Clash Display',sans-serif;font-weight:500;font-size:14px;
+  padding:13px 28px;border-radius:8px;border:none;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:background .15s,transform .12s,box-shadow .2s;
+}
+.btn:hover{background:var(--g3);transform:translateY(-1px);box-shadow:0 12px 32px rgba(27,168,111,.28)}
+.ctan{font-size:12px;color:var(--di);margin-top:14px}
+.r{opacity:0;transform:translateY(24px);transition:opacity .85s var(--ease),transform .85s var(--ease)}
+.r.v{opacity:1;transform:none}
+
+/* FOOTER */
+footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2}
+.fi{display:flex;align-items:center;justify-content:space-between;gap:32px}
+.flogo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--tx);font-size:13px;font-weight:600;letter-spacing:.02em}
+.flinks{display:flex;gap:24px;list-style:none}
+.flinks a{font-size:12px;color:var(--mu);text-decoration:none;transition:color .15s;font-weight:400}
+.flinks a:hover{color:var(--tx)}
+.fcopy{font-size:11px;color:rgba(255,255,255,.14);font-weight:400}
+
+@media(max-width:900px){
+  .nav-links{display:none}
+  .ph-inner{grid-template-columns:1fr;gap:40px}
+  .ph-right{display:none}
+  .step{grid-template-columns:48px 1fr;gap:20px}
+  .step-visual{display:none}
+  .prov-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:640px){
+  .w,.steps-section,.providers-section,#cta{padding-left:24px;padding-right:24px}
+  .page-hero{padding:140px 24px 60px}
+  .prov-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<nav id="nav">
+  <div class="w ni">
+    <a href="index.html" class="logo">
+      <svg width="20" height="22" viewBox="0 0 52 56" fill="none"><defs><radialGradient id="lg0" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#2bdb82"/><stop offset="45%" stop-color="#1BA86F"/><stop offset="100%" stop-color="#084830"/></radialGradient></defs><circle cx="16" cy="12" r="12" fill="url(#lg0)"/><circle cx="37" cy="14" r="10" fill="url(#lg0)"/><circle cx="11" cy="36" r="9" fill="url(#lg0)"/><circle cx="34" cy="42" r="8" fill="url(#lg0)"/><ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg0)"/></svg>
+      TRAECO
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html#product">Product</a></li>
+      <li><a href="integrate.html" class="active">Integrate</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+    </ul>
+    <a href="index.html#cta" class="nav-cta">Get early access</a>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="mesh">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+  </div>
+  <div class="hero-grid"></div>
+  <div class="ph-inner">
+    <div class="ph-left">
+      <div class="hero-badge"><span class="hbd"></span>3-line setup</div>
+      <h1 class="page-h1">From zero to<br/><span class="g">first insight</span><br/>in 30 minutes.</h1>
+      <p class="page-sub">Add Traeco to any Python or JavaScript agent. We handle the rest — trace ingestion, cost attribution, and recommendations that land in your dashboard within 24 hours.</p>
+      <div class="hero-providers">
+        <span class="hp">OpenAI</span>
+        <span class="hp">Anthropic</span>
+        <span class="hp">LangChain</span>
+        <span class="hp">CrewAI</span>
+        <span class="hp">LangGraph</span>
+        <span class="hp">Gemini</span>
+        <span class="hp">+ more</span>
+      </div>
+    </div>
+    <div class="ph-right">
+      <div class="hero-term">
+        <div class="ht-chrome">
+          <div class="ht-dot" style="background:#ef4444"></div>
+          <div class="ht-dot" style="background:#f59e0b"></div>
+          <div class="ht-dot" style="background:#22c55e"></div>
+          <span class="ht-title">your_agent.py</span>
+        </div>
+        <div class="ht-body">
+<span class="ht-line"><span class="ht-cmt"># Before Traeco — flying blind</span></span>
+<span class="ht-line"><span class="ht-kw">from</span> <span class="ht-fn">openai</span> <span class="ht-kw">import</span> <span class="ht-fn">OpenAI</span></span>
+<span class="ht-line"></span>
+<span class="ht-line"><span class="ht-cmt"># After — 3 lines added</span></span>
+<span class="ht-line"><span class="ht-kw">from</span> <span class="ht-fn">openai</span> <span class="ht-kw">import</span> <span class="ht-fn">OpenAI</span></span>
+<span class="ht-line"><span class="ht-kw">from</span> <span class="ht-fn">traeco</span> <span class="ht-kw">import</span> <span class="ht-fn">init</span><span class="ht-op">,</span> <span class="ht-fn">wrap</span></span>
+<span class="ht-line"></span>
+<span class="ht-line"><span class="ht-fn">init</span><span class="ht-op">(</span><span class="ht-fn">api_key</span><span class="ht-op">=</span><span class="ht-str">"tk_live_..."</span><span class="ht-op">)</span></span>
+<span class="ht-line"><span class="ht-fn">client</span> <span class="ht-op">=</span> <span class="ht-fn">wrap</span><span class="ht-op">(</span><span class="ht-fn">OpenAI</span><span class="ht-op">())</span>  <span class="ht-cmt"># ← that's it</span></span>
+<span class="ht-line"></span>
+<span class="ht-line"><span class="ht-cmt"># Your existing code unchanged</span></span>
+<span class="ht-line"><span class="ht-fn">response</span> <span class="ht-op">=</span> <span class="ht-fn">client</span><span class="ht-op">.</span><span class="ht-fn">chat</span><span class="ht-op">.</span><span class="ht-fn">completions</span><span class="ht-op">.</span><span class="ht-fn">create</span><span class="ht-op">(</span></span>
+<span class="ht-line">  <span class="ht-fn">model</span><span class="ht-op">=</span><span class="ht-str">"gpt-4o"</span><span class="ht-op">,</span></span>
+<span class="ht-line">  <span class="ht-fn">messages</span><span class="ht-op">=</span><span class="ht-fn">messages</span></span>
+<span class="ht-line"><span class="ht-op">)</span></span>
+        </div>
+        <div class="ht-output">
+          <div class="out-line"><span class="out-key">Status</span><span class="out-val g2">Connected ✓</span></div>
+          <div class="out-line"><span class="out-key">Agent</span><span class="out-val">research_agent</span></div>
+          <div class="out-line"><span class="out-key">Requests ingested</span><span class="out-val">847</span></div>
+          <div class="out-line"><span class="out-key">Est. monthly waste</span><span class="out-val red">$847.20</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="steps-section">
+  <div class="steps-inner">
+    <div class="steps-header" id="steps-hdr">
+      <span class="sk">How it works</span>
+      <h2 class="sh">Four steps to <span class="g">cost clarity.</span></h2>
+      <p class="ss">No infrastructure to manage, no agent rewrites. Traeco wraps your existing client and reads your traces.</p>
+    </div>
+
+    <div class="step-list">
+
+      <!-- Step 1 -->
+      <div class="step" id="step0">
+        <div class="step-num">01</div>
+        <div class="step-content">
+          <div class="step-title">Install the SDK</div>
+          <div class="step-desc">One pip install. Zero dependencies beyond what you already have. Works in any Python 3.8+ environment.</div>
+          <div class="step-chips">
+            <span class="chip">Python 3.8+</span>
+            <span class="chip">Node.js 18+</span>
+            <span class="chip">Docker friendly</span>
+          </div>
+        </div>
+        <div class="step-visual">
+          <div class="code-block">
+            <div class="cb-chrome">
+              <div class="cb-dot" style="background:#ef4444"></div>
+              <div class="cb-dot" style="background:#f59e0b"></div>
+              <div class="cb-dot" style="background:#22c55e"></div>
+              <span class="cb-title">terminal</span>
+            </div>
+            <div class="cb-body">
+<span class="cb-line"><span class="co">$</span> <span class="cx">pip install traeco-sdk</span></span>
+<span class="cb-line"></span>
+<span class="cb-line"><span class="co">Successfully installed traeco-sdk-1.4.2</span></span>
+<span class="cb-line"><span class="co">  traeco-core-1.4.2</span></span>
+<span class="cb-line"><span class="co">  traeco-openai-1.4.2</span></span>
+<span class="cb-line"><span class="co">  traeco-anthropic-1.4.2</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step" id="step1">
+        <div class="step-num">02</div>
+        <div class="step-content">
+          <div class="step-title">Add 3 lines to your agent</div>
+          <div class="step-desc">Import, init with your API key, and wrap your LLM client. Traeco intercepts calls transparently — your logic stays exactly the same.</div>
+          <div class="step-chips">
+            <span class="chip">OpenAI</span>
+            <span class="chip">Anthropic</span>
+            <span class="chip">LangChain</span>
+            <span class="chip">CrewAI</span>
+          </div>
+        </div>
+        <div class="step-visual">
+          <div class="code-block">
+            <div class="cb-chrome">
+              <div class="cb-dot" style="background:#ef4444"></div>
+              <div class="cb-dot" style="background:#f59e0b"></div>
+              <div class="cb-dot" style="background:#22c55e"></div>
+              <span class="cb-title">agent.py</span>
+            </div>
+            <div class="cb-body">
+<span class="cb-line"><span class="ck">from</span> <span class="cf">traeco</span> <span class="ck">import</span> <span class="cf">init</span><span class="co">,</span> <span class="cf">wrap</span></span>
+<span class="cb-line"></span>
+<span class="cb-line"><span class="cc"># 1. Initialize with your key</span></span>
+<span class="cb-line"><span class="cf">init</span><span class="co">(</span><span class="cf">api_key</span><span class="co">=</span><span class="cs">"tk_live_..."</span><span class="co">)</span></span>
+<span class="cb-line"></span>
+<span class="cb-line"><span class="cc"># 2. Wrap your client</span></span>
+<span class="cb-line"><span class="cf">client</span> <span class="co">=</span> <span class="cf">wrap</span><span class="co">(</span><span class="cf">OpenAI</span><span class="co">())</span></span>
+<span class="cb-line"></span>
+<span class="cb-line"><span class="cc"># 3. Done — use client as normal</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step" id="step2">
+        <div class="step-num">03</div>
+        <div class="step-content">
+          <div class="step-title">30-minute onboarding call</div>
+          <div class="step-desc">We walk through your agent architecture, validate the integration, and label your key functions so attribution is accurate from day one.</div>
+          <div class="step-chips">
+            <span class="chip">Free for all plans</span>
+            <span class="chip">Within 24h of signup</span>
+          </div>
+        </div>
+        <div class="step-visual">
+          <div class="code-block">
+            <div class="cb-chrome">
+              <div class="cb-dot" style="background:#ef4444"></div>
+              <div class="cb-dot" style="background:#f59e0b"></div>
+              <div class="cb-dot" style="background:#22c55e"></div>
+              <span class="cb-title">agent.py — with labels</span>
+            </div>
+            <div class="cb-body">
+<span class="cb-line"><span class="ck">from</span> <span class="cf">traeco</span> <span class="ck">import</span> <span class="cf">span</span></span>
+<span class="cb-line"></span>
+<span class="cb-line"><span class="cc"># Optional: label functions for</span></span>
+<span class="cb-line"><span class="cc"># per-function attribution</span></span>
+<span class="cb-line"><span class="co">@</span><span class="cf">span</span><span class="co">(</span><span class="cs">"agent_research"</span><span class="co">)</span></span>
+<span class="cb-line"><span class="ck">async def</span> <span class="cf">research</span><span class="co">(</span><span class="cx">query</span><span class="co">):</span></span>
+<span class="cb-line">  <span class="cc"># Traeco tracks cost here</span></span>
+<span class="cb-line">  <span class="ck">return</span> <span class="ck">await</span> <span class="cf">call_llm</span><span class="co">(</span><span class="cx">query</span><span class="co">)</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step" id="step3">
+        <div class="step-num">04</div>
+        <div class="step-content">
+          <div class="step-title">First insights in 24 hours</div>
+          <div class="step-desc">Within a day of sending traffic, your dashboard shows cost by function, anomalies, and your first ranked recommendations with projected savings.</div>
+          <div class="step-chips">
+            <span class="chip">Live dashboard</span>
+            <span class="chip">Slack alerts</span>
+            <span class="chip">Email digest</span>
+          </div>
+        </div>
+        <div class="step-visual">
+          <div class="insight-card">
+            <div class="ic-top">
+              <span class="ic-label">First insight</span>
+              <div class="ic-live"><span class="ic-dot"></span>Live</div>
+            </div>
+            <div class="ic-body">
+              <div class="ic-row"><span class="ic-key">Agent</span><span class="ic-val">research_agent</span></div>
+              <div class="ic-row"><span class="ic-key">Cost / request</span><span class="ic-val red">$2.59</span></div>
+              <div class="ic-row"><span class="ic-key">Top function</span><span class="ic-val">gpt4o_complete()</span></div>
+              <div class="ic-row"><span class="ic-key">% of total cost</span><span class="ic-val red">94%</span></div>
+              <div class="ic-rec">
+                <div class="ic-rec-title">Recommendation #1</div>
+                <div class="ic-rec-body">Switch <code style="font-family:var(--mono);color:var(--tx)">gpt4o_complete()</code> to <code style="font-family:var(--mono);color:var(--tx)">claude-3-5-sonnet</code>. Equivalent output, 63% lower cost.</div>
+                <div class="ic-save">Save ~$847/mo &mdash; 92% confidence</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="providers-section">
+  <div class="prov-inner">
+    <div class="prov-header" id="prov-hdr">
+      <span class="sk">Compatibility</span>
+      <h2 class="sh">Works with your stack.</h2>
+    </div>
+    <div class="prov-grid">
+      <div class="prov-card" id="pv0">
+        <div class="prov-icon" style="background:rgba(116,200,138,.12);color:#74c88a;font-size:13px">OAI</div>
+        <div class="prov-info"><div class="prov-name">OpenAI</div><div class="prov-status full">Full support</div></div>
+      </div>
+      <div class="prov-card" id="pv1">
+        <div class="prov-icon" style="background:rgba(196,133,93,.12);color:#c4855d;font-size:12px">ANT</div>
+        <div class="prov-info"><div class="prov-name">Anthropic</div><div class="prov-status full">Full support</div></div>
+      </div>
+      <div class="prov-card" id="pv2">
+        <div class="prov-icon" style="background:rgba(66,133,244,.12);color:#4285F4;font-size:12px">GEM</div>
+        <div class="prov-info"><div class="prov-name">Google Gemini</div><div class="prov-status full">Full support</div></div>
+      </div>
+      <div class="prov-card" id="pv3">
+        <div class="prov-icon" style="background:rgba(99,102,241,.12);color:#818cf8;font-size:11px">LC</div>
+        <div class="prov-info"><div class="prov-name">LangChain</div><div class="prov-status full">Full support</div></div>
+      </div>
+      <div class="prov-card" id="pv4">
+        <div class="prov-icon" style="background:rgba(249,115,22,.12);color:#fb923c;font-size:11px">CR</div>
+        <div class="prov-info"><div class="prov-name">CrewAI</div><div class="prov-status full">Full support</div></div>
+      </div>
+      <div class="prov-card" id="pv5">
+        <div class="prov-icon" style="background:rgba(245,158,11,.12);color:#fbbf24;font-size:11px">CO</div>
+        <div class="prov-info"><div class="prov-name">Cohere</div><div class="prov-status full">Full support</div></div>
+      </div>
+      <div class="prov-card" id="pv6">
+        <div class="prov-icon" style="background:rgba(239,68,68,.12);color:#f87171;font-size:11px">AZ</div>
+        <div class="prov-info"><div class="prov-name">Azure OpenAI</div><div class="prov-status exp">Experimental</div></div>
+      </div>
+      <div class="prov-card" id="pv7">
+        <div class="prov-icon" style="background:rgba(251,146,60,.12);color:#fb923c;font-size:10px">BED</div>
+        <div class="prov-info"><div class="prov-name">AWS Bedrock</div><div class="prov-status exp">Experimental</div></div>
+      </div>
+      <div class="prov-card" id="pv8">
+        <div class="prov-icon" style="background:rgba(139,92,246,.12);color:#a78bfa;font-size:11px">LG</div>
+        <div class="prov-info"><div class="prov-name">LangGraph</div><div class="prov-status full">Full support</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="cta-glow"></div>
+  <div class="w r" id="cta-inner">
+    <span class="sk">Get started today</span>
+    <h2 class="cta-h">30 minutes to<br/><span class="g">your first insight.</span></h2>
+    <p class="cta-s">Join the waitlist and we&rsquo;ll schedule your onboarding call within 24 hours.</p>
+    <form class="cta-form" onsubmit="fsub(event)">
+      <input class="inp" type="email" placeholder="work@company.com" required id="cta-email"/>
+      <button type="submit" class="btn" id="cta-btn">Get early access &rarr;</button>
+    </form>
+    <p class="ctan" id="cta-note">Free setup call. No credit card required.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="w fi">
+    <a href="index.html" class="flogo">
+      <svg width="16" height="18" viewBox="0 0 52 56" fill="none"><defs><radialGradient id="lg3" cx="35%" cy="25%" r="75%"><stop offset="0%" stop-color="#2bdb82"/><stop offset="45%" stop-color="#1BA86F"/><stop offset="100%" stop-color="#084830"/></radialGradient></defs><circle cx="16" cy="12" r="12" fill="url(#lg3)"/><circle cx="37" cy="14" r="10" fill="url(#lg3)"/><circle cx="11" cy="36" r="9" fill="url(#lg3)"/><circle cx="34" cy="42" r="8" fill="url(#lg3)"/><ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg3)"/></svg>
+      TRAECO
+    </a>
+    <ul class="flinks">
+      <li><a href="index.html#product">Product</a></li>
+      <li><a href="integrate.html">Integrate</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="mailto:hello@traeco.ai">Contact</a></li>
+    </ul>
+    <span class="fcopy">&copy; 2026 Traeco</span>
+  </div>
+</footer>
+
+<script>
+/* PROGRESS */
+window.addEventListener('scroll',()=>{
+  const max=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('progress').style.width=(window.scrollY/max*100)+'%';
+},{passive:true});
+
+/* INTERSECTION OBSERVER */
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){e.target.classList.add('v');io.unobserve(e.target)}
+  });
+},{threshold:.1});
+
+// steps
+['step0','step1','step2','step3'].forEach((id,i)=>{
+  const el=document.getElementById(id);
+  if(el){el.style.transitionDelay=(i*80)+'ms';io.observe(el)}
+});
+
+// providers
+for(let i=0;i<9;i++){
+  const el=document.getElementById('pv'+i);
+  if(el){el.style.transitionDelay=(i*50)+'ms';io.observe(el)}
+}
+
+// headers & cta
+['steps-hdr','prov-hdr','cta-inner'].forEach(id=>{
+  const el=document.getElementById(id);if(el)io.observe(el);
+});
+
+/* CTA FORM */
+function fsub(e){
+  e.preventDefault();
+  const btn=document.getElementById('cta-btn');
+  const note=document.getElementById('cta-note');
+  btn.textContent='You\'re on the list ✓';
+  btn.style.background='var(--g)';
+  btn.disabled=true;
+  note.textContent='We\'ll be in touch within 24 hours.';
+  note.style.color='var(--g2)';
+}
+</script>
+</body>
+</html>
