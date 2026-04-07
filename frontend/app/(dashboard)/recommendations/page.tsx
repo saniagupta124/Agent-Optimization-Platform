@@ -14,7 +14,7 @@ function severityLabel(s: string): "High" | "Med" | "Low" {
 
 function severityBadgeClass(label: "High" | "Med" | "Low"): string {
   if (label === "High") return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
-  if (label === "Low") return "bg-zinc-800/90 text-zinc-400 ring-1 ring-zinc-700";
+  if (label === "Low") return "bg-[#242424]/90 text-zinc-400 ring-1 ring-[#333333]";
   return "bg-amber-950/55 text-amber-200/95 ring-1 ring-amber-900/50";
 }
 
@@ -58,12 +58,12 @@ export default function RecommendationsPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Scope toggle */}
-          <div className="inline-flex rounded-full border border-zinc-800 bg-[#1c1c1c] p-0.5">
+          <div className="inline-flex rounded-full border border-[#2a2a2a] bg-[#161617] p-0.5">
             <button
               type="button"
               onClick={() => setScope("me")}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                scope === "me" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+                scope === "me" ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
               My workspace
@@ -73,7 +73,7 @@ export default function RecommendationsPage() {
               disabled={!teamAvailable}
               onClick={() => teamAvailable && setScope("team")}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                scope === "team" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+                scope === "team" ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
               } ${!teamAvailable ? "cursor-not-allowed opacity-40" : ""}`}
             >
               Team
@@ -81,14 +81,14 @@ export default function RecommendationsPage() {
           </div>
 
           {/* Period */}
-          <div className="flex rounded-xl border border-zinc-800 bg-[#1c1c1c] p-0.5">
+          <div className="flex rounded-xl border border-[#2a2a2a] bg-[#161617] p-0.5">
             {([7, 14, 30] as const).map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => setDays(d)}
                 className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  days === d ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+                  days === d ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 {d}d
@@ -100,10 +100,10 @@ export default function RecommendationsPage() {
 
       {/* Savings summary */}
       {!loading && summary && (
-        <div className="mb-8 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-6">
+        <div className="mb-8 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-6">
           <p className="text-lg text-zinc-300">
             You could save{" "}
-            <span className="font-semibold text-orange-400">
+            <span className="font-semibold text-emerald-400">
               ${summary.potential_savings_usd.toFixed(2)}/mo
             </span>{" "}
             across {recs.length} recommendation{recs.length !== 1 ? "s" : ""} in the last {days} days.
@@ -115,11 +115,11 @@ export default function RecommendationsPage() {
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/30" />
+            <div key={i} className="h-36 animate-pulse rounded-2xl border border-[#2a2a2a] bg-[#141414]/30" />
           ))}
         </div>
       ) : recs.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-10 text-center">
+        <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-10 text-center">
           <p className="text-zinc-500">No recommendations yet — add agents and usage history.</p>
         </div>
       ) : (
@@ -130,7 +130,7 @@ export default function RecommendationsPage() {
               <Link
                 key={`${ch.agent_id}-${ch.type}-${ch.rank}`}
                 href={`/recommendations/${ch.type}?agent_id=${ch.agent_id}&days=${days}&scope=${scope}`}
-                className="flex flex-col gap-3 rounded-2xl border border-zinc-800/80 bg-[#1c1c1c] p-6 transition hover:border-zinc-700 hover:bg-zinc-900/60 sm:flex-row sm:items-start"
+                className="flex flex-col gap-3 rounded-2xl border border-[#2a2a2a]/80 bg-[#161617] p-6 transition hover:border-[#333333] hover:bg-[#141414]/60 sm:flex-row sm:items-start"
               >
                 {/* Rank */}
                 <span className="text-3xl font-bold tabular-nums text-zinc-700 sm:w-10 sm:shrink-0">
@@ -144,7 +144,7 @@ export default function RecommendationsPage() {
                       {sev}
                     </span>
                     {ch.type && (
-                      <span className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+                      <span className="rounded bg-[#242424] px-2 py-0.5 text-xs text-zinc-400">
                         {TYPE_LABELS[ch.type] ?? ch.type}
                       </span>
                     )}
@@ -154,7 +154,7 @@ export default function RecommendationsPage() {
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <p className="text-base font-semibold tabular-nums text-orange-400">
+                  <p className="text-base font-semibold tabular-nums text-emerald-400">
                     Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
                   </p>
                   <p className="mt-1 text-xs text-zinc-600">View details →</p>

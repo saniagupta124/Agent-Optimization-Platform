@@ -450,6 +450,7 @@ export interface TeamMember {
   total_cost_7d: number;
   total_requests_7d: number;
   plan_tier: string;
+  role: string;
 }
 
 export interface TeamOverview {
@@ -478,6 +479,52 @@ export function joinTeam(token: string, body: { name: string; password: string }
 
 export function leaveTeam(token: string) {
   return postJSON<{ ok: boolean }>("/team/leave", {}, token);
+}
+
+async function postJSONPublic<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.detail || text || `API error: ${res.status}`);
+    } catch (parseErr) {
+      if (parseErr instanceof SyntaxError) throw new Error(text || `API error: ${res.status}`);
+      throw parseErr;
+    }
+  }
+  return res.json();
+}
+
+export interface TeamInviteCreated {
+  token: string;
+  team_id: string;
+  team_name: string;
+  expires_at: string;
+  invite_url: string | null;
+}
+
+export interface TeamInvitePreview {
+  valid: boolean;
+  expired: boolean;
+  team_name: string | null;
+  team_id: string | null;
+}
+
+export function createTeamInvite(token: string, expiresDays?: number) {
+  return postJSON<TeamInviteCreated>("/team/invites", { expires_days: expiresDays ?? 14 }, token);
+}
+
+export function previewTeamInvite(token: string) {
+  return postJSONPublic<TeamInvitePreview>("/team/invites/preview", { token });
+}
+
+export function acceptTeamInvite(authToken: string, token: string) {
+  return postJSON<TeamInfo>("/team/invites/accept", { token }, authToken);
 }
 
 export interface MemberAgentRow {
@@ -656,4 +703,26 @@ export function getSimulation(token: string, agentId: string, recType: string, d
     `/agents/${agentId}/recommendations/simulate?rec_type=${recType}&days=${days}`,
     token
   );
+}
+
+// ---------- SDK Keys ----------
+
+export interface SdkKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface SdkKeyCreated extends SdkKey {
+  raw_key: string;
+}
+
+export function listSdkKeys(token: string) {
+  return fetchJSON<SdkKey[]>("/sdk-keys", token);
+}
+
+export function createSdkKey(token: string, name: string) {
+  return postJSON<SdkKeyCreated>("/sdk-keys", { name }, token);
 }

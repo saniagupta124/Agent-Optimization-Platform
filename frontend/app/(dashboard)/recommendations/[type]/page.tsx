@@ -146,7 +146,7 @@ function severityLabel(s: string): "High" | "Med" | "Low" {
 
 function severityBadgeClass(label: "High" | "Med" | "Low"): string {
   if (label === "High") return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
-  if (label === "Low") return "bg-zinc-800/90 text-zinc-400 ring-1 ring-zinc-700";
+  if (label === "Low") return "bg-[#242424]/90 text-zinc-400 ring-1 ring-[#333333]";
   return "bg-amber-950/55 text-amber-200/95 ring-1 ring-amber-900/50";
 }
 
@@ -197,7 +197,7 @@ export default function RecommendationDetailPage() {
       </Link>
 
       {/* Hero */}
-      <div className="mt-6 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-7">
+      <div className="mt-6 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-7">
         <div className="flex flex-wrap items-start gap-3">
           <h1 className="text-2xl font-bold text-white">{content.title}</h1>
           {sev && (
@@ -209,14 +209,14 @@ export default function RecommendationDetailPage() {
         <p className="mt-2 text-base text-zinc-400">{content.tagline}</p>
 
         {rec && (
-          <div className="mt-5 flex flex-wrap items-center gap-6 border-t border-zinc-800/80 pt-5">
+          <div className="mt-5 flex flex-wrap items-center gap-6 border-t border-[#2a2a2a]/80 pt-5">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Agent</p>
               <p className="mt-0.5 text-sm font-medium text-zinc-200">{rec.agent_name}</p>
             </div>
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Est. monthly savings</p>
-              <p className="mt-0.5 text-base font-semibold tabular-nums text-orange-400">
+              <p className="mt-0.5 text-base font-semibold tabular-nums text-emerald-400">
                 ${rec.estimated_savings_usd.toFixed(2)}/mo
               </p>
             </div>
@@ -228,7 +228,7 @@ export default function RecommendationDetailPage() {
         )}
 
         {rec && (
-          <div className="mt-5 rounded-xl border border-zinc-800/80 bg-[#121212] p-4">
+          <div className="mt-5 rounded-xl border border-[#2a2a2a]/80 bg-[#0d0d0e] p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Finding</p>
             <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{rec.description}</p>
           </div>
@@ -236,7 +236,7 @@ export default function RecommendationDetailPage() {
       </div>
 
       {/* Why this matters */}
-      <div className="mt-6 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-7">
+      <div className="mt-6 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-7">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-zinc-500">
           Why this matters
         </h2>
@@ -244,14 +244,14 @@ export default function RecommendationDetailPage() {
       </div>
 
       {/* How to implement */}
-      <div className="mt-6 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-7">
+      <div className="mt-6 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-7">
         <h2 className="mb-5 text-sm font-semibold uppercase tracking-widest text-zinc-500">
           How to implement
         </h2>
         <ol className="space-y-5">
           {content.how.map((step, i) => (
             <li key={i} className="flex gap-4">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-sm font-bold text-orange-400">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-sm font-bold text-emerald-400">
                 {i + 1}
               </span>
               <div>
@@ -265,19 +265,19 @@ export default function RecommendationDetailPage() {
 
       {/* Code example */}
       {content.code && (
-        <div className="mt-6 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-7">
+        <div className="mt-6 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-7">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500">
             Code example
           </h2>
-          <pre className="overflow-x-auto rounded-xl border border-zinc-800 bg-[#0d0d0d] p-5 text-xs leading-relaxed text-zinc-300">
+          <pre className="overflow-x-auto rounded-xl border border-[#2a2a2a] bg-[#0d0d0e] p-5 text-xs leading-relaxed text-zinc-300">
             <code>{content.code}</code>
           </pre>
         </div>
       )}
 
       {/* Expected impact */}
-      <div className="mt-6 rounded-2xl border border-orange-900/30 bg-orange-950/10 p-7">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-orange-700">
+      <div className="mt-6 rounded-2xl border border-emerald-900/30 bg-emerald-950/10 p-7">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-emerald-700">
           Expected impact
         </h2>
         <p className="text-sm leading-relaxed text-zinc-300">{content.impact}</p>
@@ -287,7 +287,7 @@ export default function RecommendationDetailPage() {
       <div className="mt-6 flex items-center gap-4">
         <Link
           href="/agents"
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-400 via-orange-500 to-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-950/25 transition hover:from-orange-300 hover:to-red-500"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-800 px-5 py-2.5 text-sm font-semibold text-white shadow-lg  transition hover:from-emerald-500 hover:to-emerald-700"
         >
           View agents →
         </Link>

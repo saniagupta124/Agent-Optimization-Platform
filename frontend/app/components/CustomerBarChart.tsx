@@ -33,15 +33,15 @@ export default function CustomerBarChart() {
 
   if (loading) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-xl border border-gray-800 bg-gray-900">
-        <p className="text-gray-500">Loading chart...</p>
+      <div className="flex h-72 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#141414]">
+        <p className="text-zinc-500">Loading chart...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-xl border border-red-900 bg-gray-900">
+      <div className="flex h-72 items-center justify-center rounded-xl border border-red-900 bg-[#141414]">
         <p className="text-red-400">Failed to load data: {error}</p>
       </div>
     );
@@ -49,14 +49,14 @@ export default function CustomerBarChart() {
 
   if (data.length === 0) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-xl border border-gray-800 bg-gray-900">
-        <p className="text-gray-500">No customer data yet</p>
+      <div className="flex h-72 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#141414]">
+        <p className="text-zinc-500">No customer data yet</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
+    <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-6">
       <h3 className="mb-4 text-lg font-semibold text-white">
         Cost by Customer (Top 10)
       </h3>

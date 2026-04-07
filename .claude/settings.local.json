@@ -3,7 +3,24 @@
     "allow": [
       "Bash(find:*)",
       "Bash(ls:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(npm --version)",
+      "Bash(pip3 install:*)",
+      "Bash(pip3 list:*)",
+      "Bash(DATABASE_URL=\"sqlite:///./dev.db\" JWT_SECRET=\"traeco-dev-secret\" uvicorn app.main:app --reload --port 8000)",
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 NEXTAUTH_SECRET=traeco-dev-nextauth-secret NEXTAUTH_URL=http://localhost:3000 BACKEND_URL=http://localhost:8000 npm run dev)",
+      "Bash(python3 -m http.server 8080)",
+      "Bash(echo \"Website PID: $!\")",
+      "Bash(lsof -ti:8000)",
+      "Bash(xargs kill:*)",
+      "Bash(lsof -ti:3000)",
+      "Bash(lsof -ti:8080)",
+      "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 NEXTAUTH_SECRET=traeco-dev-nextauth-secret NEXTAUTH_URL=http://localhost:3000 BACKEND_URL=http://localhost:8000 nohup npm run dev)",
+      "Bash(echo \"Frontend PID: $!\")",
+      "Bash(xargs sed:*)"
     ]
   }
 }

@@ -20,3 +20,4 @@ venv/
 *.swp
 .idea/
 .vscode/
+*.db

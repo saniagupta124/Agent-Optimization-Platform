@@ -4,12 +4,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Suspense, useState } from "react";
-import { acceptTeamInvite, register } from "../../lib/api";
+import { register } from "../../lib/api";
 
 function SignUpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const inviteToken = (searchParams.get("invite") || "").trim();
   const nextPath = (searchParams.get("next") || "").trim();
   const prefillEmail = (searchParams.get("email") || "").trim();
   const [name, setName] = useState("");
@@ -25,39 +24,14 @@ function SignUpForm() {
     setLoading(true);
 
     try {
-      const reg = await register({
-        email,
-        name,
-        password,
-        organization_name: organization,
-      });
+      await register({ email, name, password, organization_name: organization });
 
-      if (inviteToken) {
-        try {
-          await acceptTeamInvite(reg.access_token, inviteToken);
-        } catch {
-          setError("Account created but team invite could not be applied. Use the invite link again from Team.");
-          setLoading(false);
-          return;
-        }
-      }
-
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
+      const result = await signIn("credentials", { email, password, redirect: false });
 
       if (result?.error) {
         setError("Account created but sign-in failed. Please try signing in.");
       } else {
-        const dest =
-          nextPath && nextPath.startsWith("/")
-            ? nextPath
-            : inviteToken
-              ? `/team`
-              : "/onboarding";
-        router.push(dest);
+        router.push(nextPath && nextPath.startsWith("/") ? nextPath : "/onboarding");
         router.refresh();
       }
     } catch (err: any) {
@@ -75,13 +49,24 @@ function SignUpForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg shadow-orange-950/40">
-          <span className="text-2xl font-black italic leading-none text-white" aria-hidden>/</span>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "rgba(14,113,74,0.18)", border: "1px solid rgba(45,224,128,0.25)" }}>
+          <svg width="22" height="24" viewBox="0 0 52 56" fill="none">
+            <defs>
+              <radialGradient id="lg0s" cx="35%" cy="25%" r="75%">
+                <stop offset="0%" stopColor="#2bdb82" />
+                <stop offset="45%" stopColor="#1BA86F" />
+                <stop offset="100%" stopColor="#084830" />
+              </radialGradient>
+            </defs>
+            <circle cx="16" cy="12" r="12" fill="url(#lg0s)" />
+            <circle cx="37" cy="14" r="10" fill="url(#lg0s)" />
+            <circle cx="11" cy="36" r="9" fill="url(#lg0s)" />
+            <circle cx="34" cy="42" r="8" fill="url(#lg0s)" />
+            <ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg0s)" />
+          </svg>
         </div>
-        <h1 className="text-2xl font-bold text-white">Create your account</h1>
-        <p className="mt-1 text-sm text-gray-400">
-          Start optimizing your AI agent spend
-        </p>
+        <h1 className="text-2xl font-semibold text-white" style={{ letterSpacing: "-0.028em" }}>Create your account</h1>
+        <p className="mt-1 text-sm" style={{ color: "#71717a" }}>Start optimizing your AI agent spend</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -92,85 +77,74 @@ function SignUpForm() {
         )}
 
         <div>
-          <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-300">
-            Full name
-          </label>
+          <label htmlFor="name" className="mb-1.5 block text-sm font-medium" style={{ color: "#a1a1aa" }}>Full name</label>
           <input
-            id="name"
-            type="text"
-            required
-            value={name}
+            id="name" type="text" required value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(27,168,111,0.6)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
             placeholder="Jane Smith"
           />
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
-            Email
-          </label>
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium" style={{ color: "#a1a1aa" }}>Email</label>
           <input
-            id="email"
-            type="email"
-            required
-            value={email}
+            id="email" type="email" required value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(27,168,111,0.6)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
             placeholder="you@example.com"
           />
         </div>
 
         <div>
-          <label htmlFor="org" className="mb-1.5 block text-sm font-medium text-gray-300">
-            Organization <span className="text-gray-500">(optional)</span>
+          <label htmlFor="org" className="mb-1.5 block text-sm font-medium" style={{ color: "#a1a1aa" }}>
+            Organization <span style={{ color: "#52525b" }}>(optional)</span>
           </label>
           <input
-            id="org"
-            type="text"
-            value={organization}
+            id="org" type="text" value={organization}
             onChange={(e) => setOrganization(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(27,168,111,0.6)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
             placeholder="Acme Inc."
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-300">
-            Password
-          </label>
+          <label htmlFor="password" className="mb-1.5 block text-sm font-medium" style={{ color: "#a1a1aa" }}>Password</label>
           <input
-            id="password"
-            type="password"
-            required
-            minLength={6}
-            value={password}
+            id="password" type="password" required minLength={6} value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(27,168,111,0.6)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
             placeholder="At least 6 characters"
           />
         </div>
 
         <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-orange-950/30 transition hover:from-orange-400 hover:to-orange-500 disabled:opacity-50"
+          type="submit" disabled={loading}
+          className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition disabled:opacity-50"
+          style={{ background: "linear-gradient(135deg, #1BA86F 0%, #0E714A 100%)" }}
         >
           {loading ? "Creating account..." : "Create account"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-400">
+      <p className="mt-6 text-center text-sm" style={{ color: "#52525b" }}>
         Already have an account?{" "}
         <Link
-          href={
-            nextPath
-              ? `/signin?next=${encodeURIComponent(nextPath)}`
-              : inviteToken
-                ? `/signin?next=${encodeURIComponent(`/join?token=${encodeURIComponent(inviteToken)}`)}`
-                : "/signin"
-          }
-          className="font-medium text-orange-400 hover:text-orange-300"
+          href={nextPath ? `/signin?next=${encodeURIComponent(nextPath)}` : "/signin"}
+          className="font-medium transition hover:opacity-80"
+          style={{ color: "#2de080" }}
         >
           Sign in
         </Link>
@@ -181,7 +155,7 @@ function SignUpForm() {
 
 export default function SignUpPage() {
   return (
-    <Suspense fallback={<div className="w-full max-w-sm animate-pulse rounded-lg bg-gray-900/50 p-8" />}>
+    <Suspense fallback={<div className="w-full max-w-sm animate-pulse rounded-lg p-8" style={{ background: "rgba(255,255,255,0.03)" }} />}>
       <SignUpForm />
     </Suspense>
   );

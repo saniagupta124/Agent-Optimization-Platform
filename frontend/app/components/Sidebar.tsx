@@ -114,7 +114,7 @@ export default function Sidebar() {
   const { data: session } = useSession();
 
   return (
-    <aside className="flex h-screen w-[260px] flex-col border-r border-zinc-800/90 bg-[#1c1c1c]">
+    <aside className="flex h-screen w-[260px] flex-col border-r border-[#2a2a2a]/90 bg-[#161617]">
       <div className="flex h-[52px] items-center px-6 pt-1">
         <span className="text-lg font-bold tracking-tight" style={{ color: "#2de080", letterSpacing: "-0.02em" }}>Traeco</span>
       </div>
@@ -130,24 +130,24 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 rounded-full py-2.5 pl-2.5 pr-3 text-sm font-medium transition ${
                 active
-                  ? "bg-zinc-800/95 text-white shadow-sm shadow-black/20"
-                  : "text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+                  ? "bg-[#242424]/95 text-white shadow-sm shadow-black/20"
+                  : "text-zinc-400 hover:bg-[#242424]/40 hover:text-zinc-200"
               }`}
             >
               {isDash ? (
                 active ? (
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500 shadow-sm">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-700 shadow-sm">
                     <HomeIcon className="h-4 w-4 text-white" />
                   </span>
                 ) : (
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sky-400/60">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-emerald-500/60">
                     <HomeIcon className="h-[18px] w-[18px]" />
                   </span>
                 )
               ) : (
                 <span
                   className={
-                    active ? "text-sky-400" : "text-sky-400/45"
+                    active ? "text-emerald-400" : "text-emerald-500/45"
                   }
                 >
                   {item.icon}
@@ -159,9 +159,9 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-zinc-800/80 p-4">
+      <div className="border-t border-[#2a2a2a]/80 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-700 text-sm font-medium text-white ring-1 ring-zinc-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#303030] text-sm font-medium text-white ring-1 ring-[#3a3a3a]">
             {session?.user?.name?.[0]?.toUpperCase() || "U"}
           </div>
           <div className="min-w-0 flex-1 truncate">
@@ -175,7 +175,7 @@ export default function Sidebar() {
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/signin" })}
-            className="shrink-0 rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-200"
+            className="shrink-0 rounded-md p-1.5 text-zinc-500 transition hover:bg-[#242424] hover:text-zinc-200"
             title="Sign out"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

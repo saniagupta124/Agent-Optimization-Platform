@@ -44,9 +44,9 @@ function TrendBadge({ pct, label }: { pct: number | null | undefined; label: str
   }
   const up = pct >= 0;
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 text-sm font-medium tabular-nums text-orange-300 sm:text-base">
+    <span className="inline-flex max-w-full items-center gap-1.5 text-sm font-medium tabular-nums text-emerald-300 sm:text-base">
       {up ? (
-        <svg className="h-4 w-4 shrink-0 text-orange-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+        <svg className="h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
         </svg>
       ) : (
@@ -55,7 +55,7 @@ function TrendBadge({ pct, label }: { pct: number | null | undefined; label: str
         </svg>
       )}
       <span className="whitespace-nowrap">{fmtPct(pct)}</span>
-      <span className="whitespace-nowrap font-normal text-orange-300/90">{label}</span>
+      <span className="whitespace-nowrap font-normal text-emerald-300/90">{label}</span>
     </span>
   );
 }
@@ -69,7 +69,7 @@ function severityLabel(s: string): "High" | "Med" | "Low" {
 
 function severityBadgeClass(label: "High" | "Med" | "Low"): string {
   if (label === "High") return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
-  if (label === "Low") return "bg-zinc-800/90 text-zinc-400 ring-1 ring-zinc-700";
+  if (label === "Low") return "bg-[#242424]/90 text-zinc-400 ring-1 ring-[#333333]";
   return "bg-amber-950/55 text-amber-200/95 ring-1 ring-amber-900/50";
 }
 
@@ -82,11 +82,11 @@ function KpiCard({
   label: string;
   value: React.ReactNode;
   subline?: React.ReactNode;
-  accent: "orange" | "blue";
+  accent: "green" | "blue";
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] shadow-sm">
-      <div className={`h-[3px] w-full ${accent === "orange" ? "bg-amber-500" : "bg-blue-500"}`} aria-hidden />
+    <div className="overflow-hidden rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] shadow-sm">
+      <div className={`h-[3px] w-full ${accent === "green" ? "bg-emerald-500" : "bg-emerald-700"}`} aria-hidden />
       <div className="px-4 pb-4 pt-3">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
         <div className="mt-2 text-3xl font-semibold leading-none tracking-tight text-white tabular-nums sm:text-[2rem]">
@@ -103,7 +103,6 @@ export default function Dashboard() {
   const token = (session as any)?.accessToken as string | undefined;
 
   const [scope, setScope] = useState<"me" | "team">("me");
-  const [deployment, setDeployment] = useState<"all" | "internal" | "production">("all");
   const [days, setDays] = useState(30);
   const [breakdownTab, setBreakdownTab] = useState<"member" | "tool">("member");
   const [search, setSearch] = useState("");
@@ -127,10 +126,10 @@ export default function Dashboard() {
       }
       try {
         const [s, b, t, a] = await Promise.all([
-          getUsageSummary(auth, days, scope, deployment),
-          getUsageBreakdown(auth, days, scope, deployment),
-          getUsageTimeline(auth, Math.max(days, 35), scope, deployment),
-          getAgents(auth, scope, deployment),
+          getUsageSummary(auth, days, scope),
+          getUsageBreakdown(auth, days, scope),
+          getUsageTimeline(auth, Math.max(days, 35), scope),
+          getAgents(auth, scope),
         ]);
         if (!cancelled) {
           setSummary(s);
@@ -153,7 +152,7 @@ export default function Dashboard() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [token, days, scope, deployment]);
+  }, [token, days, scope]);
 
   /* ---- Chart model: changes with breakdownTab ---- */
   const chartModel = useMemo(() => {
@@ -264,12 +263,12 @@ export default function Dashboard() {
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium uppercase tracking-wide text-zinc-600">Scope</span>
-            <div className="inline-flex rounded-full border border-zinc-800 bg-[#1c1c1c] p-0.5">
+            <div className="inline-flex rounded-full border border-[#2a2a2a] bg-[#161617] p-0.5">
               <button
                 type="button"
                 onClick={() => setScope("me")}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                  scope === "me" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+                  scope === "me" ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 My workspace
@@ -280,41 +279,18 @@ export default function Dashboard() {
                 onClick={() => teamAvailable && setScope("team")}
                 title={teamAvailable ? "Organization-wide agents" : "Set organization in Settings"}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
-                  scope === "team" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+                  scope === "team" ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
                 } ${!teamAvailable ? "cursor-not-allowed opacity-40" : ""}`}
               >
                 Team
               </button>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-zinc-600">Environment</span>
-              <div className="inline-flex rounded-full border border-zinc-800 bg-[#1c1c1c] p-0.5">
-                {(
-                  [
-                    ["all", "All"],
-                    ["production", "Prod"],
-                    ["internal", "Internal"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setDeployment(key)}
-                    className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition sm:text-sm ${
-                      deployment === key ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 
         <div className="flex w-full flex-col gap-3 sm:max-w-xl lg:max-w-none lg:flex-1 lg:flex-row lg:items-center lg:justify-end lg:gap-4">
-          <div className="flex w-full min-w-0 flex-1 items-stretch overflow-hidden rounded-2xl border border-zinc-800 bg-[#1c1c1c] lg:max-w-md">
-            <span className="flex w-11 shrink-0 items-center justify-center bg-sky-500">
+          <div className="flex w-full min-w-0 flex-1 items-stretch overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#161617] lg:max-w-md">
+            <span className="flex w-11 shrink-0 items-center justify-center" style={{ background: "#0E714A" }}>
               <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
               </svg>
@@ -323,20 +299,20 @@ export default function Dashboard() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search here..."
+              placeholder="Search agents..."
               className="min-w-0 flex-1 border-0 bg-transparent py-2.5 pl-3 pr-4 text-base text-white placeholder-zinc-500 outline-none ring-0"
               aria-label="Search"
             />
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="flex rounded-2xl border border-zinc-800 bg-[#1c1c1c] p-1">
+            <div className="flex rounded-2xl border border-[#2a2a2a] bg-[#161617] p-1">
               {([7, 14, 30] as const).map((d) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setDays(d)}
                   className={`rounded-xl px-3 py-2 text-base font-medium transition ${
-                    days === d ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+                    days === d ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   {d}d
@@ -345,7 +321,7 @@ export default function Dashboard() {
             </div>
             <Link
               href="/agents/new"
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-orange-400 via-orange-500 to-red-600 px-5 py-2.5 text-base font-semibold text-white shadow-lg shadow-orange-950/25 transition hover:from-orange-300 hover:to-red-500"
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl px-5 py-2.5 text-base font-semibold text-white shadow-lg transition hover:opacity-90" style={{ background: "linear-gradient(135deg, #1BA86F 0%, #0E714A 100%)" }}
             >
               + Add agent
             </Link>
@@ -354,13 +330,13 @@ export default function Dashboard() {
       </div>
 
       {/* Hero — uses period-specific summary data */}
-      <section className="mb-10 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-6 sm:p-9">
+      <section className="mb-10 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-6 sm:p-9">
         {loading || !summary ? (
           <div className="space-y-4">
-            <div className="h-10 w-full max-w-xl animate-pulse rounded-lg bg-zinc-800" />
+            <div className="h-10 w-full max-w-xl animate-pulse rounded-lg bg-[#242424]" />
             <div className="grid gap-4 sm:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-40 animate-pulse rounded-2xl bg-zinc-800/80" />
+                <div key={i} className="h-40 animate-pulse rounded-2xl bg-[#242424]/80" />
               ))}
             </div>
           </div>
@@ -372,7 +348,7 @@ export default function Dashboard() {
                 ${summary.current_total_cost_usd.toFixed(2)}
               </span>{" "}
               in the last {days} days. You could save{" "}
-              <span className="font-semibold tabular-nums text-orange-400">
+              <span className="font-semibold tabular-nums text-emerald-400">
                 ${summary.potential_savings_usd.toFixed(2)}
               </span>
               .
@@ -383,7 +359,7 @@ export default function Dashboard() {
               </p>
             )}
 
-            <div id="recommendations" className="mt-8 scroll-mt-28 border-t border-zinc-800/80 pt-8">
+            <div id="recommendations" className="mt-8 scroll-mt-28 border-t border-[#2a2a2a]/80 pt-8">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {summary.top_changes.length === 0 ? (
                   <p className="col-span-full text-base text-zinc-500">
@@ -396,7 +372,7 @@ export default function Dashboard() {
                       <Link
                         key={`${ch.agent_id}-${ch.type}-${ch.rank}`}
                         href={`/recommendations/${ch.type}?agent_id=${ch.agent_id}&days=${days}&scope=${scope}`}
-                        className="flex flex-col rounded-2xl border border-zinc-800/80 bg-[#121212] p-5 transition hover:border-zinc-700 hover:bg-zinc-900/60"
+                        className="flex flex-col rounded-2xl border border-[#2a2a2a]/80 bg-[#0d0d0e] p-5 transition hover:border-[#333333] hover:bg-[#141414]/60"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <span className="text-lg font-semibold leading-snug text-zinc-100">
@@ -413,7 +389,7 @@ export default function Dashboard() {
                           {ch.description}
                         </p>
                         <div className="mt-5 flex items-center justify-between">
-                          <p className="text-base font-semibold tabular-nums text-orange-400">
+                          <p className="text-base font-semibold tabular-nums text-emerald-400">
                             Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
                           </p>
                           <span className="text-xs text-zinc-600 hover:text-zinc-400">View details →</span>
@@ -435,14 +411,14 @@ export default function Dashboard() {
         </h2>
       </div>
 
-      <section className="mb-10 rounded-2xl border border-zinc-800/90 bg-[#1c1c1c]">
-        <div className="flex gap-8 border-b border-zinc-800/90 px-5 pt-4">
+      <section className="mb-10 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617]">
+        <div className="flex gap-8 border-b border-[#2a2a2a]/90 px-5 pt-4">
           <button
             type="button"
             onClick={() => setBreakdownTab("member")}
             className={`relative pb-3 text-base font-medium transition ${
               breakdownTab === "member"
-                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-orange-500"
+                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-emerald-500"
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
@@ -453,7 +429,7 @@ export default function Dashboard() {
             onClick={() => setBreakdownTab("tool")}
             className={`relative pb-3 text-base font-medium transition ${
               breakdownTab === "tool"
-                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-orange-500"
+                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-emerald-500"
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
@@ -463,7 +439,7 @@ export default function Dashboard() {
 
         {loading || !timeline ? (
           <div className="h-52 animate-pulse p-6">
-            <div className="h-full rounded-xl bg-zinc-800/40" />
+            <div className="h-full rounded-xl bg-[#242424]/40" />
           </div>
         ) : (
           <>
@@ -475,7 +451,7 @@ export default function Dashboard() {
                     <span key={t}>{t}</span>
                   ))}
                 </div>
-                <div className="relative min-h-0 flex-1 border-l border-zinc-800/80 pl-2">
+                <div className="relative min-h-0 flex-1 border-l border-[#2a2a2a]/80 pl-2">
                   <div
                     className="pointer-events-none absolute inset-0 left-2 opacity-40"
                     style={{
@@ -534,7 +510,7 @@ export default function Dashboard() {
             </div>
 
             {/* Rows — per-item cost share, not global pct */}
-            <ul className="space-y-0 border-t border-zinc-800/90 px-3 py-4 sm:px-5">
+            <ul className="space-y-0 border-t border-[#2a2a2a]/90 px-3 py-4 sm:px-5">
               {breakdownTab === "member" ? (
                 sortedAgents.length === 0 ? (
                   <li className="px-2 py-6 text-center text-base text-zinc-500">
@@ -550,7 +526,7 @@ export default function Dashboard() {
                     return (
                       <li
                         key={a.id}
-                        className="flex flex-col gap-3 border-b border-zinc-800/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
+                        className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
                       >
                         <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
                           <span
@@ -563,9 +539,9 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="min-w-0 flex-1 px-0 sm:px-2">
-                          <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                          <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
                             <div
-                              className="h-full rounded-full bg-blue-500"
+                              className="h-full rounded-full bg-emerald-500"
                               style={{ width: `${Math.min(100, (a.total_cost_7d / maxMemberCost) * 100)}%` }}
                             />
                           </div>
@@ -590,7 +566,7 @@ export default function Dashboard() {
                 sortedTools.slice(0, 8).map((row, i) => (
                   <li
                     key={row.label}
-                    className="flex flex-col gap-3 border-b border-zinc-800/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
+                    className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
                   >
                     <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
                       <span
@@ -603,9 +579,9 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="min-w-0 flex-1 px-0 sm:px-2">
-                      <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
+                      <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
                         <div
-                          className="h-full rounded-full bg-blue-500"
+                          className="h-full rounded-full bg-emerald-500"
                           style={{ width: `${Math.min(100, (row.total_cost_usd / maxToolCost) * 100)}%` }}
                         />
                       </div>
@@ -634,12 +610,12 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
           {loading || !summary ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-36 animate-pulse rounded-2xl border border-zinc-800/80 bg-zinc-900/30" />
+              <div key={i} className="h-36 animate-pulse rounded-2xl border border-[#2a2a2a]/80 bg-[#141414]/30" />
             ))
           ) : (
             <>
               <KpiCard
-                accent="orange"
+                accent="green"
                 label="Total Cost"
                 value={fmtDollars(summary.current_total_cost_usd)}
                 subline={
@@ -686,7 +662,7 @@ export default function Dashboard() {
       </section>
 
       <p className="mt-10 text-center text-sm text-zinc-600">
-        <Link href="/agents" className="text-orange-400 hover:text-orange-300">
+        <Link href="/agents" className="text-emerald-400 hover:text-emerald-300">
           View all agents →
         </Link>
       </p>

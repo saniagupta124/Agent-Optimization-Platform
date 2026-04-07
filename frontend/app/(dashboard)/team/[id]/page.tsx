@@ -10,13 +10,13 @@ function tierBadge(tier: string) {
   const t = tier.toLowerCase();
   if (t === "pro") {
     return (
-      <span className="rounded-md bg-orange-950/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-orange-300 ring-1 ring-orange-800/50">
+      <span className="rounded-md bg-emerald-950/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-800/50">
         Pro
       </span>
     );
   }
   return (
-    <span className="rounded-md bg-zinc-800/80 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 ring-1 ring-zinc-700">
+    <span className="rounded-md bg-[#242424]/80 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 ring-1 ring-[#333333]">
       Free
     </span>
   );
@@ -24,7 +24,7 @@ function tierBadge(tier: string) {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-5">
+    <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-5">
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
       <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{value}</p>
       {sub && <p className="mt-1 text-xs text-zinc-600">{sub}</p>}
@@ -53,10 +53,10 @@ export default function MemberDetailPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="h-6 w-32 animate-pulse rounded bg-zinc-800" />
+        <div className="h-6 w-32 animate-pulse rounded bg-[#242424]" />
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/50" />
+            <div key={i} className="h-24 animate-pulse rounded-2xl border border-[#2a2a2a] bg-[#141414]/50" />
           ))}
         </div>
       </div>
@@ -85,7 +85,7 @@ export default function MemberDetailPage() {
 
       {/* Header */}
       <div className="mt-6 flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-xl font-bold text-white ring-1 ring-zinc-600">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#303030] text-xl font-bold text-white ring-1 ring-[#3a3a3a]">
           {data.name[0]?.toUpperCase() || "?"}
         </div>
         <div>
@@ -115,7 +115,7 @@ export default function MemberDetailPage() {
         {data.agents.length === 0 ? (
           <p className="text-sm text-zinc-500">No agents yet.</p>
         ) : (
-          <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] divide-y divide-zinc-800/60">
+          <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] divide-y divide-zinc-800/60">
             {data.agents.map((agent) => {
               const bar = Math.min(100, (agent.cost_7d / topAgentCost) * 100);
               return (
@@ -125,7 +125,7 @@ export default function MemberDetailPage() {
                       <p className="font-medium text-zinc-100">{agent.name}</p>
                       <p className="mt-0.5 text-sm text-zinc-500">{agent.purpose || "No description"}</p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs text-zinc-400">
+                        <span className="rounded bg-[#242424] px-2 py-0.5 font-mono text-xs text-zinc-400">
                           {agent.model}
                         </span>
                         <span className="text-xs text-zinc-600">{agent.provider}</span>
@@ -143,9 +143,9 @@ export default function MemberDetailPage() {
                   </div>
 
                   {/* Cost bar */}
-                  <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                  <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#242424]">
                     <div
-                      className="h-full rounded-full bg-orange-500"
+                      className="h-full rounded-full bg-emerald-600"
                       style={{ width: `${bar}%` }}
                     />
                   </div>

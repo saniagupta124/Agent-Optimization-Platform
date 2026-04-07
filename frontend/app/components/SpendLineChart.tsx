@@ -37,15 +37,15 @@ export default function SpendLineChart({ agentId }: Props) {
 
   if (loading) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-xl border border-gray-800 bg-gray-900">
-        <p className="text-gray-500">Loading chart...</p>
+      <div className="flex h-72 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#141414]">
+        <p className="text-zinc-500">Loading chart...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-xl border border-red-900 bg-gray-900">
+      <div className="flex h-72 items-center justify-center rounded-xl border border-red-900 bg-[#141414]">
         <p className="text-red-400">Failed to load data: {error}</p>
       </div>
     );
@@ -53,14 +53,14 @@ export default function SpendLineChart({ agentId }: Props) {
 
   if (data.length === 0) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-xl border border-gray-800 bg-gray-900">
-        <p className="text-gray-500">No spend data yet</p>
+      <div className="flex h-72 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#141414]">
+        <p className="text-zinc-500">No spend data yet</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
+    <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-6">
       <h3 className="mb-4 text-lg font-semibold text-white">Daily Spend (30 days)</h3>
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={data}>

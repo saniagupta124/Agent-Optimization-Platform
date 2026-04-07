@@ -65,10 +65,10 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="h-8 w-32 animate-pulse rounded bg-gray-800" />
+        <div className="h-8 w-32 animate-pulse rounded bg-[#1e1e1e]" />
         <div className="mt-8 space-y-6">
-          <div className="h-20 animate-pulse rounded-xl border border-gray-800 bg-gray-900" />
-          <div className="h-20 animate-pulse rounded-xl border border-gray-800 bg-gray-900" />
+          <div className="h-20 animate-pulse rounded-xl border border-[#2a2a2a] bg-[#141414]" />
+          <div className="h-20 animate-pulse rounded-xl border border-[#2a2a2a] bg-[#141414]" />
         </div>
       </div>
     );
@@ -78,7 +78,7 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <p className="mt-1 text-sm text-zinc-400">
           Manage your account and preferences
         </p>
       </div>
@@ -90,11 +90,11 @@ export default function SettingsPage() {
       )}
 
       {/* Profile section */}
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
+      <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-6">
         <h2 className="mb-4 text-lg font-semibold text-white">Profile</h2>
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-400">
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-zinc-400">
               Email
             </label>
             <input
@@ -102,12 +102,12 @@ export default function SettingsPage() {
               type="email"
               disabled
               value={profile?.email || ""}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-500"
+              className="w-full rounded-lg border border-[#333333] bg-[#1e1e1e] px-3 py-2 text-sm text-zinc-500"
             />
           </div>
 
           <div>
-            <label htmlFor="plan" className="mb-1.5 block text-sm font-medium text-gray-400">
+            <label htmlFor="plan" className="mb-1.5 block text-sm font-medium text-zinc-400">
               Plan
             </label>
             <input
@@ -115,15 +115,15 @@ export default function SettingsPage() {
               type="text"
               disabled
               value={profile?.plan_tier ?? "free"}
-              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm capitalize text-gray-400"
+              className="w-full rounded-lg border border-[#333333] bg-[#1e1e1e] px-3 py-2 text-sm capitalize text-zinc-400"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-zinc-500">
               Token and spend limits apply per calendar month (see dashboard).
             </p>
           </div>
 
           <div>
-            <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-300">
+            <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-zinc-300">
               Name
             </label>
             <input
@@ -132,27 +132,27 @@ export default function SettingsPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-400">
+            <label className="mb-1.5 block text-sm font-medium text-zinc-400">
               Team
             </label>
             {profile?.organization_name ? (
               <div className="flex items-center gap-3">
-                <span className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300">
+                <span className="rounded-lg border border-[#333333] bg-[#1e1e1e] px-3 py-2 text-sm text-zinc-300">
                   {profile.organization_name}
                 </span>
-                <Link href="/team" className="text-xs text-orange-400 hover:text-orange-300">
+                <Link href="/team" className="text-xs text-emerald-400 hover:text-emerald-300">
                   Manage →
                 </Link>
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-500">Not in a team</span>
-                <Link href="/team" className="text-xs text-orange-400 hover:text-orange-300">
+                <span className="text-sm text-zinc-500">Not in a team</span>
+                <Link href="/team" className="text-xs text-emerald-400 hover:text-emerald-300">
                   Join or create →
                 </Link>
               </div>
@@ -163,7 +163,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-orange-950/30 transition hover:from-orange-400 hover:to-orange-500 disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-emerald-700 to-emerald-800 px-5 py-2 text-sm font-medium text-white shadow-lg  transition hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>
@@ -175,11 +175,11 @@ export default function SettingsPage() {
       </div>
 
       {/* Danger zone */}
-      <div className="mt-8 rounded-xl border border-red-900/50 bg-gray-900 p-6">
+      <div className="mt-8 rounded-xl border border-red-900/50 bg-[#141414] p-6">
         <h2 className="mb-2 text-lg font-semibold text-red-400">
           Danger Zone
         </h2>
-        <p className="mb-4 text-sm text-gray-400">
+        <p className="mb-4 text-sm text-zinc-400">
           Permanently delete your account and all associated data. This action
           cannot be undone.
         </p>
@@ -202,7 +202,7 @@ export default function SettingsPage() {
             </button>
             <button
               onClick={() => setDeleteConfirm(false)}
-              className="rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-gray-700"
+              className="rounded-lg border border-[#333333] bg-[#1e1e1e] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-[#2a2a2a]"
             >
               Cancel
             </button>

@@ -111,10 +111,10 @@ export default function EditAgentPage() {
   if (loadingAgent) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="h-8 w-64 animate-pulse rounded bg-zinc-800" />
+        <div className="h-8 w-64 animate-pulse rounded bg-[#242424]" />
         <div className="mt-6 space-y-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-zinc-800" />
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-[#242424]" />
           ))}
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function EditAgentPage() {
           <input
             id="name" type="text" required
             value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
           />
         </div>
 
@@ -153,7 +153,7 @@ export default function EditAgentPage() {
             id="taskDesc"
             value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)}
             rows={2}
-            className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="w-full resize-none rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
             placeholder="Handles tier-1 customer questions, classifies support tickets..."
           />
         </div>
@@ -170,8 +170,8 @@ export default function EditAgentPage() {
                 onClick={() => setQualitySensitivity(q.value)}
                 className={`rounded-lg border p-3 text-left transition ${
                   qualitySensitivity === q.value
-                    ? "border-blue-500 bg-blue-950/30 ring-1 ring-blue-500"
-                    : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600"
+                    ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500"
+                    : "border-[#333333] bg-[#141414]/50 hover:border-zinc-600"
                 }`}
               >
                 <p className="text-sm font-semibold text-white">{q.label}</p>
@@ -185,7 +185,7 @@ export default function EditAgentPage() {
           <div>
             <label htmlFor="purpose" className="mb-1.5 block text-sm font-medium text-zinc-300">Purpose</label>
             <select id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500">
+              className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-600">
               {PURPOSES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
@@ -195,7 +195,7 @@ export default function EditAgentPage() {
               <span className="ml-1 text-xs font-normal text-zinc-500">(tracing detects all)</span>
             </label>
             <select id="provider" value={provider} onChange={(e) => handleProviderChange(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500">
+              className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-600">
               {Object.entries(PROVIDERS).map(([key, val]) => (
                 <option key={key} value={key}>{val.label}</option>
               ))}
@@ -209,7 +209,7 @@ export default function EditAgentPage() {
             <span className="ml-1 text-xs font-normal text-zinc-500">(tracing detects actual models used)</span>
           </label>
           <select id="model" value={model} onChange={(e) => setModel(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500">
+            className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-600">
             {(PROVIDERS[provider]?.models || []).map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -217,7 +217,7 @@ export default function EditAgentPage() {
         </div>
 
         {/* GitHub repo for auto-implement */}
-        <div className="rounded-xl border border-zinc-700/50 bg-zinc-900/30 p-4 space-y-3">
+        <div className="rounded-xl border border-[#333333]/50 bg-[#141414]/30 p-4 space-y-3">
           <div>
             <p className="text-sm font-medium text-zinc-300">GitHub Repo Integration</p>
             <p className="text-xs text-zinc-500 mt-0.5">
@@ -230,7 +230,7 @@ export default function EditAgentPage() {
               type="text"
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               placeholder="https://github.com/your-org/your-repo"
             />
           </div>
@@ -240,7 +240,7 @@ export default function EditAgentPage() {
               type="text"
               value={repoFilePath}
               onChange={(e) => setRepoFilePath(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               placeholder="agents/support_bot.py"
             />
           </div>
@@ -257,11 +257,11 @@ export default function EditAgentPage() {
           </button>
 
           {showAdvanced && (
-            <div className="mt-4 space-y-4 rounded-xl border border-zinc-700/50 bg-zinc-900/30 p-4">
+            <div className="mt-4 space-y-4 rounded-xl border border-[#333333]/50 bg-[#141414]/30 p-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-zinc-300">System Prompt</label>
                 <textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={3}
-                  className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-blue-500"
+                  className="w-full resize-none rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-emerald-600"
                   placeholder="You are a helpful customer support agent..." />
                 <p className="mt-1 text-xs text-zinc-500">Stored for context — used to improve recommendations</p>
               </div>
@@ -269,13 +269,13 @@ export default function EditAgentPage() {
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-zinc-300">Max Tokens</label>
                   <input type="number" value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} min={1} max={128000}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-blue-500"
+                    className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-emerald-600"
                     placeholder="e.g. 4096" />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-zinc-300">Temperature</label>
                   <input type="number" value={temperature} onChange={(e) => setTemperature(e.target.value)} min={0} max={2} step={0.1}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-blue-500"
+                    className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-emerald-600"
                     placeholder="0.0 – 2.0" />
                 </div>
               </div>
@@ -285,11 +285,11 @@ export default function EditAgentPage() {
 
         <div className="flex gap-3 pt-2">
           <button type="submit" disabled={loading}
-            className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-50">
+            className="rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:from-emerald-500 hover:to-emerald-700 disabled:opacity-50">
             {loading ? "Saving..." : "Save Changes"}
           </button>
           <button type="button" onClick={() => router.back()}
-            className="rounded-lg border border-zinc-700 bg-zinc-800 px-5 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700">
+            className="rounded-lg border border-[#333333] bg-[#242424] px-5 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-[#303030]">
             Cancel
           </button>
         </div>

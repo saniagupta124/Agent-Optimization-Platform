@@ -16,20 +16,20 @@ function tierBadge(tier: string) {
   const t = tier.toLowerCase();
   if (t === "pro") {
     return (
-      <span className="rounded-md bg-orange-950/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-orange-300 ring-1 ring-orange-800/50">
+      <span className="rounded-md bg-emerald-950/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-800/50">
         Pro
       </span>
     );
   }
   if (t === "team") {
     return (
-      <span className="rounded-md bg-sky-950/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-300 ring-1 ring-sky-800/50">
+      <span className="rounded-md bg-emerald-950/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-800/50">
         Team
       </span>
     );
   }
   return (
-    <span className="rounded-md bg-zinc-800/80 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 ring-1 ring-zinc-700">
+    <span className="rounded-md bg-[#242424]/80 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 ring-1 ring-[#333333]">
       Free
     </span>
   );
@@ -138,10 +138,10 @@ export default function TeamPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="h-8 w-48 animate-pulse rounded bg-zinc-800" />
+        <div className="h-8 w-48 animate-pulse rounded bg-[#242424]" />
         <div className="mt-8 grid grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/50" />
+            <div key={i} className="h-24 animate-pulse rounded-2xl border border-[#2a2a2a] bg-[#141414]/50" />
           ))}
         </div>
       </div>
@@ -159,12 +159,12 @@ export default function TeamPage() {
         </p>
 
         {/* Toggle */}
-        <div className="mt-6 flex rounded-xl border border-zinc-800 bg-[#1c1c1c] p-1">
+        <div className="mt-6 flex rounded-xl border border-[#2a2a2a] bg-[#161617] p-1">
           <button
             type="button"
             onClick={() => { setMode("join"); setFormError(""); }}
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-              mode === "join" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+              mode === "join" ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             Join a team
@@ -173,7 +173,7 @@ export default function TeamPage() {
             type="button"
             onClick={() => { setMode("create"); setFormError(""); }}
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-              mode === "create" ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-300"
+              mode === "create" ? "bg-[#242424] text-white" : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             Create a team
@@ -197,7 +197,7 @@ export default function TeamPage() {
               required
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               placeholder={mode === "create" ? "e.g. My Company" : "Enter team name"}
             />
           </div>
@@ -212,7 +212,7 @@ export default function TeamPage() {
               required
               value={teamPassword}
               onChange={(e) => setTeamPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               placeholder={mode === "create" ? "Set a password for your team" : "Enter team password"}
             />
             {mode === "create" && (
@@ -225,7 +225,7 @@ export default function TeamPage() {
           <button
             type="submit"
             disabled={formLoading}
-            className="w-full rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-orange-950/30 transition hover:from-orange-400 hover:to-orange-500 disabled:opacity-50"
+            className="w-full rounded-lg bg-gradient-to-r from-emerald-700 to-emerald-800 px-5 py-2.5 text-sm font-medium text-white shadow-lg  transition hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50"
           >
             {formLoading
               ? (mode === "create" ? "Creating..." : "Joining...")
@@ -247,20 +247,20 @@ export default function TeamPage() {
 
       <div className="mb-8 flex items-center gap-3">
         <h1 className="text-2xl font-bold text-white">Team</h1>
-        <span className="rounded-full bg-zinc-800 px-3 py-1 text-sm font-medium text-zinc-300">
+        <span className="rounded-full bg-[#242424] px-3 py-1 text-sm font-medium text-zinc-300">
           {data.team_name}
         </span>
-        <span className="rounded-full bg-zinc-800/60 px-2.5 py-1 text-xs font-medium text-zinc-500">
+        <span className="rounded-full bg-[#242424]/60 px-2.5 py-1 text-xs font-medium text-zinc-500">
           {data.members.length} member{data.members.length !== 1 ? "s" : ""}
         </span>
       </div>
 
       {isOwner && (
-        <div className="mb-8 rounded-2xl border border-orange-900/40 bg-[#1c1c1c] p-5">
-          <h2 className="text-sm font-semibold text-orange-200">Invite teammates</h2>
+        <div className="mb-8 rounded-2xl border border-emerald-900/40 bg-[#161617] p-5">
+          <h2 className="text-sm font-semibold text-emerald-200">Invite teammates</h2>
           <p className="mt-1 text-xs text-zinc-500">
             Generates a single-use link. For deployed apps, set{" "}
-            <code className="rounded bg-zinc-800 px-1 text-zinc-400">PUBLIC_APP_URL</code> on the API
+            <code className="rounded bg-[#242424] px-1 text-zinc-400">PUBLIC_APP_URL</code> on the API
             so the URL is absolute, or copy the path below.
           </p>
           {inviteErr && (
@@ -271,7 +271,7 @@ export default function TeamPage() {
               type="button"
               disabled={inviteBusy}
               onClick={() => void handleCreateInvite()}
-              className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
             >
               {inviteBusy ? "Generating…" : "New invite link"}
             </button>
@@ -279,7 +279,7 @@ export default function TeamPage() {
               <input
                 readOnly
                 value={inviteUrl}
-                className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200"
+                className="min-w-0 flex-1 rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-xs text-zinc-200"
               />
             )}
           </div>
@@ -288,23 +288,23 @@ export default function TeamPage() {
 
       {/* Summary cards */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-5">
+        <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Team Spend (7d)</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums text-white">${totalSpend.toFixed(2)}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-5">
+        <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Total Agents</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{totalAgents}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c] p-5">
+        <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Requests (7d)</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{totalRequests.toLocaleString()}</p>
         </div>
       </div>
 
       {/* Members list */}
-      <div className="rounded-2xl border border-zinc-800/90 bg-[#1c1c1c]">
-        <div className="border-b border-zinc-800/90 px-5 py-4">
+      <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617]">
+        <div className="border-b border-[#2a2a2a]/90 px-5 py-4">
           <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">Members</h2>
         </div>
         <ul className="divide-y divide-zinc-800/60">
@@ -312,9 +312,9 @@ export default function TeamPage() {
             <li key={member.id}>
               <Link
                 href={`/team/${member.id}`}
-                className="flex items-center gap-4 px-5 py-4 transition hover:bg-zinc-800/40"
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[#242424]/40"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-sm font-semibold text-white ring-1 ring-zinc-600">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#303030] text-sm font-semibold text-white ring-1 ring-[#3a3a3a]">
                   {member.name[0]?.toUpperCase() || "?"}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -345,7 +345,7 @@ export default function TeamPage() {
       </div>
 
       {/* Leave team */}
-      <div className="mt-8 rounded-xl border border-red-900/50 bg-[#1c1c1c] p-6">
+      <div className="mt-8 rounded-xl border border-red-900/50 bg-[#161617] p-6">
         <h2 className="mb-2 text-lg font-semibold text-red-400">Leave Team</h2>
         <p className="mb-4 text-sm text-zinc-400">
           You will no longer see team spend data or appear in the member list.
@@ -368,7 +368,7 @@ export default function TeamPage() {
             </button>
             <button
               onClick={() => setLeaveConfirm(false)}
-              className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700"
+              className="rounded-lg border border-[#333333] bg-[#242424] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-[#303030]"
             >
               Cancel
             </button>
