@@ -126,6 +126,7 @@ def ensure_schema() -> None:
         ("requests", "endpoint_route", "VARCHAR NOT NULL DEFAULT ''"),
         ("requests", "error_detail", "VARCHAR NOT NULL DEFAULT ''"),
         ("agents", "deployment_environment", "VARCHAR NOT NULL DEFAULT 'production'"),
+        ("users", "onboarding_completed", "BOOLEAN NOT NULL DEFAULT 0"),
     ]
 
     with engine.begin() as conn:

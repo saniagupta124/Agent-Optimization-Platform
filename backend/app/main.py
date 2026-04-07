@@ -4,8 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.agents import router as agents_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.github_oauth import router as integrations_router
+from app.api.routes.ingest import router as ingest_router
 from app.api.routes.ingestion import router as ingestion_router
 from app.api.routes.metrics import router as metrics_router
+from app.api.routes.onboarding import router as onboarding_router
 from app.api.routes.sdk_keys import router as sdk_keys_router
 from app.api.routes.subscription import router as subscription_router
 from app.api.routes.team import router as team_router
@@ -30,7 +32,9 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(integrations_router)
+app.include_router(ingest_router)
 app.include_router(ingestion_router)
+app.include_router(onboarding_router)
 app.include_router(metrics_router)
 app.include_router(agents_router)
 app.include_router(sdk_keys_router)

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -101,6 +101,9 @@ class User(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
+    )
+    onboarding_completed: Mapped[bool] = mapped_column(
+        Boolean, default=False
     )
 
     team = relationship("Team", back_populates="members", foreign_keys=[team_id])
