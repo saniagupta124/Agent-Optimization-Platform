@@ -14,10 +14,10 @@ if _sqlite:
     )
 else:
     # Normalize postgres:// → postgresql:// for SQLAlchemy
+    # sslmode=require is already in the URL from Supabase
     _url = settings.DATABASE_URL.replace("postgres://", "postgresql://", 1)
     engine = create_engine(
         _url,
-        connect_args={"sslmode": "require"},
         pool_pre_ping=True,
     )
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
