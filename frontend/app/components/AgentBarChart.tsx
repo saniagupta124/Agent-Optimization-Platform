@@ -30,7 +30,7 @@ export default function AgentBarChart({ scope = "me" }: Props) {
 
   useEffect(() => {
     if (!token) return;
-    getUsageByKey(token, 7, scope)
+    getUsageByKey(token)
       .then((rows) =>
         rows.map((r) => ({
           group: r.api_key_hint
