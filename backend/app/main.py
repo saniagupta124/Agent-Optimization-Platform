@@ -18,10 +18,17 @@ from app.db.base import Base
 from app.db.schema import ensure_schema
 from app.db.session import engine
 
-Base.metadata.create_all(bind=engine)
-ensure_schema()
-
 app = FastAPI(title="Token Cost Attribution Platform", version="2.0.0")
+
+
+@app.on_event("startup")
+def startup():
+    try:
+        Base.metadata.create_all(bind=engine)
+        ensure_schema()
+    except Exception as e:
+        import logging
+        logging.error(f"DB init error (non-fatal): {e}")
 
 app.add_middleware(
     CORSMiddleware,
