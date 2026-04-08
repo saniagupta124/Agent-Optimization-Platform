@@ -33,9 +33,7 @@ export default function AgentBarChart({ scope = "me" }: Props) {
     getUsageByKey(token)
       .then((rows) =>
         rows.map((r) => ({
-          group: r.api_key_hint
-            ? `${r.agent_name} (****${r.api_key_hint})`
-            : r.agent_name,
+          group: r.group,
           total_cost: r.total_cost,
           total_tokens: r.total_tokens,
           request_count: r.request_count,
