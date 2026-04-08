@@ -440,6 +440,67 @@ export function getOptimizations(token: string, agentId: string) {
   );
 }
 
+// ---------- Agent Dashboard (span-level) ----------
+
+export interface SpanCostRow {
+  span_name: string;
+  total_cost: number;
+  request_count: number;
+}
+
+export interface ModelCostRow {
+  model: string;
+  total_cost: number;
+  request_count: number;
+}
+
+export interface RetryLoop {
+  span_name: string;
+  occurrences: number;
+  window_seconds: number;
+}
+
+export interface AgentDashboard {
+  agent_id: string;
+  agent_name: string;
+  session_cost_usd: number;
+  alltime_cost_usd: number;
+  session_request_count: number;
+  alltime_request_count: number;
+  requests_per_minute: number;
+  by_span: SpanCostRow[];
+  by_model: ModelCostRow[];
+  retry_loops: RetryLoop[];
+}
+
+export interface SpanRecommendation {
+  id: string;
+  span_name: string;
+  rec_type: string;
+  explanation: string;
+  current_monthly_cost: number;
+  projected_monthly_cost: number;
+  savings_per_month: number;
+  confidence: number;
+  applied: boolean;
+}
+
+export function getAgentDashboard(token: string, agentId: string) {
+  return fetchJSON<AgentDashboard>(`/dashboard/${agentId}`, token);
+}
+
+export function getSpanRecommendations(token: string, agentId: string) {
+  return fetchJSON<SpanRecommendation[]>(`/recommendations/${agentId}`, token);
+}
+
+export function applySpanRecommendation(token: string, recommendationId: string) {
+  return postJSON<{ id: string; applied: boolean }>(
+    `/apply/${recommendationId}`,
+    {},
+    token
+  );
+}
+
 // ---------- Team ----------
 
 export interface TeamMember {

@@ -1,11 +1,53 @@
 """Core Traeco SDK — wraps LLM clients and ships traces to the Traeco ingest endpoint."""
 
+import asyncio
 import functools
 import threading
 import time
+from contextvars import ContextVar
 from typing import Any
 
 import httpx
+
+# ── Per-call cost table (per token) ─────────────────────────────────────────
+# Keys match the raw model names that OpenAI/Anthropic SDKs return.
+_COST_PER_TOKEN: dict[str, tuple[float, float]] = {
+    # OpenAI
+    "gpt-4o":                     (5e-6,    15e-6),
+    "gpt-4o-mini":                (0.15e-6, 0.6e-6),
+    "gpt-3.5-turbo":              (0.5e-6,  1.5e-6),
+    "gpt-3.5-turbo-0125":         (0.5e-6,  1.5e-6),
+    # Anthropic
+    "claude-3-5-sonnet":          (3e-6,    15e-6),
+    "claude-3-5-sonnet-20240620": (3e-6,    15e-6),
+    "claude-3-5-sonnet-20241022": (3e-6,    15e-6),
+    "claude-sonnet-4-5":          (3e-6,    15e-6),
+    "claude-3-haiku":             (0.25e-6, 1.25e-6),
+    "claude-3-haiku-20240307":    (0.25e-6, 1.25e-6),
+    "claude-3-5-haiku":           (0.8e-6,  4e-6),
+    "claude-3-5-haiku-20241022":  (0.8e-6,  4e-6),
+    "claude-3-opus":              (15e-6,   75e-6),
+    "claude-3-opus-20240229":     (15e-6,   75e-6),
+    "claude-3-sonnet":            (3e-6,    15e-6),
+    "claude-3-sonnet-20240229":   (3e-6,    15e-6),
+}
+
+
+def _local_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float | None:
+    """Return cost in USD or None if model not in table."""
+    rates = _COST_PER_TOKEN.get(model)
+    if rates is None:
+        # Try prefix match (e.g. "claude-3-5-sonnet-20240620-v2" → "claude-3-5-sonnet")
+        for key, r in _COST_PER_TOKEN.items():
+            if model.startswith(key):
+                rates = r
+                break
+    if rates is None:
+        return None
+    return prompt_tokens * rates[0] + completion_tokens * rates[1]
+
+
+# ── Demo fallbacks ───────────────────────────────────────────────────────────
 
 class _DemoUsage:
     prompt_tokens = 847
@@ -24,6 +66,8 @@ class _DemoResponse:
         self.choices = [_DemoChoice()]
 
 
+# ── Global state ─────────────────────────────────────────────────────────────
+
 _state = {
     "api_key": None,
     "agent_name": "default",
@@ -32,6 +76,12 @@ _state = {
 }
 _lock = threading.Lock()
 
+# ContextVar tracks the current span name — thread and async safe.
+# Each concurrent coroutine/thread gets its own value.
+_current_span: ContextVar[str] = ContextVar("_current_span", default="")
+
+
+# ── Public API ───────────────────────────────────────────────────────────────
 
 def init(
     api_key: str,
@@ -47,6 +97,8 @@ def init(
         _state["host"] = host.rstrip("/")
         _state["debug"] = debug
 
+
+# ── Trace shipping ───────────────────────────────────────────────────────────
 
 def _ship(payload: dict) -> None:
     """Fire-and-forget trace shipping (runs in background thread)."""
@@ -73,7 +125,33 @@ def _ship_async(payload: dict) -> None:
     t.start()
 
 
-# ── OpenAI wrapper ──────────────────────────────────────────────────────────
+def _build_payload(
+    *,
+    model: str,
+    provider: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    latency_ms: int,
+    status: str = "success",
+) -> dict:
+    """Build the ingest payload, including pre-computed cost and current span."""
+    cost = _local_cost(model, prompt_tokens, completion_tokens)
+    payload: dict = {
+        "agent_name": _state.get("agent_name", "default"),
+        "provider": provider,
+        "model": model,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "latency_ms": latency_ms,
+        "status": status,
+        "feature_tag": _current_span.get(),  # span name, empty string if not inside @span
+    }
+    if cost is not None:
+        payload["cost_usd"] = cost
+    return payload
+
+
+# ── OpenAI wrapper ───────────────────────────────────────────────────────────
 
 class _WrappedCompletions:
     def __init__(self, completions, agent_name: str):
@@ -89,7 +167,6 @@ class _WrappedCompletions:
             usage = response.usage
             actual_model = getattr(response, "model", None) or model
         except Exception as api_err:
-            # No real API key — use demo values and still ship the trace
             latency_ms = int((time.monotonic() - t0) * 1000)
             if _state["debug"]:
                 print(f"[traeco] LLM call skipped (demo mode): {api_err}")
@@ -103,15 +180,13 @@ class _WrappedCompletions:
         elif "gemini" in actual_model:
             provider = "google"
         try:
-            _ship_async({
-                "agent_name": _state.get("agent_name", "default"),
-                "provider": provider,
-                "model": actual_model,
-                "prompt_tokens": usage.prompt_tokens,
-                "completion_tokens": usage.completion_tokens,
-                "latency_ms": latency_ms,
-                "status": "success",
-            })
+            _ship_async(_build_payload(
+                model=actual_model,
+                provider=provider,
+                prompt_tokens=usage.prompt_tokens,
+                completion_tokens=usage.completion_tokens,
+                latency_ms=latency_ms,
+            ))
         except Exception as exc:
             if _state["debug"]:
                 print(f"[traeco] trace parse error: {exc}")
@@ -124,15 +199,13 @@ class _WrappedCompletions:
         try:
             usage = response.usage
             model = response.model or kwargs.get("model", "unknown")
-            _ship_async({
-                "agent_name": _state.get("agent_name", "default"),
-                "provider": "openai",
-                "model": model,
-                "prompt_tokens": usage.prompt_tokens,
-                "completion_tokens": usage.completion_tokens,
-                "latency_ms": latency_ms,
-                "status": "success",
-            })
+            _ship_async(_build_payload(
+                model=model,
+                provider="openai",
+                prompt_tokens=usage.prompt_tokens,
+                completion_tokens=usage.completion_tokens,
+                latency_ms=latency_ms,
+            ))
         except Exception as exc:
             if _state["debug"]:
                 print(f"[traeco] trace parse error: {exc}")
@@ -153,7 +226,26 @@ class _WrappedOpenAIClient:
         return getattr(self._client, name)
 
 
-# ── Anthropic wrapper ───────────────────────────────────────────────────────
+# ── Anthropic wrapper ────────────────────────────────────────────────────────
+
+class _DemoAnthropicUsage:
+    input_tokens = 847
+    output_tokens = 312
+
+class _DemoAnthropicContent:
+    text = "AI agents will reshape how software is built — starting with cost visibility."
+    type = "text"
+
+class _DemoAnthropicResponse:
+    def __init__(self, model="claude-3-5-sonnet-20241022"):
+        self.model = model
+        self.usage = _DemoAnthropicUsage()
+        self.content = [_DemoAnthropicContent()]
+        self.stop_reason = "end_turn"
+        self.id = "demo_msg_traeco"
+        self.type = "message"
+        self.role = "assistant"
+
 
 class _WrappedAnthropicMessages:
     def __init__(self, messages):
@@ -161,20 +253,27 @@ class _WrappedAnthropicMessages:
 
     def create(self, **kwargs):
         t0 = time.monotonic()
-        response = self._messages.create(**kwargs)
-        latency_ms = int((time.monotonic() - t0) * 1000)
+        model = kwargs.get("model", "unknown")
         try:
+            response = self._messages.create(**kwargs)
+            latency_ms = int((time.monotonic() - t0) * 1000)
             usage = response.usage
-            model = response.model or kwargs.get("model", "unknown")
-            _ship_async({
-                "agent_name": _state.get("agent_name", "default"),
-                "provider": "anthropic",
-                "model": model,
-                "prompt_tokens": usage.input_tokens,
-                "completion_tokens": usage.output_tokens,
-                "latency_ms": latency_ms,
-                "status": "success",
-            })
+            actual_model = getattr(response, "model", None) or model
+        except Exception as api_err:
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            if _state["debug"]:
+                print(f"[traeco] Anthropic call skipped (demo mode): {api_err}")
+            response = _DemoAnthropicResponse(model)
+            usage = response.usage
+            actual_model = model
+        try:
+            _ship_async(_build_payload(
+                model=actual_model,
+                provider="anthropic",
+                prompt_tokens=usage.input_tokens,
+                completion_tokens=usage.output_tokens,
+                latency_ms=latency_ms,
+            ))
         except Exception as exc:
             if _state["debug"]:
                 print(f"[traeco] trace parse error: {exc}")
@@ -190,7 +289,7 @@ class _WrappedAnthropicClient:
         return getattr(self._client, name)
 
 
-# ── wrap() ──────────────────────────────────────────────────────────────────
+# ── wrap() ───────────────────────────────────────────────────────────────────
 
 def wrap(client: Any) -> Any:
     """Wrap an LLM client (OpenAI or Anthropic) to auto-ship traces to Traeco."""
@@ -202,35 +301,39 @@ def wrap(client: Any) -> Any:
     if "Anthropic" in cls_name:
         return _WrappedAnthropicClient(client)
 
-    # Unknown client — return as-is with a warning
     if _state["debug"]:
         print(f"[traeco] wrap(): unrecognized client type '{cls_name}', returning unwrapped")
     return client
 
 
-# ── span() decorator ────────────────────────────────────────────────────────
+# ── span() decorator ─────────────────────────────────────────────────────────
 
 def span(name: str):
-    """Label a function for per-function cost attribution in the Traeco dashboard."""
+    """
+    Tag a function for per-span cost attribution in the Traeco dashboard.
+
+    Uses Python contextvars so concurrent async tasks and threads each get
+    their own span context — no cross-contamination between parallel calls.
+
+    Every LLM call made inside the decorated function is tagged with the span
+    name as feature_tag. The original agent_name is preserved.
+    """
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            prev = _state.get("agent_name")
-            _state["agent_name"] = name
+            token = _current_span.set(name)
             try:
                 return fn(*args, **kwargs)
             finally:
-                _state["agent_name"] = prev
+                _current_span.reset(token)
 
         @functools.wraps(fn)
         async def async_wrapper(*args, **kwargs):
-            prev = _state.get("agent_name")
-            _state["agent_name"] = name
+            token = _current_span.set(name)
             try:
                 return await fn(*args, **kwargs)
             finally:
-                _state["agent_name"] = prev
+                _current_span.reset(token)
 
-        import asyncio
         return async_wrapper if asyncio.iscoroutinefunction(fn) else wrapper
     return decorator

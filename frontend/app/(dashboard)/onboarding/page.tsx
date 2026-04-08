@@ -186,16 +186,39 @@ export default function OnboardingPage() {
   // ── Code snippets ─────────────────────────────────────────────────────────
   const apiKey = keyObj?.raw_key ?? "tk_live_...";
   const installCmd = "pip install traeco-sdk";
-  const agentCode = `from openai import OpenAI
+  const [provider, setProvider] = useState<"anthropic" | "openai">("anthropic");
+
+  const agentCode =
+    provider === "anthropic"
+      ? `import os
+from anthropic import Anthropic
 from traeco import init, wrap
 
-# 1. Initialize with your key
+# 1. Initialize Traeco — your TRAECO key only, not your Anthropic key
 init(api_key="${apiKey}", agent_name="my_agent")
 
-# 2. Wrap your client
+# 2. Wrap your Anthropic client
+#    ANTHROPIC_API_KEY stays on your machine. Traeco never sees it.
+client = wrap(Anthropic())
+
+# 3. Use Claude exactly as before — zero code changes
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=200,
+    messages=[{"role": "user", "content": "Hello!"}]
+)`
+      : `import os
+from openai import OpenAI
+from traeco import init, wrap
+
+# 1. Initialize Traeco — your TRAECO key only, not your OpenAI key
+init(api_key="${apiKey}", agent_name="my_agent")
+
+# 2. Wrap your OpenAI client
+#    OPENAI_API_KEY stays on your machine. Traeco never sees it.
 client = wrap(OpenAI())
 
-# 3. Use client exactly as before
+# 3. Use GPT exactly as before — zero code changes
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "Hello!"}]
@@ -278,6 +301,24 @@ response = client.chat.completions.create(
                   Your API key is pre-filled below. Paste into your agent file.
                 </p>
 
+                {/* Provider toggle */}
+                <div className="mt-4 flex gap-1 rounded-lg p-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", width: "fit-content" }}>
+                  {(["anthropic", "openai"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setProvider(p)}
+                      className="rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                      style={{
+                        background: provider === p ? "rgba(27,168,111,0.25)" : "transparent",
+                        color: provider === p ? "#2de080" : "#71717a",
+                        border: provider === p ? "1px solid rgba(45,224,128,0.3)" : "1px solid transparent",
+                      }}
+                    >
+                      {p === "anthropic" ? "Anthropic / Claude" : "OpenAI / GPT"}
+                    </button>
+                  ))}
+                </div>
+
                 {keyObj && (
                   <div
                     className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
@@ -287,7 +328,7 @@ response = client.chat.completions.create(
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                     </svg>
                     <span style={{ color: "#a1a1aa" }}>
-                      Your key:{" "}
+                      Traeco key:{" "}
                       <code style={{ color: "#2de080", fontFamily: "monospace" }}>
                         {keyObj.raw_key.length > 20 ? keyObj.raw_key.slice(0, 20) + "..." : keyObj.raw_key}
                       </code>
@@ -295,6 +336,17 @@ response = client.chat.completions.create(
                     <CopyButton text={keyObj.raw_key} />
                   </div>
                 )}
+
+                <div
+                  className="mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", color: "#71717a" }}
+                >
+                  <svg className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "#2de080" }} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                  </svg>
+                  Your {provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} never leaves your machine.
+                  Traeco only receives token counts, costs, model names, and span tags — never prompt content or provider keys.
+                </div>
 
                 <CodeBlock code={agentCode} label="agent.py" />
 

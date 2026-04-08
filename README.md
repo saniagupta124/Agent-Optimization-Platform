@@ -196,3 +196,71 @@ git push origin feat/your-feature
 docker compose down       # stop services
 docker compose down -v    # stop + delete database volume
 ```
+
+---
+
+## Running Mehek's Agent
+
+Mehek's Kalshi trading agent runs a continuous scan → analyze → decide → risk-check loop using real Anthropic Claude tokens tracked by the Traeco SDK. It calls the live Kalshi prediction market API and falls back to simulated data if the key is not set.
+
+**Prerequisites:** backend running, Anthropic API key, Python 3.10+
+
+**1. Set environment variables**
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+export KALSHI_API_KEY=your-kalshi-api-key     # from kalshi.com → API settings (optional — falls back to simulated data)
+export TRAECO_API_KEY=tk_live_...             # copy from Traeco dashboard → Setup
+export TRAECO_API_URL=http://localhost:8000
+```
+
+> **Security:** `ANTHROPIC_API_KEY` and `KALSHI_API_KEY` never leave your machine.
+> Traeco only receives token counts, costs, model names, and span names.
+
+**2. Start the backend** (if not already running)
+
+```bash
+docker compose up --build
+# or, without Docker:
+cd backend && uvicorn app.main:app --reload --port 8000
+```
+
+**3. Install Python dependencies**
+
+```bash
+pip install anthropic httpx rich
+# Also install the Traeco SDK in development mode:
+pip install -e sdk/
+```
+
+**4. Run Mehek's agent**
+
+```bash
+python mehek_agent/kalshi_agent.py
+```
+
+The agent will:
+- Fetch live markets from Kalshi API (or use built-in simulated data if key is not set)
+- Call `claude-3-haiku` for sentiment analysis and risk checks (cost-efficient)
+- Call `claude-3-5-sonnet` for trade decisions (higher reasoning quality)
+- Ship every LLM call's token counts + cost to your Traeco dashboard in the background
+- Print per-loop profit estimates and cost breakdown to stdout
+
+**5. Open the live CLI dashboard** (separate terminal)
+
+```bash
+python cli_dashboard.py
+```
+
+The CLI dashboard polls `GET /dashboard/mehek_agent` and `GET /recommendations/mehek_agent` every 5 seconds and displays:
+- Session cost, all-time cost, requests per minute
+- Cost breakdown by span (market_scanner, sentiment_analyzer, trade_decision, risk_checker)
+- Cost breakdown by model
+- Live recommendations with projected savings
+
+**6. View in the web dashboard**
+
+Open http://localhost:3000 → Agents → mehek_agent → the agent detail page shows:
+- Real-time cost by span (updates every 10s)
+- Span-level recommendations with an "Apply" button
+- Retry loop warnings if the agent is firing redundant calls

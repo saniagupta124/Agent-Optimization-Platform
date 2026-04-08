@@ -94,6 +94,7 @@ def ingest_trace(
         agent_id=agent.id,
         user_id=user.id,
         team_id=user.team_id,
+        customer_id="",
         provider=payload.provider,
         model=payload.model,
         prompt_tokens=payload.prompt_tokens,

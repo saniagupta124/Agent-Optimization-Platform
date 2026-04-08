@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.agent_dashboard import router as agent_dashboard_router
 from app.api.routes.agents import router as agents_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.github_oauth import router as integrations_router
@@ -31,6 +32,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(agent_dashboard_router)
 app.include_router(integrations_router)
 app.include_router(ingest_router)
 app.include_router(ingestion_router)

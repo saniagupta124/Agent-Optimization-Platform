@@ -78,6 +78,23 @@ def ensure_schema() -> None:
         )""",
         "CREATE INDEX IF NOT EXISTS ix_sdk_api_keys_user_id ON sdk_api_keys (user_id)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_sdk_api_keys_key_hash ON sdk_api_keys (key_hash)",
+        # Span-level recommendations (agent_dashboard router)
+        """CREATE TABLE IF NOT EXISTS span_recommendations (
+            id VARCHAR PRIMARY KEY,
+            agent_id VARCHAR NOT NULL,
+            span_name VARCHAR NOT NULL DEFAULT '',
+            rec_type VARCHAR NOT NULL,
+            explanation VARCHAR NOT NULL DEFAULT '',
+            current_monthly_cost FLOAT NOT NULL DEFAULT 0,
+            projected_monthly_cost FLOAT NOT NULL DEFAULT 0,
+            savings_per_month FLOAT NOT NULL DEFAULT 0,
+            confidence INTEGER NOT NULL DEFAULT 0,
+            applied BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW(),
+            CONSTRAINT uq_span_rec UNIQUE (agent_id, span_name, rec_type)
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_span_rec_agent_id ON span_recommendations (agent_id)",
     ]
     backfill = [
         # Pick earliest member per team as owner when missing
