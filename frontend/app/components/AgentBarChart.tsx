@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getUsageByKey, GroupedMetric } from "../lib/api";
+import { getByAgent as getUsageByKey, GroupedMetric } from "../lib/api";
 
 const COLORS = ["#6366f1", "#22d3ee", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6"];
 
