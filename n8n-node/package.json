@@ -1,0 +1,46 @@
+{
+  "name": "n8n-nodes-traeco",
+  "version": "0.1.0",
+  "description": "n8n community node for Traeco — track LLM token costs across your no-code AI agents",
+  "keywords": [
+    "n8n-community-node-package",
+    "traeco",
+    "llm",
+    "ai",
+    "cost",
+    "tokens",
+    "openai",
+    "anthropic"
+  ],
+  "license": "MIT",
+  "homepage": "https://traeco.ai",
+  "author": {
+    "name": "Traeco",
+    "email": "hello@traeco.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/traeco-ai/n8n-nodes-traeco"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && cp -r src/nodes/Traeco/traeco.svg dist/nodes/Traeco/",
+    "dev": "tsc --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/TraecoApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Traeco/Traeco.node.js"
+    ]
+  },
+  "devDependencies": {
+    "n8n-workflow": "*",
+    "typescript": "^5.0.0"
+  }
+}

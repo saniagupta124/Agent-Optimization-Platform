@@ -5,31 +5,38 @@ import functools
 import threading
 import time
 from contextvars import ContextVar
-from typing import Any
+from typing import Any, Iterator, AsyncIterator
 
 import httpx
 
-# ── Per-call cost table (per token) ─────────────────────────────────────────
-# Keys match the raw model names that OpenAI/Anthropic SDKs return.
+# ── Per-call cost table (input_rate, output_rate) per token ─────────────────
 _COST_PER_TOKEN: dict[str, tuple[float, float]] = {
     # OpenAI
-    "gpt-4o":                     (5e-6,    15e-6),
-    "gpt-4o-mini":                (0.15e-6, 0.6e-6),
-    "gpt-3.5-turbo":              (0.5e-6,  1.5e-6),
-    "gpt-3.5-turbo-0125":         (0.5e-6,  1.5e-6),
-    # Anthropic
-    "claude-3-5-sonnet":          (3e-6,    15e-6),
-    "claude-3-5-sonnet-20240620": (3e-6,    15e-6),
-    "claude-3-5-sonnet-20241022": (3e-6,    15e-6),
-    "claude-sonnet-4-5":          (3e-6,    15e-6),
-    "claude-3-haiku":             (0.25e-6, 1.25e-6),
-    "claude-3-haiku-20240307":    (0.25e-6, 1.25e-6),
-    "claude-3-5-haiku":           (0.8e-6,  4e-6),
-    "claude-3-5-haiku-20241022":  (0.8e-6,  4e-6),
-    "claude-3-opus":              (15e-6,   75e-6),
-    "claude-3-opus-20240229":     (15e-6,   75e-6),
-    "claude-3-sonnet":            (3e-6,    15e-6),
-    "claude-3-sonnet-20240229":   (3e-6,    15e-6),
+    "gpt-4o":                         (5e-6,     15e-6),
+    "gpt-4o-mini":                     (0.15e-6,  0.6e-6),
+    "gpt-3.5-turbo":                   (0.5e-6,   1.5e-6),
+    "gpt-3.5-turbo-0125":              (0.5e-6,   1.5e-6),
+    "o1":                              (15e-6,    60e-6),
+    "o1-mini":                         (3e-6,     12e-6),
+    "o3-mini":                         (1.1e-6,   4.4e-6),
+    # Anthropic — Claude 4.x (current as of April 2026)
+    "claude-opus-4-6":                 (15e-6,    75e-6),
+    "claude-sonnet-4-6":               (3e-6,     15e-6),
+    "claude-haiku-4-5":                (0.8e-6,   4e-6),
+    "claude-haiku-4-5-20251001":       (0.8e-6,   4e-6),
+    # Anthropic — Claude 3.x (still in use)
+    "claude-3-5-sonnet":               (3e-6,     15e-6),
+    "claude-3-5-sonnet-20240620":      (3e-6,     15e-6),
+    "claude-3-5-sonnet-20241022":      (3e-6,     15e-6),
+    "claude-sonnet-4-5":               (3e-6,     15e-6),
+    "claude-3-haiku":                  (0.25e-6,  1.25e-6),
+    "claude-3-haiku-20240307":         (0.25e-6,  1.25e-6),
+    "claude-3-5-haiku":                (0.8e-6,   4e-6),
+    "claude-3-5-haiku-20241022":       (0.8e-6,   4e-6),
+    "claude-3-opus":                   (15e-6,    75e-6),
+    "claude-3-opus-20240229":          (15e-6,    75e-6),
+    "claude-3-sonnet":                 (3e-6,     15e-6),
+    "claude-3-sonnet-20240229":        (3e-6,     15e-6),
 }
 
 
@@ -37,7 +44,7 @@ def _local_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float
     """Return cost in USD or None if model not in table."""
     rates = _COST_PER_TOKEN.get(model)
     if rates is None:
-        # Try prefix match (e.g. "claude-3-5-sonnet-20240620-v2" → "claude-3-5-sonnet")
+        # Prefix match handles dated suffixes like "claude-sonnet-4-6-20260101"
         for key, r in _COST_PER_TOKEN.items():
             if model.startswith(key):
                 rates = r
@@ -47,28 +54,9 @@ def _local_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float
     return prompt_tokens * rates[0] + completion_tokens * rates[1]
 
 
-# ── Demo fallbacks ───────────────────────────────────────────────────────────
-
-class _DemoUsage:
-    prompt_tokens = 847
-    completion_tokens = 312
-
-class _DemoMessage:
-    content = "AI agents will reshape how software is built — starting with cost visibility."
-
-class _DemoChoice:
-    message = _DemoMessage()
-
-class _DemoResponse:
-    def __init__(self, model="gpt-4o"):
-        self.model = model
-        self.usage = _DemoUsage()
-        self.choices = [_DemoChoice()]
-
-
 # ── Global state ─────────────────────────────────────────────────────────────
 
-_state = {
+_state: dict[str, Any] = {
     "api_key": None,
     "agent_name": "default",
     "host": "https://api.traeco.ai",
@@ -76,8 +64,7 @@ _state = {
 }
 _lock = threading.Lock()
 
-# ContextVar tracks the current span name — thread and async safe.
-# Each concurrent coroutine/thread gets its own value.
+# Thread/async-safe span tracking — each coroutine/thread gets its own value
 _current_span: ContextVar[str] = ContextVar("_current_span", default="")
 
 
@@ -96,31 +83,35 @@ def init(
         _state["agent_name"] = agent_name
         _state["host"] = host.rstrip("/")
         _state["debug"] = debug
+    if debug:
+        print(f"[traeco] initialized — agent={agent_name!r}, host={_state['host']}")
 
 
 # ── Trace shipping ───────────────────────────────────────────────────────────
 
 def _ship(payload: dict) -> None:
-    """Fire-and-forget trace shipping (runs in background thread)."""
+    """Blocking trace ship — always called from a background daemon=False thread."""
     key = _state.get("api_key")
     host = _state.get("host")
     if not key:
         return
     try:
-        with httpx.Client(timeout=5) as client:
+        with httpx.Client(timeout=8) as client:
             r = client.post(
                 f"{host}/ingest",
                 json=payload,
                 headers={"X-Traeco-Key": key},
             )
             if _state["debug"]:
-                print(f"[traeco] shipped trace → {r.status_code}")
+                print(f"[traeco] → {r.status_code} | {payload.get('feature_tag') or 'root'} | "
+                      f"${payload.get('cost_usd', 0):.6f} | {payload.get('model')}")
     except Exception as exc:
         if _state["debug"]:
             print(f"[traeco] ship failed: {exc}")
 
 
 def _ship_async(payload: dict) -> None:
+    """Fire-and-forget — non-daemon so the process stays alive until trace is sent."""
     t = threading.Thread(target=_ship, args=(payload,), daemon=False)
     t.start()
 
@@ -133,8 +124,8 @@ def _build_payload(
     completion_tokens: int,
     latency_ms: int,
     status: str = "success",
+    error: str = "",
 ) -> dict:
-    """Build the ingest payload, including pre-computed cost and current span."""
     cost = _local_cost(model, prompt_tokens, completion_tokens)
     payload: dict = {
         "agent_name": _state.get("agent_name", "default"),
@@ -144,83 +135,118 @@ def _build_payload(
         "completion_tokens": completion_tokens,
         "latency_ms": latency_ms,
         "status": status,
-        "feature_tag": _current_span.get(),  # span name, empty string if not inside @span
+        "feature_tag": _current_span.get(),
     }
     if cost is not None:
         payload["cost_usd"] = cost
+    if error:
+        payload["error_detail"] = error
     return payload
+
+
+def _provider_from_model(model: str) -> str:
+    if model.startswith("claude"):
+        return "anthropic"
+    if model.startswith("gemini"):
+        return "google"
+    if model.startswith("gpt") or model.startswith("o1") or model.startswith("o3"):
+        return "openai"
+    return "openai"
 
 
 # ── OpenAI wrapper ───────────────────────────────────────────────────────────
 
 class _WrappedCompletions:
-    def __init__(self, completions, agent_name: str):
-        self._completions = completions
-        self._agent_name = agent_name
+    def __init__(self, completions):
+        self._c = completions
 
     def create(self, **kwargs):
-        t0 = time.monotonic()
+        stream = kwargs.get("stream", False)
         model = kwargs.get("model", "unknown")
-        try:
-            response = self._completions.create(**kwargs)
-            latency_ms = int((time.monotonic() - t0) * 1000)
-            usage = response.usage
-            actual_model = getattr(response, "model", None) or model
-        except Exception as api_err:
-            latency_ms = int((time.monotonic() - t0) * 1000)
-            if _state["debug"]:
-                print(f"[traeco] LLM call skipped (demo mode): {api_err}")
-            response = _DemoResponse(model)
-            usage = response.usage
-            actual_model = model
+        t0 = time.monotonic()
 
-        provider = "openai"
-        if "claude" in actual_model:
-            provider = "anthropic"
-        elif "gemini" in actual_model:
-            provider = "google"
+        if stream:
+            return self._create_streaming(model, t0, **kwargs)
+
         try:
-            _ship_async(_build_payload(
-                model=actual_model,
-                provider=provider,
-                prompt_tokens=usage.prompt_tokens,
-                completion_tokens=usage.completion_tokens,
-                latency_ms=latency_ms,
-            ))
+            response = self._c.create(**kwargs)
         except Exception as exc:
-            if _state["debug"]:
-                print(f"[traeco] trace parse error: {exc}")
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            _ship_async(_build_payload(
+                model=model, provider=_provider_from_model(model),
+                prompt_tokens=0, completion_tokens=0,
+                latency_ms=latency_ms, status="error", error=str(exc),
+            ))
+            raise
+
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        actual_model = getattr(response, "model", None) or model
+        usage = response.usage
+        _ship_async(_build_payload(
+            model=actual_model,
+            provider=_provider_from_model(actual_model),
+            prompt_tokens=getattr(usage, "prompt_tokens", 0),
+            completion_tokens=getattr(usage, "completion_tokens", 0),
+            latency_ms=latency_ms,
+        ))
         return response
 
-    async def acreate(self, **kwargs):
-        t0 = time.monotonic()
-        response = await self._completions.acreate(**kwargs)
+    def _create_streaming(self, model: str, t0: float, **kwargs):
+        """Wrap a streaming OpenAI response — yields chunks, ships trace at end."""
+        raw_stream = self._c.create(**kwargs)
+        prompt_tokens = 0
+        completion_tokens = 0
+
+        for chunk in raw_stream:
+            # OpenAI sends usage in final chunk when stream_options.include_usage=True
+            if hasattr(chunk, "usage") and chunk.usage:
+                prompt_tokens = getattr(chunk.usage, "prompt_tokens", 0)
+                completion_tokens = getattr(chunk.usage, "completion_tokens", 0)
+            yield chunk
+
         latency_ms = int((time.monotonic() - t0) * 1000)
+        _ship_async(_build_payload(
+            model=model, provider=_provider_from_model(model),
+            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+            latency_ms=latency_ms,
+        ))
+
+    async def acreate(self, **kwargs):
+        model = kwargs.get("model", "unknown")
+        t0 = time.monotonic()
         try:
-            usage = response.usage
-            model = response.model or kwargs.get("model", "unknown")
-            _ship_async(_build_payload(
-                model=model,
-                provider="openai",
-                prompt_tokens=usage.prompt_tokens,
-                completion_tokens=usage.completion_tokens,
-                latency_ms=latency_ms,
-            ))
+            response = await self._c.acreate(**kwargs)
         except Exception as exc:
-            if _state["debug"]:
-                print(f"[traeco] trace parse error: {exc}")
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            _ship_async(_build_payload(
+                model=model, provider=_provider_from_model(model),
+                prompt_tokens=0, completion_tokens=0,
+                latency_ms=latency_ms, status="error", error=str(exc),
+            ))
+            raise
+
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        actual_model = getattr(response, "model", None) or model
+        usage = response.usage
+        _ship_async(_build_payload(
+            model=actual_model,
+            provider=_provider_from_model(actual_model),
+            prompt_tokens=getattr(usage, "prompt_tokens", 0),
+            completion_tokens=getattr(usage, "completion_tokens", 0),
+            latency_ms=latency_ms,
+        ))
         return response
 
 
 class _WrappedChat:
-    def __init__(self, chat, agent_name: str):
-        self.completions = _WrappedCompletions(chat.completions, agent_name)
+    def __init__(self, chat):
+        self.completions = _WrappedCompletions(chat.completions)
 
 
 class _WrappedOpenAIClient:
-    def __init__(self, client, agent_name: str):
+    def __init__(self, client):
         self._client = client
-        self.chat = _WrappedChat(client.chat, agent_name)
+        self.chat = _WrappedChat(client.chat)
 
     def __getattr__(self, name: str):
         return getattr(self._client, name)
@@ -228,56 +254,172 @@ class _WrappedOpenAIClient:
 
 # ── Anthropic wrapper ────────────────────────────────────────────────────────
 
-class _DemoAnthropicUsage:
-    input_tokens = 847
-    output_tokens = 312
+class _TracedAnthropicStream:
+    """
+    Wraps an Anthropic streaming response (returned by messages.create(stream=True)).
+    Passes all events through unchanged and ships a trace when the stream is exhausted.
+    """
+    def __init__(self, raw_stream, model: str, t0: float):
+        self._stream = raw_stream
+        self._model = model
+        self._t0 = t0
+        self._input_tokens = 0
+        self._output_tokens = 0
 
-class _DemoAnthropicContent:
-    text = "AI agents will reshape how software is built — starting with cost visibility."
-    type = "text"
+    def __iter__(self) -> Iterator:
+        try:
+            for event in self._stream:
+                self._capture_usage(event)
+                yield event
+        finally:
+            self._ship()
 
-class _DemoAnthropicResponse:
-    def __init__(self, model="claude-3-5-sonnet-20241022"):
-        self.model = model
-        self.usage = _DemoAnthropicUsage()
-        self.content = [_DemoAnthropicContent()]
-        self.stop_reason = "end_turn"
-        self.id = "demo_msg_traeco"
-        self.type = "message"
-        self.role = "assistant"
+    async def __aiter__(self) -> AsyncIterator:
+        try:
+            async for event in self._stream:
+                self._capture_usage(event)
+                yield event
+        finally:
+            self._ship()
+
+    def _capture_usage(self, event) -> None:
+        # message_start event carries input_tokens
+        if getattr(event, "type", None) == "message_start":
+            msg = getattr(event, "message", None)
+            usage = getattr(msg, "usage", None) if msg else None
+            if usage:
+                self._input_tokens = getattr(usage, "input_tokens", 0)
+        # message_delta carries output_tokens at the end
+        if getattr(event, "type", None) == "message_delta":
+            usage = getattr(event, "usage", None)
+            if usage:
+                self._output_tokens = getattr(usage, "output_tokens", 0)
+
+    def _ship(self) -> None:
+        latency_ms = int((time.monotonic() - self._t0) * 1000)
+        _ship_async(_build_payload(
+            model=self._model,
+            provider="anthropic",
+            prompt_tokens=self._input_tokens,
+            completion_tokens=self._output_tokens,
+            latency_ms=latency_ms,
+        ))
+
+    # Passthrough for any attribute the caller expects on the raw stream
+    def __getattr__(self, name: str):
+        return getattr(self._stream, name)
 
 
 class _WrappedAnthropicMessages:
     def __init__(self, messages):
-        self._messages = messages
+        self._m = messages
 
     def create(self, **kwargs):
-        t0 = time.monotonic()
         model = kwargs.get("model", "unknown")
+        stream = kwargs.get("stream", False)
+        t0 = time.monotonic()
+
+        if stream:
+            raw = self._m.create(**kwargs)
+            return _TracedAnthropicStream(raw, model, t0)
+
         try:
-            response = self._messages.create(**kwargs)
-            latency_ms = int((time.monotonic() - t0) * 1000)
-            usage = response.usage
-            actual_model = getattr(response, "model", None) or model
-        except Exception as api_err:
-            latency_ms = int((time.monotonic() - t0) * 1000)
-            if _state["debug"]:
-                print(f"[traeco] Anthropic call skipped (demo mode): {api_err}")
-            response = _DemoAnthropicResponse(model)
-            usage = response.usage
-            actual_model = model
-        try:
-            _ship_async(_build_payload(
-                model=actual_model,
-                provider="anthropic",
-                prompt_tokens=usage.input_tokens,
-                completion_tokens=usage.output_tokens,
-                latency_ms=latency_ms,
-            ))
+            response = self._m.create(**kwargs)
         except Exception as exc:
-            if _state["debug"]:
-                print(f"[traeco] trace parse error: {exc}")
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            _ship_async(_build_payload(
+                model=model, provider="anthropic",
+                prompt_tokens=0, completion_tokens=0,
+                latency_ms=latency_ms, status="error", error=str(exc),
+            ))
+            raise
+
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        actual_model = getattr(response, "model", None) or model
+        usage = response.usage
+        _ship_async(_build_payload(
+            model=actual_model,
+            provider="anthropic",
+            prompt_tokens=getattr(usage, "input_tokens", 0),
+            completion_tokens=getattr(usage, "output_tokens", 0),
+            latency_ms=latency_ms,
+        ))
         return response
+
+    async def acreate(self, **kwargs):
+        """Async version — for agents running in asyncio event loops."""
+        model = kwargs.get("model", "unknown")
+        t0 = time.monotonic()
+        try:
+            response = await self._m.acreate(**kwargs)
+        except Exception as exc:
+            latency_ms = int((time.monotonic() - t0) * 1000)
+            _ship_async(_build_payload(
+                model=model, provider="anthropic",
+                prompt_tokens=0, completion_tokens=0,
+                latency_ms=latency_ms, status="error", error=str(exc),
+            ))
+            raise
+
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        actual_model = getattr(response, "model", None) or model
+        usage = response.usage
+        _ship_async(_build_payload(
+            model=actual_model,
+            provider="anthropic",
+            prompt_tokens=getattr(usage, "input_tokens", 0),
+            completion_tokens=getattr(usage, "output_tokens", 0),
+            latency_ms=latency_ms,
+        ))
+        return response
+
+    def stream(self, **kwargs):
+        """
+        Supports the context-manager streaming pattern:
+            with client.messages.stream(...) as s:
+                for text in s.text_stream: ...
+            final = s.get_final_message()
+        """
+        model = kwargs.get("model", "unknown")
+        t0 = time.monotonic()
+        raw = self._m.stream(**kwargs)
+        return _TracedAnthropicStreamContext(raw, model, t0)
+
+
+class _TracedAnthropicStreamContext:
+    """Wraps the context-manager style anthropic stream (.stream(...))."""
+
+    def __init__(self, raw, model: str, t0: float):
+        self._raw = raw
+        self._model = model
+        self._t0 = t0
+
+    def __enter__(self):
+        self._raw.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        result = self._raw.__exit__(*args)
+        # Ship trace using the final message usage
+        final = getattr(self._raw, "_MessageStream__final_message", None)
+        if final is None:
+            try:
+                final = self._raw.get_final_message()
+            except Exception:
+                pass
+        if final:
+            usage = getattr(final, "usage", None)
+            _ship_async(_build_payload(
+                model=self._model,
+                provider="anthropic",
+                prompt_tokens=getattr(usage, "input_tokens", 0) if usage else 0,
+                completion_tokens=getattr(usage, "output_tokens", 0) if usage else 0,
+                latency_ms=int((time.monotonic() - self._t0) * 1000),
+            ))
+        return result
+
+    def __getattr__(self, name: str):
+        return getattr(self._raw, name)
 
 
 class _WrappedAnthropicClient:
@@ -292,14 +434,23 @@ class _WrappedAnthropicClient:
 # ── wrap() ───────────────────────────────────────────────────────────────────
 
 def wrap(client: Any) -> Any:
-    """Wrap an LLM client (OpenAI or Anthropic) to auto-ship traces to Traeco."""
-    cls_name = type(client).__name__
-    agent_name = _state.get("agent_name", "default")
+    """
+    Wrap an OpenAI or Anthropic client to auto-ship traces to Traeco.
 
-    if "OpenAI" in cls_name or "AzureOpenAI" in cls_name:
-        return _WrappedOpenAIClient(client, agent_name)
+    Usage:
+        client = wrap(Anthropic())
+        client = wrap(OpenAI())
+    """
+    if not _state.get("api_key"):
+        if _state["debug"]:
+            print("[traeco] wrap(): no API key set — call traeco.init() first. Returning unwrapped client.")
+        return client
+
+    cls_name = type(client).__name__
     if "Anthropic" in cls_name:
         return _WrappedAnthropicClient(client)
+    if "OpenAI" in cls_name or "AzureOpenAI" in cls_name:
+        return _WrappedOpenAIClient(client)
 
     if _state["debug"]:
         print(f"[traeco] wrap(): unrecognized client type '{cls_name}', returning unwrapped")
@@ -310,13 +461,20 @@ def wrap(client: Any) -> Any:
 
 def span(name: str):
     """
-    Tag a function for per-span cost attribution in the Traeco dashboard.
+    Tag a function for per-function cost breakdown in the Traeco dashboard.
 
-    Uses Python contextvars so concurrent async tasks and threads each get
-    their own span context — no cross-contamination between parallel calls.
+    Every LLM call inside the decorated function is tagged with this name.
+    Works with both sync and async functions.
+    Thread-safe and async-safe via Python contextvars.
 
-    Every LLM call made inside the decorated function is tagged with the span
-    name as feature_tag. The original agent_name is preserved.
+    Example:
+        @span("market_analysis")
+        def analyze(data):
+            return client.messages.create(...)
+
+        @span("trade_decision")
+        async def decide(analysis):
+            return await client.messages.acreate(...)
     """
     def decorator(fn):
         @functools.wraps(fn)
