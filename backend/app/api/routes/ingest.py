@@ -51,17 +51,28 @@ def _get_or_create_agent(db: Session, user: User, agent_name: str, provider: str
 
 
 class SdkTraceIn(BaseModel):
+    # SDK field name
     agent_name: str = "default"
+    # No-code alias — n8n/Flowise users think in "workflows", not "agents"
+    workflow_name: str | None = None
     provider: str
     model: str
     prompt_tokens: int
     completion_tokens: int
     latency_ms: int = 0
+    # SDK calls this feature_tag; no-code nodes call it step_name — both accepted
     feature_tag: str = ""
+    step_name: str | None = None
     endpoint_route: str = ""
     status: str = "success"
     cost_usd: float | None = None
     environment: str = "production"
+
+    def resolved_agent_name(self) -> str:
+        return self.workflow_name or self.agent_name
+
+    def resolved_feature_tag(self) -> str:
+        return self.step_name or self.feature_tag
 
 
 class SdkTraceOut(BaseModel):
@@ -88,7 +99,7 @@ def ingest_trace(
             model_key=payload.model,
         )
     )
-    agent = _get_or_create_agent(db, user, payload.agent_name, payload.provider, payload.model)
+    agent = _get_or_create_agent(db, user, payload.resolved_agent_name(), payload.provider, payload.model)
     record = Request(
         id=str(uuid.uuid4()),
         agent_id=agent.id,
@@ -103,7 +114,7 @@ def ingest_trace(
         cost_usd=cost,
         latency_ms=payload.latency_ms,
         status=payload.status,
-        feature_tag=payload.feature_tag,
+        feature_tag=payload.resolved_feature_tag(),
         environment=payload.environment,
         endpoint_route=payload.endpoint_route,
     )
