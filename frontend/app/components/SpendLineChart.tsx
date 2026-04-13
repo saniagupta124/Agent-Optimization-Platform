@@ -51,7 +51,21 @@ export default function SpendLineChart({ agentId }: Props) {
     );
   }
 
-  if (data.length === 0) {
+  // Drop trailing points that are "today or later" in UTC with zero cost.
+  // The backend groups by UTC date, so a partial day that hasn't finished yet
+  // shows up as a future-looking zero entry even though it's still today locally.
+  const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const trimmed = [...data].sort((a, b) => a.date.localeCompare(b.date));
+  // Remove trailing entries where date >= today AND cost is zero (partial day artifact)
+  while (
+    trimmed.length > 1 &&
+    trimmed[trimmed.length - 1].date >= todayUTC &&
+    trimmed[trimmed.length - 1].total_cost === 0
+  ) {
+    trimmed.pop();
+  }
+
+  if (trimmed.length === 0) {
     return (
       <div className="flex h-72 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#141414]">
         <p className="text-zinc-500">No spend data yet</p>
@@ -63,7 +77,7 @@ export default function SpendLineChart({ agentId }: Props) {
     <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-6">
       <h3 className="mb-4 text-lg font-semibold text-white">Daily Spend (30 days)</h3>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={data}>
+        <LineChart data={trimmed}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis
             dataKey="date"
