@@ -76,7 +76,8 @@ export default function AgentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
-  const [breakdownTab, setBreakdownTab] = useState<"step" | "model" | "tool">("step");
+  const [breakdownTab, setBreakdownTab] = useState<"step" | "model" | "tool">("model");
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -104,8 +105,8 @@ export default function AgentDetailPage() {
     function fetchLive() {
       if (!token) return;
       getAgentDashboard(token, agentId)
-        .then((d) => setDashboard(d))
-        .catch((e) => console.error("[dashboard]", e));
+        .then((d) => { setDashboard(d); setDashboardError(null); })
+        .catch((e) => { console.error("[dashboard]", e); setDashboardError(e.message); });
       getSpanRecommendations(token, agentId)
         .then((r) => setSpanRecs(r))
         .catch((e) => console.error("[spanRecs]", e));
@@ -279,7 +280,9 @@ export default function AgentDetailPage() {
 
               {/* Tab content */}
               <div className="p-5">
-                {breakdownTab === "step" ? (
+                {dashboardError ? (
+                  <p className="py-4 text-center text-sm text-rose-400">Error loading data: {dashboardError}</p>
+                ) : breakdownTab === "step" ? (
                   (dashboard?.by_span ?? []).length === 0 ? (
                     <p className="py-4 text-center text-sm text-zinc-500">
                       No span data yet — add{" "}
