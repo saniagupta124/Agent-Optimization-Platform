@@ -462,6 +462,12 @@ export interface RetryLoop {
   window_seconds: number;
 }
 
+export interface ToolCostRow {
+  label: string;
+  total_cost: number;
+  request_count: number;
+}
+
 export interface AgentDashboard {
   agent_id: string;
   agent_name: string;
@@ -472,6 +478,7 @@ export interface AgentDashboard {
   requests_per_minute: number;
   by_span: SpanCostRow[];
   by_model: ModelCostRow[];
+  by_tool: ToolCostRow[];
   retry_loops: RetryLoop[];
 }
 
