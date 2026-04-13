@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import SpendLineChart from "../../../components/SpendLineChart";
 import {
   AgentDashboard,
@@ -76,6 +76,7 @@ export default function AgentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
+  const [breakdownTab, setBreakdownTab] = useState<"step" | "model">("step");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -252,73 +253,120 @@ export default function AgentDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <SpendLineChart agentId={agentId} />
 
-          {/* Cost by span */}
-          {dashboard && dashboard.by_span.length > 0 && (
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Cost by Span (30d)</h2>
-                <span className="text-xs text-zinc-600">updates every 10s</span>
-              </div>
-              <div className="space-y-2">
-                {dashboard.by_span.map((row) => {
-                  const maxCost = dashboard.by_span[0]?.total_cost || 1;
-                  const pct = Math.round((row.total_cost / maxCost) * 100);
-                  return (
-                    <div key={row.span_name}>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <span className="font-mono text-zinc-300">{row.span_name}</span>
-                        <span className="tabular-nums text-zinc-400">
-                          ${row.total_cost.toFixed(4)}{" "}
-                          <span className="text-zinc-600">({row.request_count} calls)</span>
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
-                        <div
-                          className="h-full rounded-full bg-emerald-500/70"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Retry loop warnings */}
-              {dashboard.retry_loops.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  {dashboard.retry_loops.map((loop, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-2 rounded-lg border border-rose-800/60 bg-rose-950/30 px-3 py-2 text-xs"
+          {/* Tabbed cost breakdown */}
+          {dashboard && (dashboard.by_span.length > 0 || dashboard.by_model.length > 0) && (
+            <div className="rounded-xl border border-[#2a2a2a] bg-[#141414]">
+              {/* Tab bar */}
+              <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 pt-4">
+                <div className="flex gap-6">
+                  {(
+                    [
+                      { id: "step" as const, label: "By Step" },
+                      { id: "model" as const, label: "By Model" },
+                    ]
+                  ).map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setBreakdownTab(id)}
+                      className={`relative pb-3 text-sm font-medium transition ${
+                        breakdownTab === id
+                          ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-emerald-500"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
                     >
-                      <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                      </svg>
-                      <span className="text-rose-300">
-                        <span className="font-mono font-semibold">{loop.span_name}</span>
-                        {" "}fired 3+ times in {loop.window_seconds}s — possible retry loop
-                      </span>
-                    </div>
+                      {label}
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-          )}
+                <span className="pb-3 text-xs text-zinc-600">updates every 10s</span>
+              </div>
 
-          {/* Cost by model */}
-          {dashboard && dashboard.by_model.length > 0 && (
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-5">
-              <h2 className="mb-3 text-sm font-semibold text-white">Cost by Model (30d)</h2>
-              <div className="space-y-1.5">
-                {dashboard.by_model.map((row) => (
-                  <div key={row.model} className="flex items-center justify-between rounded-md bg-[#1e1e1e]/50 px-3 py-2 text-xs">
-                    <span className="font-mono text-zinc-300">{row.model}</span>
-                    <span className="tabular-nums text-zinc-400">
-                      ${row.total_cost.toFixed(4)}{" "}
-                      <span className="text-zinc-600">· {row.request_count} calls</span>
-                    </span>
+              {/* Tab content */}
+              <div className="p-5">
+                {breakdownTab === "step" ? (
+                  dashboard.by_span.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-zinc-500">
+                      No span data yet — add{" "}
+                      <code className="rounded bg-[#1a1a1a] px-1.5 py-0.5 font-mono text-emerald-400 text-xs">
+                        @span
+                      </code>{" "}
+                      decorators to your agent functions.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {dashboard.by_span.map((row) => {
+                        const maxCost = dashboard.by_span[0]?.total_cost || 1;
+                        const pct = Math.round((row.total_cost / maxCost) * 100);
+                        return (
+                          <div key={row.span_name}>
+                            <div className="mb-1.5 flex items-center justify-between text-xs">
+                              <span className="font-mono text-zinc-300">{row.span_name}</span>
+                              <span className="tabular-nums text-zinc-400">
+                                ${row.total_cost.toFixed(4)}{" "}
+                                <span className="text-zinc-600">({row.request_count} calls)</span>
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
+                              <div
+                                className="h-full rounded-full bg-emerald-500/70"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  dashboard.by_model.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-zinc-500">No model data for this period.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {dashboard.by_model.map((row) => {
+                        const maxCost = dashboard.by_model[0]?.total_cost || 1;
+                        const pct = Math.round((row.total_cost / maxCost) * 100);
+                        return (
+                          <div key={row.model}>
+                            <div className="mb-1.5 flex items-center justify-between text-xs">
+                              <span className="font-mono text-zinc-300">{row.model}</span>
+                              <span className="tabular-nums text-zinc-400">
+                                ${row.total_cost.toFixed(4)}{" "}
+                                <span className="text-zinc-600">· {row.request_count} calls</span>
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
+                              <div
+                                className="h-full rounded-full bg-indigo-500/70"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
+
+                {/* Retry loop warnings — always show if present */}
+                {dashboard.retry_loops.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {dashboard.retry_loops.map((loop, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2 rounded-lg border border-rose-800/60 bg-rose-950/30 px-3 py-2 text-xs"
+                      >
+                        <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                        </svg>
+                        <span className="text-rose-300">
+                          <span className="font-mono font-semibold">{loop.span_name}</span>
+                          {" "}fired 3+ times in {loop.window_seconds}s — possible retry loop
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}
