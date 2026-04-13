@@ -254,8 +254,7 @@ export default function AgentDetailPage() {
           <SpendLineChart agentId={agentId} />
 
           {/* Tabbed cost breakdown — always shown */}
-          {(
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#141414]">
+          <div className="rounded-xl border border-[#2a2a2a] bg-[#141414]">
               {/* Tab bar */}
               <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 pt-4">
                 <div className="flex gap-6">
@@ -284,8 +283,12 @@ export default function AgentDetailPage() {
 
               {/* Tab content */}
               <div className="p-5">
-                {breakdownTab === "step" ? (
-                  dashboard.by_span.length === 0 ? (
+                {!dashboard ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => <div key={i} className="h-6 animate-pulse rounded bg-[#222]" />)}
+                  </div>
+                ) : breakdownTab === "step" ? (
+                  (dashboard.by_span ?? []).length === 0 ? (
                     <p className="py-4 text-center text-sm text-zinc-500">
                       No span data yet — add{" "}
                       <code className="rounded bg-[#1a1a1a] px-1.5 py-0.5 font-mono text-emerald-400 text-xs">
@@ -308,10 +311,7 @@ export default function AgentDetailPage() {
                               </span>
                             </div>
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
-                              <div
-                                className="h-full rounded-full bg-emerald-500/70"
-                                style={{ width: `${pct}%` }}
-                              />
+                              <div className="h-full rounded-full bg-emerald-500/70" style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         );
@@ -319,7 +319,7 @@ export default function AgentDetailPage() {
                     </div>
                   )
                 ) : (
-                  dashboard.by_model.length === 0 ? (
+                  (dashboard.by_model ?? []).length === 0 ? (
                     <p className="py-4 text-center text-sm text-zinc-500">No model data for this period.</p>
                   ) : (
                     <div className="space-y-2">
@@ -336,10 +336,7 @@ export default function AgentDetailPage() {
                               </span>
                             </div>
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
-                              <div
-                                className="h-full rounded-full bg-indigo-500/70"
-                                style={{ width: `${pct}%` }}
-                              />
+                              <div className="h-full rounded-full bg-indigo-500/70" style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         );
@@ -348,14 +345,11 @@ export default function AgentDetailPage() {
                   )
                 )}
 
-                {/* Retry loop warnings — always show if present */}
-                {dashboard.retry_loops.length > 0 && (
+                {/* Retry loop warnings */}
+                {(dashboard?.retry_loops ?? []).length > 0 && (
                   <div className="mt-4 space-y-2">
-                    {dashboard.retry_loops.map((loop, i) => (
-                      <div
-                        key={i}
-                        className="flex items-start gap-2 rounded-lg border border-rose-800/60 bg-rose-950/30 px-3 py-2 text-xs"
-                      >
+                    {dashboard!.retry_loops.map((loop, i) => (
+                      <div key={i} className="flex items-start gap-2 rounded-lg border border-rose-800/60 bg-rose-950/30 px-3 py-2 text-xs">
                         <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
                         </svg>
@@ -369,7 +363,6 @@ export default function AgentDetailPage() {
                 )}
               </div>
             </div>
-          )}
         </div>
 
         {/* Right column: recommendations */}
