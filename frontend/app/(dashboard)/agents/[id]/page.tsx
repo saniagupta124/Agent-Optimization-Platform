@@ -283,12 +283,8 @@ export default function AgentDetailPage() {
 
               {/* Tab content */}
               <div className="p-5">
-                {!dashboard ? (
-                  <div className="space-y-2">
-                    {[1,2,3].map(i => <div key={i} className="h-6 animate-pulse rounded bg-[#222]" />)}
-                  </div>
-                ) : breakdownTab === "step" ? (
-                  (dashboard.by_span ?? []).length === 0 ? (
+                {breakdownTab === "step" ? (
+                  (dashboard?.by_span ?? []).length === 0 ? (
                     <p className="py-4 text-center text-sm text-zinc-500">
                       No span data yet — add{" "}
                       <code className="rounded bg-[#1a1a1a] px-1.5 py-0.5 font-mono text-emerald-400 text-xs">
@@ -298,8 +294,8 @@ export default function AgentDetailPage() {
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {dashboard.by_span.map((row) => {
-                        const maxCost = dashboard.by_span[0]?.total_cost || 1;
+                      {dashboard!.by_span.map((row) => {
+                        const maxCost = dashboard!.by_span[0]?.total_cost || 1;
                         const pct = Math.round((row.total_cost / maxCost) * 100);
                         return (
                           <div key={row.span_name}>
@@ -319,12 +315,12 @@ export default function AgentDetailPage() {
                     </div>
                   )
                 ) : (
-                  (dashboard.by_model ?? []).length === 0 ? (
+                  (dashboard?.by_model ?? []).length === 0 ? (
                     <p className="py-4 text-center text-sm text-zinc-500">No model data for this period.</p>
                   ) : (
                     <div className="space-y-2">
-                      {dashboard.by_model.map((row) => {
-                        const maxCost = dashboard.by_model[0]?.total_cost || 1;
+                      {dashboard!.by_model.map((row) => {
+                        const maxCost = dashboard!.by_model[0]?.total_cost || 1;
                         const pct = Math.round((row.total_cost / maxCost) * 100);
                         return (
                           <div key={row.model}>
