@@ -103,17 +103,12 @@ export default function AgentDetailPage() {
 
     function fetchLive() {
       if (!token) return;
-      Promise.all([
-        getAgentDashboard(token, agentId),
-        getSpanRecommendations(token, agentId),
-      ])
-        .then(([d, r]) => {
-          setDashboard(d);
-          setSpanRecs(r);
-        })
-        .catch(() => {
-          // non-fatal — live panel just stays empty
-        });
+      getAgentDashboard(token, agentId)
+        .then((d) => setDashboard(d))
+        .catch((e) => console.error("[dashboard]", e));
+      getSpanRecommendations(token, agentId)
+        .then((r) => setSpanRecs(r))
+        .catch((e) => console.error("[spanRecs]", e));
     }
 
     fetchLive();
