@@ -358,11 +358,73 @@ def get_usage_breakdown(
         for r in ep_rows
     ]
 
+    # by_step — group by feature_tag (set via @span decorator), skip empty tags
+    step_rows = (
+        db.query(
+            Request.feature_tag.label("label"),
+            func.coalesce(func.sum(Request.cost_usd), 0).label("cost"),
+            func.coalesce(func.sum(Request.total_tokens), 0).label("tok"),
+            func.count(Request.id).label("cnt"),
+        )
+        .filter(
+            Request.agent_id.in_(agent_ids),
+            Request.timestamp >= since,
+            Request.timestamp <= now,
+            Request.feature_tag != "",
+            Request.feature_tag.isnot(None),
+        )
+        .group_by(Request.feature_tag)
+        .order_by(func.sum(Request.cost_usd).desc())
+        .all()
+    )
+    step_total = sum(float(r.cost) for r in step_rows) or 1.0
+    by_step = [
+        BreakdownRow(
+            label=r.label or "unknown",
+            total_cost_usd=round(float(r.cost), 4),
+            total_tokens=int(r.tok),
+            request_count=int(r.cnt),
+            share_of_cost_pct=round(float(r.cost) / step_total * 100, 1),
+        )
+        for r in step_rows
+    ]
+
+    # by_provider — group by provider field (anthropic | openai | google | …)
+    provider_rows = (
+        db.query(
+            Request.provider.label("label"),
+            func.coalesce(func.sum(Request.cost_usd), 0).label("cost"),
+            func.coalesce(func.sum(Request.total_tokens), 0).label("tok"),
+            func.count(Request.id).label("cnt"),
+        )
+        .filter(
+            Request.agent_id.in_(agent_ids),
+            Request.timestamp >= since,
+            Request.timestamp <= now,
+        )
+        .group_by(Request.provider)
+        .order_by(func.sum(Request.cost_usd).desc())
+        .all()
+    )
+    provider_total = sum(float(r.cost) for r in provider_rows) or 1.0
+    by_provider = [
+        BreakdownRow(
+            label=r.label or "unknown",
+            total_cost_usd=round(float(r.cost), 4),
+            total_tokens=int(r.tok),
+            request_count=int(r.cnt),
+            share_of_cost_pct=round(float(r.cost) / provider_total * 100, 1),
+        )
+        for r in provider_rows
+    ]
+
     return UsageBreakdownResponse(
         scope=scope,
         period_days=period_days,
         by_model=by_model,
         by_endpoint=by_endpoint,
+        by_step=by_step,
+        by_provider=by_provider,
     )
 
 
