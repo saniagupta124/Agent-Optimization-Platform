@@ -76,7 +76,7 @@ export default function AgentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
-  const [breakdownTab, setBreakdownTab] = useState<"step" | "model">("step");
+  const [breakdownTab, setBreakdownTab] = useState<"step" | "model" | "tool">("step");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -262,6 +262,7 @@ export default function AgentDetailPage() {
                     [
                       { id: "step" as const, label: "By Step" },
                       { id: "model" as const, label: "By Model" },
+                      { id: "tool" as const, label: "By Tool" },
                     ]
                   ).map(({ id, label }) => (
                     <button
@@ -314,7 +315,7 @@ export default function AgentDetailPage() {
                       })}
                     </div>
                   )
-                ) : (
+                ) : breakdownTab === "model" ? (
                   (dashboard?.by_model ?? []).length === 0 ? (
                     <p className="py-4 text-center text-sm text-zinc-500">No model data for this period.</p>
                   ) : (
@@ -333,6 +334,31 @@ export default function AgentDetailPage() {
                             </div>
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
                               <div className="h-full rounded-full bg-indigo-500/70" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  (dashboard?.by_tool ?? []).length === 0 ? (
+                    <p className="py-4 text-center text-sm text-zinc-500">No tool data for this period.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {dashboard!.by_tool.map((row) => {
+                        const maxCost = dashboard!.by_tool[0]?.total_cost || 1;
+                        const pct = Math.round((row.total_cost / maxCost) * 100);
+                        return (
+                          <div key={row.label}>
+                            <div className="mb-1.5 flex items-center justify-between text-xs">
+                              <span className="font-mono text-zinc-300">{row.label}</span>
+                              <span className="tabular-nums text-zinc-400">
+                                ${row.total_cost.toFixed(4)}{" "}
+                                <span className="text-zinc-600">· {row.request_count} calls</span>
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
+                              <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         );

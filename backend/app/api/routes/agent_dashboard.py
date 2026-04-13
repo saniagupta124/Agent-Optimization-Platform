@@ -112,11 +112,13 @@ def get_agent_dashboard(
     session_cost = sum(r.cost_usd for r in session_reqs)
     alltime_cost = sum(r.cost_usd for r in alltime_reqs)
 
-    # ── Cost by span (feature_tag) ────────────────────────────────────────────
+    # ── Cost by span (feature_tag — only @span-tagged requests) ──────────────
     span_cost: dict[str, float] = defaultdict(float)
     span_count: dict[str, int] = defaultdict(int)
     for r in alltime_reqs:
-        tag = r.feature_tag or "untagged"
+        tag = r.feature_tag or ""
+        if not tag:
+            continue  # skip untagged — show only explicit @span names
         span_cost[tag] += r.cost_usd
         span_count[tag] += 1
 
@@ -143,6 +145,23 @@ def get_agent_dashboard(
             "request_count": model_count[k],
         }
         for k, v in sorted(model_cost.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    # ── Cost by tool (endpoint_route, fallback to feature_tag) ───────────────
+    tool_cost: dict[str, float] = defaultdict(float)
+    tool_count: dict[str, int] = defaultdict(int)
+    for r in alltime_reqs:
+        label = (r.endpoint_route or "").strip() or (r.feature_tag or "").strip() or "default"
+        tool_cost[label] += r.cost_usd
+        tool_count[label] += 1
+
+    by_tool = [
+        {
+            "label": k,
+            "total_cost": round(v, 6),
+            "request_count": tool_count[k],
+        }
+        for k, v in sorted(tool_cost.items(), key=lambda x: x[1], reverse=True)
     ]
 
     # ── Requests per minute (session window) ─────────────────────────────────
@@ -180,6 +199,7 @@ def get_agent_dashboard(
         "requests_per_minute": rpm,
         "by_span": by_span,
         "by_model": by_model,
+        "by_tool": by_tool,
         "retry_loops": retry_loops,
     }
 
