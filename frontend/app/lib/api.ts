@@ -305,6 +305,8 @@ export interface DashboardUsageBreakdown {
   period_days: number;
   by_model: UsageBreakdownRow[];
   by_endpoint: UsageBreakdownRow[];
+  by_step: UsageBreakdownRow[];
+  by_provider: UsageBreakdownRow[];
 }
 
 export interface TimelinePoint {

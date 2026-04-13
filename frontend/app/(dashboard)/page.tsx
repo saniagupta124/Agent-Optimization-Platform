@@ -104,7 +104,7 @@ export default function Dashboard() {
 
   const [scope, setScope] = useState<"me" | "team">("me");
   const [days, setDays] = useState(30);
-  const [breakdownTab, setBreakdownTab] = useState<"member" | "tool">("member");
+  const [breakdownTab, setBreakdownTab] = useState<"member" | "step" | "provider" | "tool">("member");
   const [search, setSearch] = useState("");
 
   const [summary, setSummary] = useState<UsageSummary | null>(null);
@@ -177,6 +177,14 @@ export default function Dashboard() {
       const top = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4);
       const sumCost = top.reduce((s, a) => s + a.total_cost_7d, 0) || 1;
       slices = top.map((a) => ({ label: a.name, proportion: a.total_cost_7d / sumCost }));
+    } else if (breakdownTab === "step") {
+      const steps = [...(breakdown?.by_step ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
+      const sumCost = steps.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
+      slices = steps.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sumCost }));
+    } else if (breakdownTab === "provider") {
+      const providers = [...(breakdown?.by_provider ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
+      const sumCost = providers.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
+      slices = providers.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sumCost }));
     } else {
       // Proportions from top 4 tools/endpoints by cost
       const tools = [...(breakdown?.by_endpoint ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
@@ -224,6 +232,25 @@ export default function Dashboard() {
     if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
     return rows;
   }, [toolRows, search]);
+
+  const stepRows: UsageBreakdownRow[] = breakdown?.by_step ?? [];
+  const sortedSteps = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = [...stepRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
+    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
+    return rows;
+  }, [stepRows, search]);
+
+  const providerRows: UsageBreakdownRow[] = breakdown?.by_provider ?? [];
+  const sortedProviders = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = [...providerRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
+    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
+    return rows;
+  }, [providerRows, search]);
+
+  const maxStepCost = Math.max(...sortedSteps.map((r) => r.total_cost_usd), 1e-9);
+  const maxProviderCost = Math.max(...sortedProviders.map((r) => r.total_cost_usd), 1e-9);
 
   const topFourAgents = useMemo(
     () => [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4),
@@ -412,29 +439,28 @@ export default function Dashboard() {
       </div>
 
       <section className="mb-10 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617]">
-        <div className="flex gap-8 border-b border-[#2a2a2a]/90 px-5 pt-4">
-          <button
-            type="button"
-            onClick={() => setBreakdownTab("member")}
-            className={`relative pb-3 text-base font-medium transition ${
-              breakdownTab === "member"
-                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-emerald-500"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            By team member
-          </button>
-          <button
-            type="button"
-            onClick={() => setBreakdownTab("tool")}
-            className={`relative pb-3 text-base font-medium transition ${
-              breakdownTab === "tool"
-                ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-emerald-500"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
-          >
-            By tool
-          </button>
+        <div className="flex gap-6 border-b border-[#2a2a2a]/90 px-5 pt-4 overflow-x-auto">
+          {(
+            [
+              { id: "member", label: "By agent" },
+              { id: "step",   label: "By step" },
+              { id: "provider", label: "By provider" },
+              { id: "tool",   label: "By tool" },
+            ] as const
+          ).map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setBreakdownTab(id)}
+              className={`relative shrink-0 pb-3 text-base font-medium transition ${
+                breakdownTab === id
+                  ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-emerald-500"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {loading || !timeline ? (
@@ -557,6 +583,86 @@ export default function Dashboard() {
                       </li>
                     );
                   })
+                )
+              ) : breakdownTab === "step" ? (
+                sortedSteps.length === 0 ? (
+                  <li className="px-2 py-6 text-center text-base text-zinc-500">
+                    No span data yet — add <code className="rounded bg-[#1a1a1a] px-1.5 py-0.5 font-mono text-emerald-400">@span</code> decorators to your agent functions.
+                  </li>
+                ) : (
+                  sortedSteps.slice(0, 8).map((row, i) => (
+                    <li
+                      key={row.label}
+                      className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
+                    >
+                      <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
+                        <span
+                          className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
+                          style={{ backgroundColor: CHART_HEX[i % 4] }}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate font-mono text-base text-white">{row.label}</p>
+                          <p className="text-sm text-zinc-500">{row.request_count.toLocaleString()} calls · {row.total_tokens.toLocaleString()} tokens</p>
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1 px-0 sm:px-2">
+                        <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
+                          <div
+                            className="h-full rounded-full bg-emerald-500"
+                            style={{ width: `${Math.min(100, (row.total_cost_usd / maxStepCost) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
+                        <span className="text-base font-semibold tabular-nums text-white">
+                          ${row.total_cost_usd.toFixed(4)}
+                        </span>
+                        <span className="text-sm tabular-nums text-zinc-500">
+                          {row.share_of_cost_pct.toFixed(1)}% of total
+                        </span>
+                      </div>
+                    </li>
+                  ))
+                )
+              ) : breakdownTab === "provider" ? (
+                sortedProviders.length === 0 ? (
+                  <li className="px-2 py-6 text-center text-base text-zinc-500">
+                    No provider data for this period.
+                  </li>
+                ) : (
+                  sortedProviders.slice(0, 8).map((row, i) => (
+                    <li
+                      key={row.label}
+                      className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
+                    >
+                      <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
+                        <span
+                          className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
+                          style={{ backgroundColor: CHART_HEX[i % 4] }}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-base font-medium capitalize text-white">{row.label}</p>
+                          <p className="text-sm text-zinc-500">{row.request_count.toLocaleString()} requests</p>
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1 px-0 sm:px-2">
+                        <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
+                          <div
+                            className="h-full rounded-full bg-emerald-500"
+                            style={{ width: `${Math.min(100, (row.total_cost_usd / maxProviderCost) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
+                        <span className="text-base font-semibold tabular-nums text-white">
+                          ${row.total_cost_usd.toFixed(2)}
+                        </span>
+                        <span className="text-sm tabular-nums text-zinc-500">
+                          {row.share_of_cost_pct.toFixed(1)}% of total
+                        </span>
+                      </div>
+                    </li>
+                  ))
                 )
               ) : sortedTools.length === 0 ? (
                 <li className="px-2 py-6 text-center text-base text-zinc-500">

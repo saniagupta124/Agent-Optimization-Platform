@@ -74,6 +74,14 @@ class UsageBreakdownResponse(BaseModel):
     period_days: int
     by_model: list[BreakdownRow]
     by_endpoint: list[BreakdownRow]
+    by_step: list[BreakdownRow] = Field(
+        default_factory=list,
+        description="Cost grouped by @span name (feature_tag). Only rows where feature_tag is set.",
+    )
+    by_provider: list[BreakdownRow] = Field(
+        default_factory=list,
+        description="Cost grouped by LLM provider (anthropic, openai, …).",
+    )
 
 
 class TimelinePoint(BaseModel):
