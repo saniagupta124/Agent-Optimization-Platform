@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import SpendLineChart from "../../../components/SpendLineChart";
 import {
   AgentDashboard,
@@ -253,8 +253,8 @@ export default function AgentDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <SpendLineChart agentId={agentId} />
 
-          {/* Tabbed cost breakdown */}
-          {dashboard && (dashboard.by_span.length > 0 || dashboard.by_model.length > 0) && (
+          {/* Tabbed cost breakdown — always shown */}
+          {(
             <div className="rounded-xl border border-[#2a2a2a] bg-[#141414]">
               {/* Tab bar */}
               <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 pt-4">
