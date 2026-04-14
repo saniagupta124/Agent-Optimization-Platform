@@ -168,7 +168,15 @@ def get_agent_dashboard(
     elapsed_minutes = max((now - session_since).total_seconds() / 60, 1)
     rpm = round(len(session_reqs) / elapsed_minutes, 2)
 
-    # ── Retry loop detection: ≥3 calls in same span within 10 s ──────────────
+    # ── Retry loop detection ──────────────────────────────────────────────────
+    # Flags ≥6 calls of the same span within 60 s that are NOT a concurrent
+    # burst. A concurrent burst (all calls within 3 s) means parallel threads
+    # fired by design — not a stuck retry loop. A real retry loop is sustained:
+    # calls keep repeating across a longer window with sequential gaps.
+    RETRY_MIN_CALLS = 6
+    RETRY_WINDOW_SECS = 60
+    CONCURRENT_BURST_SECS = 3  # tighter than 3 s = parallel threads, skip
+
     span_timestamps: dict[str, list[datetime]] = defaultdict(list)
     for r in alltime_reqs:
         tag = r.feature_tag or "untagged"
@@ -177,17 +185,34 @@ def get_agent_dashboard(
     retry_loops = []
     for span_name, timestamps in span_timestamps.items():
         timestamps.sort()
-        for i in range(len(timestamps) - 2):
-            window_secs = (timestamps[i + 2] - timestamps[i]).total_seconds()
-            if window_secs <= 10:
-                retry_loops.append(
-                    {
-                        "span_name": span_name,
-                        "occurrences": 3,
-                        "window_seconds": round(window_secs, 1),
-                    }
-                )
-                break  # one flag per span is enough
+        n = len(timestamps)
+        flagged = False
+        for i in range(n):
+            # Collect all calls within RETRY_WINDOW_SECS of timestamps[i]
+            burst = [timestamps[i]]
+            for j in range(i + 1, n):
+                if (timestamps[j] - timestamps[i]).total_seconds() <= RETRY_WINDOW_SECS:
+                    burst.append(timestamps[j])
+                else:
+                    break
+            if len(burst) < RETRY_MIN_CALLS:
+                continue
+            spread = (burst[-1] - burst[0]).total_seconds()
+            # Skip tight concurrent bursts — parallel threads firing at once
+            if spread <= CONCURRENT_BURST_SECS:
+                continue
+            # Looks like a real retry loop — sequential repeats over time
+            retry_loops.append(
+                {
+                    "span_name": span_name,
+                    "occurrences": len(burst),
+                    "window_seconds": round(spread, 1),
+                }
+            )
+            flagged = True
+            break
+        if flagged:
+            continue  # one flag per span is enough
 
     return {
         "agent_id": agent.id,
