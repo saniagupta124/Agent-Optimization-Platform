@@ -92,7 +92,7 @@ def get_agent_dashboard(
     agent = _resolve_agent(db, user, agent_id_or_name)
 
     now = datetime.utcnow()
-    session_since = now - timedelta(hours=1)
+    session_since = now - timedelta(hours=6)
     alltime_since = now - timedelta(days=30)
 
     session_reqs = (
