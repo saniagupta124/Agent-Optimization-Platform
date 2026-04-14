@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -153,6 +153,9 @@ class Agent(Base):
     api_key_hint: Mapped[str] = mapped_column(String, default="")
     # SHA256 hex of pepper|provider|raw_key — lookup for /log_request by api_key.
     api_key_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Max tokens cap — absence triggers non-linear scaling warning.
+    max_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # internal | production — scopes analytics and comparisons.
     deployment_environment: Mapped[str] = mapped_column(
         String, default="production", index=True

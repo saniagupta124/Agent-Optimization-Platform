@@ -307,6 +307,7 @@ export interface DashboardUsageBreakdown {
   by_endpoint: UsageBreakdownRow[];
   by_step: UsageBreakdownRow[];
   by_provider: UsageBreakdownRow[];
+  by_agent: UsageBreakdownRow[];
 }
 
 export interface TimelinePoint {

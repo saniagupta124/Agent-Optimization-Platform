@@ -82,6 +82,10 @@ class UsageBreakdownResponse(BaseModel):
         default_factory=list,
         description="Cost grouped by LLM provider (anthropic, openai, …).",
     )
+    by_agent: list[BreakdownRow] = Field(
+        default_factory=list,
+        description="Cost grouped by agent, for the selected period.",
+    )
 
 
 class TimelinePoint(BaseModel):

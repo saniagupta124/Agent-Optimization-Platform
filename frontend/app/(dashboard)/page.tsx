@@ -154,76 +154,94 @@ export default function Dashboard() {
     };
   }, [token, days, scope]);
 
-  /* ---- Chart model: changes with breakdownTab ---- */
+  /* ---- Stacked bar chart model — changes with breakdownTab ---- */
   const chartModel = useMemo(() => {
-    const points = timeline?.points ?? [];
-    const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
-    const numWeeks = 5;
+    const points = [...(timeline?.points ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+    const NUM_BARS = 5;
     const weekTotals: number[] = [];
-    if (!sorted.length) {
-      for (let w = 0; w < numWeeks; w++) weekTotals.push(0);
+    const weekLabels: string[] = [];
+
+    if (!points.length) {
+      for (let w = 0; w < NUM_BARS; w++) { weekTotals.push(0); weekLabels.push(""); }
     } else {
-      const chunk = Math.max(1, Math.ceil(sorted.length / numWeeks));
-      for (let w = 0; w < numWeeks; w++) {
-        const sl = sorted.slice(w * chunk, (w + 1) * chunk);
+      const chunk = Math.max(1, Math.ceil(points.length / NUM_BARS));
+      for (let w = 0; w < NUM_BARS; w++) {
+        const sl = points.slice(w * chunk, (w + 1) * chunk);
         weekTotals.push(sl.reduce((s, p) => s + p.cost_usd, 0));
+        // label: first date of bucket as M/D
+        if (sl.length) {
+          const d = new Date(sl[0].date + "T00:00:00");
+          weekLabels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+        } else {
+          weekLabels.push("");
+        }
       }
     }
 
-    let slices: { label: string; proportion: number }[];
-
+    let slices: { label: string; proportion: number }[] = [];
     if (breakdownTab === "member") {
-      // Proportions from top 4 agents by 7d cost
-      const top = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4);
-      const sumCost = top.reduce((s, a) => s + a.total_cost_7d, 0) || 1;
-      slices = top.map((a) => ({ label: a.name, proportion: a.total_cost_7d / sumCost }));
+      const top = [...(breakdown?.by_agent ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
+      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
+      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
     } else if (breakdownTab === "step") {
-      const steps = [...(breakdown?.by_step ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
-      const sumCost = steps.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
-      slices = steps.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sumCost }));
+      const top = [...(breakdown?.by_step ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
+      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
+      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
     } else if (breakdownTab === "provider") {
-      const providers = [...(breakdown?.by_provider ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
-      const sumCost = providers.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
-      slices = providers.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sumCost }));
+      const top = [...(breakdown?.by_provider ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
+      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
+      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
     } else {
-      // Proportions from top 4 tools/endpoints by cost
-      const tools = [...(breakdown?.by_endpoint ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
-      const sumCost = tools.reduce((s, t) => s + t.total_cost_usd, 0) || 1;
-      slices = tools.map((t) => ({ label: t.label, proportion: t.total_cost_usd / sumCost }));
+      const top = [...(breakdown?.by_endpoint ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
+      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
+      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
     }
-
     while (slices.length < 4) slices.push({ label: "—", proportion: 0 });
 
     return {
       weekTotals,
+      weekLabels,
       props: slices.slice(0, 4).map((s) => s.proportion),
       labels: slices.slice(0, 4).map((s) => s.label),
     };
-  }, [timeline, agents, breakdown, breakdownTab]);
+  }, [timeline, breakdown, breakdownTab]);
 
-  const maxBarVal = useMemo(() => {
+  const CHART_H = 160;
+  const displayMax = useMemo(() => {
     let m = 1e-9;
-    for (const w of chartModel.weekTotals) {
-      for (let i = 0; i < 4; i++) {
-        m = Math.max(m, w * chartModel.props[i]);
-      }
+    for (const w of chartModel.weekTotals) m = Math.max(m, w);
+    const raw = Math.max(m * 1.08, 0.0001);
+    // Round up to a "nice" ceiling so tick labels are clean numbers
+    const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
+    const steps = [1, 2, 2.5, 5, 10];
+    for (const s of steps) {
+      const candidate = Math.ceil(raw / (magnitude * s)) * (magnitude * s);
+      if (candidate >= raw) return candidate;
     }
-    return m;
+    return Math.ceil(raw / magnitude) * magnitude;
   }, [chartModel]);
 
-  const displayMax = Math.max(100, maxBarVal * 1.08);
-  const CHART_H = 160;
+  const yTickLabels = useMemo(() => {
+    const fmt = (v: number) => {
+      if (v === 0) return "$0";
+      if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`;
+      if (v >= 100) return `$${Math.round(v)}`;
+      if (v >= 10) return `$${Math.round(v)}`;
+      if (v >= 1) return `$${v.toFixed(0)}`;
+      if (v >= 0.01) return `$${v.toFixed(2)}`;
+      return `$${v.toFixed(4)}`;
+    };
+    return [displayMax, displayMax * 0.75, displayMax * 0.5, displayMax * 0.25, 0].map(fmt);
+  }, [displayMax]);
 
+  // "By agent" rows come from the period-accurate breakdown, not the hardcoded 7d agent stats
+  const agentBreakdownRows: UsageBreakdownRow[] = breakdown?.by_agent ?? [];
   const sortedAgents = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d);
-    if (q) {
-      list = list.filter(
-        (a) => a.name.toLowerCase().includes(q) || a.purpose.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [agents, search]);
+    let rows = [...agentBreakdownRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
+    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
+    return rows;
+  }, [agentBreakdownRows, search]);
 
   const toolRows: UsageBreakdownRow[] = breakdown?.by_endpoint ?? [];
   const sortedTools = useMemo(() => {
@@ -252,22 +270,10 @@ export default function Dashboard() {
   const maxStepCost = Math.max(...sortedSteps.map((r) => r.total_cost_usd), 1e-9);
   const maxProviderCost = Math.max(...sortedProviders.map((r) => r.total_cost_usd), 1e-9);
 
-  const topFourAgents = useMemo(
-    () => [...agents].sort((a, b) => b.total_cost_7d - a.total_cost_7d).slice(0, 4),
-    [agents]
-  );
-
-  const maxMemberCost = Math.max(...sortedAgents.map((a) => a.total_cost_7d), 1e-9);
+  const maxMemberCost = Math.max(...sortedAgents.map((r) => r.total_cost_usd), 1e-9);
   const maxToolCost = Math.max(...sortedTools.map((r) => r.total_cost_usd), 1e-9);
 
   const teamAvailable = summary?.team_view_available ?? false;
-
-  const yTickLabels = useMemo(() => {
-    const n = displayMax;
-    return [n, n * 0.75, n * 0.5, n * 0.25, 0].map((v) =>
-      v >= 100 ? `$${Math.round(v)}` : `$${v.toFixed(0)}`
-    );
-  }, [displayMax]);
 
   const periodLabel = `vs prev ${days}d`;
 
@@ -469,46 +475,31 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
-            {/* Stacked bar chart — changes with breakdownTab */}
+            {/* Stacked bar chart — proportions from selected tab, totals from timeline */}
             <div className="relative px-2 pb-2 pt-4 sm:px-5">
               <div className="flex gap-2">
-                <div className="flex w-11 flex-col justify-between py-0.5 text-right text-xs font-medium tabular-nums text-zinc-500 sm:w-12 sm:text-sm">
-                  {yTickLabels.map((t) => (
-                    <span key={t}>{t}</span>
-                  ))}
+                <div className="flex w-11 shrink-0 flex-col justify-between py-0.5 text-right text-xs font-medium tabular-nums text-zinc-500 sm:w-14">
+                  {yTickLabels.map((t, i) => <span key={i}>{t}</span>)}
                 </div>
                 <div className="relative min-h-0 flex-1 border-l border-[#2a2a2a]/80 pl-2">
                   <div
                     className="pointer-events-none absolute inset-0 left-2 opacity-40"
-                    style={{
-                      backgroundImage:
-                        "repeating-linear-gradient(to bottom, transparent 0, transparent 38px, rgba(63,63,70,0.5) 39px)",
-                    }}
+                    style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0, transparent 38px, rgba(63,63,70,0.5) 39px)" }}
                     aria-hidden
                   />
-                  <div
-                    className="relative flex items-end justify-between gap-0.5 px-1 sm:gap-1"
-                    style={{ height: CHART_H }}
-                  >
+                  <div className="relative flex items-end justify-between gap-0.5 px-1 sm:gap-1" style={{ height: CHART_H }}>
                     {chartModel.weekTotals.map((weekTotal, wi) => (
-                      <div
-                        key={wi}
-                        className="flex h-full min-h-0 flex-1 items-end justify-center gap-px sm:gap-0.5"
-                      >
+                      <div key={wi} className="flex h-full min-h-0 flex-1 items-end justify-center gap-px sm:gap-0.5">
                         {chartModel.props.map((p, si) => {
                           const raw = weekTotal * p;
-                          const h = Math.max(3, Math.round((raw / displayMax) * CHART_H));
+                          const h = Math.max(raw > 0 ? 3 : 0, Math.round((raw / displayMax) * CHART_H));
                           const hex = CHART_HEX[si];
                           return (
                             <div
                               key={si}
                               className="w-full max-w-[18px] rounded-t-[3px] shadow-sm ring-1 ring-black/20"
-                              style={{
-                                height: `${h}px`,
-                                backgroundColor: hex,
-                                boxShadow: hex === "#FFF35C" ? "inset 0 0 0 1px rgba(0,0,0,0.15)" : undefined,
-                              }}
-                              title={`${chartModel.labels[si]}: $${raw.toFixed(2)}`}
+                              style={{ height: `${h}px`, backgroundColor: hex, boxShadow: hex === "#FFF35C" ? "inset 0 0 0 1px rgba(0,0,0,0.15)" : undefined }}
+                              title={`${chartModel.labels[si]}: $${raw.toFixed(4)}`}
                             />
                           );
                         })}
@@ -517,21 +508,20 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              {/* Legend */}
-              <div className="mt-3 flex flex-wrap items-center gap-4 pl-14">
-                {chartModel.labels.map((lbl, i) =>
-                  lbl !== "—" ? (
-                    <div key={lbl} className="flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CHART_HEX[i] }} />
-                      <span className="text-xs text-zinc-400">{lbl}</span>
-                    </div>
-                  ) : null
-                )}
-              </div>
-              <div className="mt-2 flex pl-10 text-xs font-medium text-zinc-500 sm:pl-14 sm:text-sm">
-                {["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"].map((w) => (
-                  <div key={w} className="flex-1 text-center">{w}</div>
+              {/* X-axis date labels */}
+              <div className="mt-2 flex pl-10 text-xs text-zinc-500 sm:pl-14">
+                {chartModel.weekLabels.map((lbl, i) => (
+                  <div key={i} className="flex-1 text-center">{lbl}</div>
                 ))}
+              </div>
+              {/* Legend */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-10 sm:pl-14">
+                {chartModel.labels.map((lbl, i) => lbl !== "—" ? (
+                  <div key={lbl} className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: CHART_HEX[i] }} />
+                    <span className="max-w-[140px] truncate text-xs text-zinc-400">{lbl}</span>
+                  </div>
+                ) : null)}
               </div>
             </div>
 
@@ -539,50 +529,24 @@ export default function Dashboard() {
             <ul className="space-y-0 border-t border-[#2a2a2a]/90 px-3 py-4 sm:px-5">
               {breakdownTab === "member" ? (
                 sortedAgents.length === 0 ? (
-                  <li className="px-2 py-6 text-center text-base text-zinc-500">
-                    No agents for this scope.
-                  </li>
+                  <li className="px-2 py-6 text-center text-base text-zinc-500">No agent spend data for this period.</li>
                 ) : (
-                  sortedAgents.slice(0, 8).map((a, i) => {
-                    const topIdx = topFourAgents.findIndex((x) => x.id === a.id);
-                    const colorIdx = topIdx >= 0 ? topIdx % 4 : i % 4;
-                    const dot = CHART_HEX[colorIdx];
-                    const totalCost = agents.reduce((s, x) => s + x.total_cost_7d, 0) || 1;
-                    const share = (a.total_cost_7d / totalCost) * 100;
-                    return (
-                      <li
-                        key={a.id}
-                        className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
-                      >
-                        <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
-                          <span
-                            className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
-                            style={{ backgroundColor: dot }}
-                          />
-                          <div className="min-w-0">
-                            <p className="text-base font-medium text-white">{a.name}</p>
-                            <p className="text-sm text-zinc-500">{a.purpose || "Agent"}</p>
-                          </div>
+                  sortedAgents.slice(0, 8).map((row, i) => (
+                    <li key={row.label} className="flex flex-nowrap items-center gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:gap-4">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10" style={{ backgroundColor: CHART_HEX[i % 4] }} />
+                      <div className="w-36 shrink-0 min-w-0">
+                        <p className="truncate text-sm font-medium text-white">{row.label}</p>
+                        <p className="truncate text-xs text-zinc-500">{row.request_count.toLocaleString()} req · {(row.total_tokens / 1000).toFixed(0)}k tok</p>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (row.total_cost_usd / maxMemberCost) * 100)}%` }} />
                         </div>
-                        <div className="min-w-0 flex-1 px-0 sm:px-2">
-                          <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
-                            <div
-                              className="h-full rounded-full bg-emerald-500"
-                              style={{ width: `${Math.min(100, (a.total_cost_7d / maxMemberCost) * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
-                          <span className="text-base font-semibold tabular-nums text-white">
-                            ${a.total_cost_7d.toFixed(2)}
-                          </span>
-                          <span className="text-sm tabular-nums text-zinc-500">
-                            {share.toFixed(1)}% of total
-                          </span>
-                        </div>
-                      </li>
-                    );
-                  })
+                      </div>
+                      <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-white">${row.total_cost_usd.toFixed(2)}</span>
+                      <span className="w-20 shrink-0 text-right text-xs tabular-nums text-zinc-500">{row.share_of_cost_pct.toFixed(1)}% of total</span>
+                    </li>
+                  ))
                 )
               ) : breakdownTab === "step" ? (
                 sortedSteps.length === 0 ? (
@@ -591,115 +555,60 @@ export default function Dashboard() {
                   </li>
                 ) : (
                   sortedSteps.slice(0, 8).map((row, i) => (
-                    <li
-                      key={row.label}
-                      className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
-                    >
-                      <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
-                        <span
-                          className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
-                          style={{ backgroundColor: CHART_HEX[i % 4] }}
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate font-mono text-base text-white">{row.label}</p>
-                          <p className="text-sm text-zinc-500">{row.request_count.toLocaleString()} calls · {row.total_tokens.toLocaleString()} tokens</p>
-                        </div>
+                    <li key={row.label} className="flex flex-nowrap items-center gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:gap-4">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10" style={{ backgroundColor: CHART_HEX[i % 4] }} />
+                      <div className="w-36 shrink-0 min-w-0">
+                        <p className="truncate font-mono text-sm text-white">{row.label}</p>
+                        <p className="truncate text-xs text-zinc-500">{row.request_count.toLocaleString()} calls · {(row.total_tokens / 1000).toFixed(0)}k tok</p>
                       </div>
-                      <div className="min-w-0 flex-1 px-0 sm:px-2">
+                      <div className="min-w-0 flex-1">
                         <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
-                          <div
-                            className="h-full rounded-full bg-emerald-500"
-                            style={{ width: `${Math.min(100, (row.total_cost_usd / maxStepCost) * 100)}%` }}
-                          />
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (row.total_cost_usd / maxStepCost) * 100)}%` }} />
                         </div>
                       </div>
-                      <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
-                        <span className="text-base font-semibold tabular-nums text-white">
-                          ${row.total_cost_usd.toFixed(4)}
-                        </span>
-                        <span className="text-sm tabular-nums text-zinc-500">
-                          {row.share_of_cost_pct.toFixed(1)}% of total
-                        </span>
-                      </div>
+                      <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-white">${row.total_cost_usd.toFixed(4)}</span>
+                      <span className="w-20 shrink-0 text-right text-xs tabular-nums text-zinc-500">{row.share_of_cost_pct.toFixed(1)}% of total</span>
                     </li>
                   ))
                 )
               ) : breakdownTab === "provider" ? (
                 sortedProviders.length === 0 ? (
-                  <li className="px-2 py-6 text-center text-base text-zinc-500">
-                    No provider data for this period.
-                  </li>
+                  <li className="px-2 py-6 text-center text-base text-zinc-500">No provider data for this period.</li>
                 ) : (
                   sortedProviders.slice(0, 8).map((row, i) => (
-                    <li
-                      key={row.label}
-                      className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
-                    >
-                      <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
-                        <span
-                          className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
-                          style={{ backgroundColor: CHART_HEX[i % 4] }}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-base font-medium capitalize text-white">{row.label}</p>
-                          <p className="text-sm text-zinc-500">{row.request_count.toLocaleString()} requests</p>
-                        </div>
+                    <li key={row.label} className="flex flex-nowrap items-center gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:gap-4">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10" style={{ backgroundColor: CHART_HEX[i % 4] }} />
+                      <div className="w-36 shrink-0 min-w-0">
+                        <p className="truncate capitalize text-sm font-medium text-white">{row.label}</p>
+                        <p className="truncate text-xs text-zinc-500">{row.request_count.toLocaleString()} requests</p>
                       </div>
-                      <div className="min-w-0 flex-1 px-0 sm:px-2">
+                      <div className="min-w-0 flex-1">
                         <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
-                          <div
-                            className="h-full rounded-full bg-emerald-500"
-                            style={{ width: `${Math.min(100, (row.total_cost_usd / maxProviderCost) * 100)}%` }}
-                          />
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (row.total_cost_usd / maxProviderCost) * 100)}%` }} />
                         </div>
                       </div>
-                      <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
-                        <span className="text-base font-semibold tabular-nums text-white">
-                          ${row.total_cost_usd.toFixed(2)}
-                        </span>
-                        <span className="text-sm tabular-nums text-zinc-500">
-                          {row.share_of_cost_pct.toFixed(1)}% of total
-                        </span>
-                      </div>
+                      <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-white">${row.total_cost_usd.toFixed(2)}</span>
+                      <span className="w-20 shrink-0 text-right text-xs tabular-nums text-zinc-500">{row.share_of_cost_pct.toFixed(1)}% of total</span>
                     </li>
                   ))
                 )
               ) : sortedTools.length === 0 ? (
-                <li className="px-2 py-6 text-center text-base text-zinc-500">
-                  No endpoint data for this period.
-                </li>
+                <li className="px-2 py-6 text-center text-base text-zinc-500">No endpoint data for this period.</li>
               ) : (
                 sortedTools.slice(0, 8).map((row, i) => (
-                  <li
-                    key={row.label}
-                    className="flex flex-col gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-4"
-                  >
-                    <div className="flex min-w-0 items-start gap-3 sm:w-48 sm:shrink-0">
-                      <span
-                        className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10"
-                        style={{ backgroundColor: CHART_HEX[i % 4] }}
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate font-mono text-base text-white">{row.label}</p>
-                        <p className="text-sm text-zinc-500">{row.request_count.toLocaleString()} requests</p>
-                      </div>
+                  <li key={row.label} className="flex flex-nowrap items-center gap-3 border-b border-[#2a2a2a]/50 py-4 last:border-0 sm:gap-4">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/10" style={{ backgroundColor: CHART_HEX[i % 4] }} />
+                    <div className="w-36 shrink-0 min-w-0">
+                      <p className="truncate font-mono text-sm text-white">{row.label}</p>
+                      <p className="truncate text-xs text-zinc-500">{row.request_count.toLocaleString()} requests</p>
                     </div>
-                    <div className="min-w-0 flex-1 px-0 sm:px-2">
+                    <div className="min-w-0 flex-1">
                       <div className="h-2 overflow-hidden rounded-full bg-[#242424]">
-                        <div
-                          className="h-full rounded-full bg-emerald-500"
-                          style={{ width: `${Math.min(100, (row.total_cost_usd / maxToolCost) * 100)}%` }}
-                        />
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (row.total_cost_usd / maxToolCost) * 100)}%` }} />
                       </div>
                     </div>
-                    <div className="flex w-full shrink-0 flex-col items-end gap-1.5 sm:w-auto sm:min-w-[10rem] sm:flex-row sm:items-center sm:justify-end sm:gap-4">
-                      <span className="text-base font-semibold tabular-nums text-white">
-                        ${row.total_cost_usd.toFixed(2)}
-                      </span>
-                      <span className="text-sm tabular-nums text-zinc-500">
-                        {row.share_of_cost_pct.toFixed(1)}% of total
-                      </span>
-                    </div>
+                    <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-white">${row.total_cost_usd.toFixed(2)}</span>
+                    <span className="w-20 shrink-0 text-right text-xs tabular-nums text-zinc-500">{row.share_of_cost_pct.toFixed(1)}% of total</span>
                   </li>
                 ))
               )}

@@ -89,6 +89,8 @@ def create(
             payload.api_key_hint,
             api_key=payload.api_key,
             deployment_environment=payload.deployment_environment,
+            system_prompt=payload.system_prompt,
+            max_tokens=payload.max_tokens,
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -115,6 +117,8 @@ def patch_agent(
             model=payload.model,
             api_key=payload.api_key,
             deployment_environment=payload.deployment_environment,
+            system_prompt=payload.system_prompt,
+            max_tokens=payload.max_tokens,
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))

@@ -17,6 +17,8 @@ def create_agent(
     api_key_hint: str = "",
     api_key: str | None = None,
     deployment_environment: str = "production",
+    system_prompt: str | None = None,
+    max_tokens: int | None = None,
 ) -> Agent:
     key_hash: str | None = None
     hint = api_key_hint
@@ -37,6 +39,8 @@ def create_agent(
         api_key_hint=hint,
         api_key_hash=key_hash,
         deployment_environment=dep,
+        system_prompt=system_prompt,
+        max_tokens=max_tokens,
     )
     db.add(agent)
     db.commit()
@@ -54,6 +58,8 @@ def update_agent(
     model: str | None = None,
     api_key: str | None = None,
     deployment_environment: str | None = None,
+    system_prompt: str | None = None,
+    max_tokens: int | None = None,
 ) -> Agent:
     if name is not None:
         agent.name = name
@@ -81,6 +87,10 @@ def update_agent(
             raise ValueError("This API key is already registered to another agent")
         agent.api_key_hash = key_hash
         agent.api_key_hint = hint_from_key(api_key)
+    if system_prompt is not None:
+        agent.system_prompt = system_prompt
+    if max_tokens is not None:
+        agent.max_tokens = max_tokens
     db.commit()
     db.refresh(agent)
     return agent

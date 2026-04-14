@@ -14,6 +14,8 @@ class CreateAgentRequest(BaseModel):
     api_key: str | None = None
     # internal | production — used when logging requests without explicit environment.
     deployment_environment: str = "production"
+    system_prompt: str | None = None
+    max_tokens: int | None = None
 
 
 class UpdateAgentRequest(BaseModel):
@@ -23,6 +25,8 @@ class UpdateAgentRequest(BaseModel):
     model: str | None = None
     api_key: str | None = None
     deployment_environment: str | None = None
+    system_prompt: str | None = None
+    max_tokens: int | None = None
 
 
 class AgentResponse(BaseModel):
@@ -34,6 +38,8 @@ class AgentResponse(BaseModel):
     model: str
     api_key_hint: str
     deployment_environment: str = "production"
+    system_prompt: str | None = None
+    max_tokens: int | None = None
     created_at: datetime
 
     class Config:

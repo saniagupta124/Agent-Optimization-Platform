@@ -6,7 +6,7 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.plans import limits_for_user
-from app.db.models import Request, User
+from app.db.models import Agent, Request, User
 from app.schemas.usage import (
     BehavioralComparison,
     BreakdownRow,
@@ -418,6 +418,37 @@ def get_usage_breakdown(
         for r in provider_rows
     ]
 
+    # by_agent — group by agent, joining name from the agents table
+    agent_rows = (
+        db.query(
+            Request.agent_id.label("agent_id"),
+            Agent.name.label("name"),
+            func.coalesce(func.sum(Request.cost_usd), 0).label("cost"),
+            func.coalesce(func.sum(Request.total_tokens), 0).label("tok"),
+            func.count(Request.id).label("cnt"),
+        )
+        .join(Agent, Agent.id == Request.agent_id)
+        .filter(
+            Request.agent_id.in_(agent_ids),
+            Request.timestamp >= since,
+            Request.timestamp <= now,
+        )
+        .group_by(Request.agent_id, Agent.name)
+        .order_by(func.sum(Request.cost_usd).desc())
+        .all()
+    )
+    agent_total = sum(float(r.cost) for r in agent_rows) or 1.0
+    by_agent = [
+        BreakdownRow(
+            label=r.name or r.agent_id,
+            total_cost_usd=round(float(r.cost), 4),
+            total_tokens=int(r.tok),
+            request_count=int(r.cnt),
+            share_of_cost_pct=round(float(r.cost) / agent_total * 100, 1),
+        )
+        for r in agent_rows
+    ]
+
     return UsageBreakdownResponse(
         scope=scope,
         period_days=period_days,
@@ -425,6 +456,7 @@ def get_usage_breakdown(
         by_endpoint=by_endpoint,
         by_step=by_step,
         by_provider=by_provider,
+        by_agent=by_agent,
     )
 
 

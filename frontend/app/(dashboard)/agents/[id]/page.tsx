@@ -527,6 +527,12 @@ export default function AgentDetailPage() {
                       <span className="text-sm font-medium text-green-400">
                         Save ~${rec.estimated_savings_usd.toFixed(2)}/mo
                       </span>
+                      <Link
+                        href={`/recommendations/${rec.type}?agent_id=${agent?.id}`}
+                        className="text-xs text-emerald-500 hover:text-emerald-400"
+                      >
+                        How to fix →
+                      </Link>
                     </div>
                     <p className="mt-2 rounded-md bg-[#141414]/50 px-3 py-2 text-xs text-zinc-300">
                       {rec.action}

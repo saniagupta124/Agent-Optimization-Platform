@@ -49,6 +49,7 @@ export default function NewAgentPage() {
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("openai/gpt-4o");
   const [apiKey, setApiKey] = useState("");
+  const [maxTokens, setMaxTokens] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -72,6 +73,7 @@ export default function NewAgentPage() {
         provider,
         model,
         api_key_hint: hint,
+        max_tokens: maxTokens ? parseInt(maxTokens, 10) : undefined,
       });
       router.push("/agents");
     } catch (err: any) {
@@ -166,6 +168,26 @@ export default function NewAgentPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="maxTokens" className="mb-1.5 block text-sm font-medium text-zinc-300">
+            Max Tokens <span className="text-zinc-500">(optional — leave blank to detect uncapped scaling risk)</span>
+          </label>
+          <input
+            id="maxTokens"
+            type="number"
+            min={1}
+            value={maxTokens}
+            onChange={(e) => setMaxTokens(e.target.value)}
+            className="w-full rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+            placeholder="e.g. 1024"
+          />
+          {!maxTokens && (
+            <p className="mt-1.5 text-xs text-amber-400">
+              No cap set — Traeco will flag this as a quadratic scaling risk
+            </p>
+          )}
         </div>
 
         <div className="rounded-xl border border-[#2a2a2a] bg-[#0f0f10] px-4 py-3 text-xs" style={{ color: "#71717a" }}>

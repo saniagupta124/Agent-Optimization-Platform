@@ -1,0 +1,8 @@
+pyproject.toml
+traeco/__init__.py
+traeco/_core.py
+traeco_sdk.egg-info/PKG-INFO
+traeco_sdk.egg-info/SOURCES.txt
+traeco_sdk.egg-info/dependency_links.txt
+traeco_sdk.egg-info/requires.txt
+traeco_sdk.egg-info/top_level.txt

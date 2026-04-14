@@ -95,6 +95,8 @@ def ensure_schema() -> None:
             CONSTRAINT uq_span_rec UNIQUE (agent_id, span_name, rec_type)
         )""",
         "CREATE INDEX IF NOT EXISTS ix_span_rec_agent_id ON span_recommendations (agent_id)",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS system_prompt TEXT",
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER",
     ]
     backfill = [
         # Pick earliest member per team as owner when missing
@@ -144,6 +146,8 @@ def ensure_schema() -> None:
         ("requests", "error_detail", "VARCHAR NOT NULL DEFAULT ''"),
         ("agents", "deployment_environment", "VARCHAR NOT NULL DEFAULT 'production'"),
         ("users", "onboarding_completed", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("agents", "system_prompt", "TEXT"),
+        ("agents", "max_tokens", "INTEGER"),
     ]
 
     with engine.begin() as conn:
