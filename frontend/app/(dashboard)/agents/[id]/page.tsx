@@ -219,7 +219,7 @@ export default function AgentDetailPage() {
           </p>
         </div>
         <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-5">
-          <p className="text-sm font-medium text-zinc-400">Session Cost (1h)</p>
+          <p className="text-sm font-medium text-zinc-400">Session Cost (6h)</p>
           <p className="mt-1 text-2xl font-semibold text-white">
             ${dashboard?.session_cost_usd?.toFixed(4) ?? overview?.total_cost?.toFixed(2) ?? "0.00"}
           </p>
