@@ -364,9 +364,9 @@ function severityLabel(s: string): "High" | "Med" | "Low" {
 }
 
 function severityBadgeClass(label: "High" | "Med" | "Low"): string {
-  if (label === "High") return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
-  if (label === "Low") return "bg-[#242424]/90 text-zinc-400 ring-1 ring-[#333333]";
-  return "bg-amber-950/55 text-amber-200/95 ring-1 ring-amber-900/50";
+  if (label === "High") return "text-[#F87171]";
+  if (label === "Low") return "text-[#71717A]";
+  return "text-[#FBBF24]";
 }
 
 export default function RecommendationDetailPage() {

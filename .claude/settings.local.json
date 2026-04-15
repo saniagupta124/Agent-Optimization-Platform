@@ -20,7 +20,10 @@
       "Bash(lsof -ti:8080)",
       "Bash(NEXT_PUBLIC_API_URL=http://localhost:8000 NEXTAUTH_SECRET=traeco-dev-nextauth-secret NEXTAUTH_URL=http://localhost:3000 BACKEND_URL=http://localhost:8000 nohup npm run dev)",
       "Bash(echo \"Frontend PID: $!\")",
-      "Bash(xargs sed:*)"
+      "Bash(xargs sed:*)",
+      "Bash(railway link:*)",
+      "Bash(vercel --prod)",
+      "Bash(npm run:*)"
     ]
   }
 }

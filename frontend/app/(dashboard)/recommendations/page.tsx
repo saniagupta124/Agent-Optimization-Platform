@@ -13,9 +13,9 @@ function severityLabel(s: string): "High" | "Med" | "Low" {
 }
 
 function severityBadgeClass(label: "High" | "Med" | "Low"): string {
-  if (label === "High") return "bg-rose-950/70 text-rose-100 ring-1 ring-rose-800/60";
-  if (label === "Low") return "bg-[#242424]/90 text-zinc-400 ring-1 ring-[#333333]";
-  return "bg-amber-950/55 text-amber-200/95 ring-1 ring-amber-900/50";
+  if (label === "High") return "text-[#F87171]";
+  if (label === "Low") return "text-[#71717A]";
+  return "text-[#FBBF24]";
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -100,7 +100,7 @@ export default function RecommendationsPage() {
 
       {/* Savings summary */}
       {!loading && summary && (
-        <div className="mb-8 rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-6">
+        <div className="mb-8 rounded-xl border border-[#3A3A3F] bg-[#2E2E33] p-6" style={{ borderLeft: "3px solid #34D399" }}>
           <p className="text-lg text-zinc-300">
             You could save{" "}
             <span className="font-semibold text-emerald-400">
@@ -130,7 +130,7 @@ export default function RecommendationsPage() {
               <Link
                 key={`${ch.agent_id}-${ch.type}-${ch.rank}`}
                 href={`/recommendations/${ch.type}?agent_id=${ch.agent_id}&days=${days}&scope=${scope}`}
-                className="flex flex-col gap-3 rounded-2xl border border-[#2a2a2a]/80 bg-[#161617] p-6 transition hover:border-[#333333] hover:bg-[#141414]/60 sm:flex-row sm:items-start"
+                className="flex flex-col gap-3 rounded-xl border border-[#3A3A3F] bg-[#2E2E33] p-5 transition hover:border-[#4A4A50] hover:bg-[#27272B] sm:flex-row sm:items-start"
               >
                 {/* Rank */}
                 <span className="text-3xl font-bold tabular-nums text-zinc-700 sm:w-10 sm:shrink-0">
@@ -140,7 +140,7 @@ export default function RecommendationsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-base font-semibold text-zinc-100">{ch.title}</span>
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${severityBadgeClass(sev)}`}>
+                    <span className={`text-xs font-semibold uppercase tracking-wide ${severityBadgeClass(sev)}`}>
                       {sev}
                     </span>
                     {ch.type && (
@@ -149,15 +149,15 @@ export default function RecommendationsPage() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-zinc-600">{ch.agent_name}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">{ch.description}</p>
+                  <p className="mt-1 text-xs text-[#71717A]">{ch.agent_name}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-[#A1A1AA]">{ch.description}</p>
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <p className="text-base font-semibold tabular-nums text-emerald-400">
+                  <p className="text-base font-semibold tabular-nums text-[#34D399]">
                     Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
                   </p>
-                  <p className="mt-1 text-xs text-zinc-600">View details →</p>
+                  <p className="mt-1 text-xs text-[#71717A]">View details →</p>
                 </div>
               </Link>
             );

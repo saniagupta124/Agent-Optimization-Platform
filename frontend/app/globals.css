@@ -3,5 +3,9 @@
 @tailwind utilities;
 
 body {
-  @apply bg-[#121212] text-zinc-100 antialiased;
+  background-color: #1B1B1D;
+  color: #ffffff;
+  font-family: 'Clash Display', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

@@ -38,24 +38,12 @@ function SignInForm() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "rgba(14,113,74,0.18)", border: "1px solid rgba(45,224,128,0.25)" }}>
-          <svg width="22" height="24" viewBox="0 0 52 56" fill="none">
-            <defs>
-              <radialGradient id="lg0i" cx="35%" cy="25%" r="75%">
-                <stop offset="0%" stopColor="#2bdb82" />
-                <stop offset="45%" stopColor="#1BA86F" />
-                <stop offset="100%" stopColor="#084830" />
-              </radialGradient>
-            </defs>
-            <circle cx="16" cy="12" r="12" fill="url(#lg0i)" />
-            <circle cx="37" cy="14" r="10" fill="url(#lg0i)" />
-            <circle cx="11" cy="36" r="9" fill="url(#lg0i)" />
-            <circle cx="34" cy="42" r="8" fill="url(#lg0i)" />
-            <ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg0i)" />
-          </svg>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "#262628", border: "1px solid #333336" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Traeco" width={24} height={24} style={{ objectFit: "contain" }} />
         </div>
-        <h1 className="text-2xl font-semibold text-white" style={{ letterSpacing: "-0.028em" }}>Welcome back</h1>
-        <p className="mt-1 text-sm" style={{ color: "#71717a" }}>Sign in to Traeco</p>
+        <h1 className="text-2xl font-semibold text-white" style={{ letterSpacing: "-0.02em" }}>Welcome back</h1>
+        <p className="mt-1 text-sm text-[#71717A]">Sign in to Traeco</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,46 +54,45 @@ function SignInForm() {
         )}
 
         <div>
-          <label htmlFor="email" className="mb-1.5 block text-sm font-medium" style={{ color: "#a1a1aa" }}>Email</label>
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-[#A1A1AA]">Email</label>
           <input
             id="email" type="email" required value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(27,168,111,0.6)")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
+            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-[#52525B] outline-none transition"
+            style={{ background: "#262628", border: "1px solid #333336" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#1BA86F")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "#333336")}
             placeholder="you@example.com"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1.5 block text-sm font-medium" style={{ color: "#a1a1aa" }}>Password</label>
+          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-[#A1A1AA]">Password</label>
           <input
             id="password" type="password" required value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none transition"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(27,168,111,0.6)")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
+            className="w-full rounded-lg px-3 py-2 text-sm text-white placeholder-[#52525B] outline-none transition"
+            style={{ background: "#262628", border: "1px solid #333336" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#1BA86F")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "#333336")}
             placeholder="Enter your password"
           />
         </div>
 
         <button
           type="submit" disabled={loading}
-          className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #1BA86F 0%, #0E714A 100%)" }}
+          className="w-full rounded-lg py-2.5 text-sm font-semibold transition disabled:opacity-50"
+          style={{ background: "#E8A020", color: "#1B1B1D" }}
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm" style={{ color: "#52525b" }}>
+      <p className="mt-6 text-center text-sm text-[#52525B]">
         Don&apos;t have an account?{" "}
         <Link
           href={nextPath !== "/" ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
-          className="font-medium transition hover:opacity-80"
-          style={{ color: "#2de080" }}
+          className="font-medium transition hover:opacity-80" style={{ color: "#1BA86F" }}
         >
           Sign up
         </Link>
@@ -116,7 +103,7 @@ function SignInForm() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<div className="w-full max-w-sm animate-pulse rounded-lg p-8" style={{ background: "rgba(255,255,255,0.03)" }} />}>
+    <Suspense fallback={<div className="w-full max-w-sm animate-pulse rounded-lg p-8 bg-[#27272B]" />}>
       <SignInForm />
     </Suspense>
   );
