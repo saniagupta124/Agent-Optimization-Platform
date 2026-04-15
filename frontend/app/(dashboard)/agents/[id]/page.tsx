@@ -408,96 +408,9 @@ export default function AgentDetailPage() {
         {/* Right column: recommendations */}
         <div className="space-y-4">
 
-          {/* Span recommendations (new, live) */}
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Recommendations</h2>
-              {spanRecs.length > 0 && (
-                <span className="rounded-full bg-emerald-900/40 px-2 py-0.5 text-xs text-emerald-400">
-                  ${spanRecs.reduce((s, r) => s + (r.applied ? 0 : r.savings_per_month), 0).toFixed(2)}/mo potential
-                </span>
-              )}
-            </div>
-
-            {spanRecs.length === 0 ? (
-              <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-6 text-center">
-                <svg className="mx-auto mb-3 h-8 w-8 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
-                <p className="text-sm text-zinc-400">No recommendations yet — run your agent to generate data.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {spanRecs.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className={`rounded-xl border p-4 transition ${
-                      rec.applied
-                        ? "border-[#2a2a2a] bg-[#141414] opacity-60"
-                        : "border-[#2a2a2a] bg-[#161617]"
-                    }`}
-                  >
-                    {/* Type badge + span name */}
-                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                          REC_TYPE_COLORS[rec.rec_type] || "bg-[#242424] text-zinc-400"
-                        }`}
-                      >
-                        {REC_TYPE_LABELS[rec.rec_type] ?? rec.rec_type}
-                      </span>
-                      <span className="font-mono text-xs text-zinc-500">{rec.span_name}</span>
-                      <span className="ml-auto text-xs tabular-nums text-zinc-600">
-                        {rec.confidence}% confidence
-                      </span>
-                    </div>
-
-                    {/* Explanation */}
-                    <p className="mb-3 text-sm leading-relaxed text-zinc-400">{rec.explanation}</p>
-
-                    {/* Cost numbers */}
-                    <div className="mb-3 grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-xs text-zinc-600">Current</p>
-                        <p className="text-sm font-semibold text-zinc-300">
-                          ${rec.current_monthly_cost.toFixed(2)}/mo
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-zinc-600">After Fix</p>
-                        <p className="text-sm font-semibold text-zinc-300">
-                          ${rec.projected_monthly_cost.toFixed(2)}/mo
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-zinc-600">Save</p>
-                        <p className="text-sm font-semibold text-emerald-400">
-                          ${rec.savings_per_month.toFixed(2)}/mo
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Apply button */}
-                    {rec.applied ? (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-500">
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>
-                        Applied
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleApply(rec.id)}
-                        disabled={applying === rec.id}
-                        className="w-full rounded-lg border border-emerald-800/50 bg-emerald-900/20 px-3 py-1.5 text-xs font-medium text-emerald-400 transition hover:bg-emerald-900/40 disabled:opacity-50"
-                      >
-                        {applying === rec.id ? "Applying..." : "Mark as Applied"}
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Recommendations header */}
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Recommendations</h2>
           </div>
 
           {/* Existing optimization recommendations (model/prompt/outlier) */}
