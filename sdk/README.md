@@ -1,6 +1,6 @@
-# Traeco SDK
+# traeco-sdk
 
-Stop paying for AI agent waste. Traeco traces every LLM call in your agent, attributes costs per function, and tells you exactly where to cut spend.
+Stop paying for AI agent waste. Traeco traces every LLM call, attributes costs per function, and surfaces exactly where to cut spend.
 
 ## Install
 
@@ -8,14 +8,19 @@ Stop paying for AI agent waste. Traeco traces every LLM call in your agent, attr
 pip install traeco-sdk
 ```
 
-## 3 lines to add tracing
+## Quickstart
 
 ```python
 import traeco
 from anthropic import Anthropic
 
-traeco.init(api_key="tk_live_...", agent_name="my-agent")
-client = traeco.wrap(Anthropic(api_key="..."))
+traeco.init(
+    api_key="tk_live_...",
+    host="https://backend-kynarochlani-4185s-projects.vercel.app",
+    agent_name="my-agent",
+)
+
+client = traeco.wrap(Anthropic())
 
 # Your existing code — unchanged
 response = client.messages.create(model="claude-sonnet-4-6", ...)
@@ -24,26 +29,31 @@ response = client.messages.create(model="claude-sonnet-4-6", ...)
 ## Per-function cost breakdown
 
 ```python
-from traeco import span
-
-@span("market_analysis")
+@traeco.span("market_analysis")
 def analyze(data):
     return client.messages.create(...)
 
-@span("trade_decision")
+@traeco.span("trade_decision")
 def decide(analysis):
     return client.messages.create(...)
 ```
 
-Every `@span` shows up as its own row in the dashboard with token counts, cost, latency, and optimization recommendations.
+Each `@span` becomes its own row in the dashboard — cost, tokens, latency, and recommendations per function.
 
 ## Works with OpenAI too
 
 ```python
 from openai import OpenAI
-client = traeco.wrap(OpenAI(api_key="..."))
+client = traeco.wrap(OpenAI())
 ```
 
-## Dashboard
+## Environment variable
 
-See costs at [traeco.ai](https://traeco.ai) — get your API key from Settings → API Keys.
+```python
+import os
+traeco.init(api_key=os.getenv("TRAECO_API_KEY"), ...)
+```
+
+## Full docs
+
+See [DOCS.md](../DOCS.md) for the complete reference including Claude Code integration prompts.
