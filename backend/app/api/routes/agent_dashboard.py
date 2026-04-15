@@ -352,7 +352,7 @@ def _check_model_swap(
     models = {r.model for r in span_reqs}
     for model in models:
         model_reqs = [r for r in span_reqs if r.model == model]
-        if model not in (CHEAP_ALTERNATIVES | {k for k in CHEAP_ALTERNATIVES}):
+        if model not in CHEAP_ALTERNATIVES:
             continue
 
         avg_completion = sum(r.completion_tokens for r in model_reqs) / len(model_reqs)
