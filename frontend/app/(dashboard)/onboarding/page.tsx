@@ -194,14 +194,14 @@ export default function OnboardingPage() {
 from anthropic import Anthropic
 from traeco import init, wrap
 
-# 1. Initialize Traeco — your TRAECO key only, not your Anthropic key
+# 1. Initialize Traeco (your TRAECO key only, not your Anthropic key)
 init(api_key="${apiKey}", agent_name="my_agent")
 
 # 2. Wrap your Anthropic client
 #    ANTHROPIC_API_KEY stays on your machine. Traeco never sees it.
 client = wrap(Anthropic())
 
-# 3. Use Claude exactly as before — zero code changes
+# 3. Use Claude exactly as before. Zero code changes.
 response = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     max_tokens=200,
@@ -211,14 +211,14 @@ response = client.messages.create(
 from openai import OpenAI
 from traeco import init, wrap
 
-# 1. Initialize Traeco — your TRAECO key only, not your OpenAI key
+# 1. Initialize Traeco (your TRAECO key only, not your OpenAI key)
 init(api_key="${apiKey}", agent_name="my_agent")
 
 # 2. Wrap your OpenAI client
 #    OPENAI_API_KEY stays on your machine. Traeco never sees it.
 client = wrap(OpenAI())
 
-# 3. Use GPT exactly as before — zero code changes
+# 3. Use GPT exactly as before. Zero code changes.
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "Hello!"}]

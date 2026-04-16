@@ -21,7 +21,7 @@ const REC_CONTENT: Record<string, RecTypeContent> = {
     title: "Switch to a More Cost-Efficient Model",
     tagline: "Your agent's task complexity and token volume don't justify a frontier model. A cheaper alternative handles this workload at a fraction of the cost.",
     autoAction: "Traeco will update the model in your agent file and open a pull request for review.",
-    why: "Frontier models charge 10–30× more per token than smaller alternatives. Traeco detects this by matching your agent's purpose and average token count against a task-capability matrix — if a cheaper model is known to handle that workload well, and your observed spend confirms the gap, the recommendation fires with the exact dollar difference.",
+    why: "Frontier models charge 10-30x more per token than smaller alternatives. Traeco detects this by matching your agent's purpose and average token count against a task-capability matrix. If a cheaper model is known to handle that workload well, and your observed spend confirms the gap, the recommendation fires with the exact dollar difference.",
     how: [
       {
         step: "Identify task complexity",
@@ -69,7 +69,7 @@ response = anthropic.messages.create(
     title: "Reduce Prompt Token Usage",
     tagline: "Your completion-to-prompt ratio is below 0.3. You're sending far more tokens in than you're getting out, which suggests the prompt can be trimmed.",
     autoAction: "Traeco will compress your system prompt and open a pull request with the optimized version.",
-    why: "Input tokens are billed on every request. When your agent's completion/prompt ratio falls below 0.3, it signals that a large portion of input tokens aren't driving proportional output — common with verbose system prompts, repeated boilerplate, or oversized few-shot examples. Traeco estimates 15% savings as a conservative floor; actual savings depend on how much you trim.",
+    why: "Input tokens are billed on every request. When your agent's completion/prompt ratio falls below 0.3, it signals that a large portion of input tokens aren't driving proportional output, common with verbose system prompts, repeated boilerplate, or oversized few-shot examples. Traeco estimates 15% savings as a conservative floor; actual savings depend on how much you trim.",
     how: [
       {
         step: "Audit your system prompt",
@@ -86,7 +86,7 @@ print(f"System prompt: {len(tokens)} tokens")
         code: `# Before: entire doc in every prompt
 messages = [{"role": "system", "content": FULL_KNOWLEDGE_BASE + instructions}]
 
-# After — retrieve only relevant chunks
+# After: retrieve only relevant chunks
 chunks = vector_store.search(user_query, top_k=3)
 context = "\\n".join(chunks)
 messages = [{"role": "system", "content": instructions},
@@ -105,7 +105,7 @@ Classify sentiment. Examples:
 "Never buying this again." → negative
 """
 
-# After — concise directive
+# After: concise directive
 system = "Classify sentiment as positive, negative, or neutral. One word only."`,
       },
       {
@@ -132,11 +132,11 @@ response = anthropic.messages.create(
     title: "Add Maximum Token Limits",
     tagline: "Your top 5% of requests cost 10x more than your median request. A small number of runaway responses are driving a disproportionate share of spend.",
     autoAction: "Traeco will add max_tokens to your API calls and open a pull request for review.",
-    why: "Traeco flags this when the 95th-percentile request cost exceeds 10× the median, using at least 20 requests of real data. The savings estimate is 50% of the cost of those outlier requests — the assumption being that a token cap would have halved their cost. A max_tokens limit directly eliminates this tail.",
+    why: "Traeco flags this when the 95th-percentile request cost exceeds 10x the median, using at least 20 requests of real data. The savings estimate is 50% of the cost of those outlier requests, assuming a token cap would have halved their cost. A max_tokens limit directly eliminates this tail.",
     how: [
       {
         step: "Set max_tokens on every request",
-        detail: "Always pass a max_tokens parameter. Choose a value that covers 99% of legitimate use cases — typically 200-1,000 for most conversational agents, 2,000-4,000 for document generation tasks.",
+        detail: "Always pass a max_tokens parameter. Choose a value that covers 99% of legitimate use cases, typically 200-1,000 for most conversational agents, 2,000-4,000 for document generation tasks.",
         code: `# OpenAI
 response = openai.chat.completions.create(
     model="gpt-4o-mini",
@@ -187,7 +187,7 @@ def validate_prompt(prompt: str) -> str:
     title: "System Prompt Sent on Every Request",
     tagline: "Your system prompt exceeds 1,500 tokens. That fixed overhead is billed on every single request. Trim it and the savings scale directly with volume.",
     autoAction: "Traeco will trim your system prompt to under 1,500 tokens and open a pull request with the optimized version.",
-    why: "Detected at agent creation — no traces needed. Traeco estimates token count from system_prompt length (4 chars ≈ 1 token) and flags anything over 1,500. Once traces come in, savings are calculated from your actual spend: what fraction went to system prompt tokens, multiplied by the fraction that is excess above the threshold.",
+    why: "Detected at agent creation. No traces needed. Traeco estimates token count from system_prompt length (4 chars = 1 token) and flags anything over 1,500. Once traces come in, savings are calculated from your actual spend: what fraction went to system prompt tokens, multiplied by the fraction that is excess above the threshold.",
     how: [
       {
         step: "Trim your system prompt",
@@ -204,11 +204,11 @@ print(f"Current: {len(tokens)} tokens. Target: under 1,500")
       },
       {
         step: "Move reference data to RAG",
-        detail: "Replace large static knowledge bases or policy docs in the prompt with retrieval — fetch only the relevant chunks at query time.",
-        code: `# Before — entire KB in every prompt
+        detail: "Replace large static knowledge bases or policy docs in the prompt with retrieval. Fetch only the relevant chunks at query time.",
+        code: `# Before: entire KB in every prompt
 system = POLICY_DOC + PRODUCT_FAQ + instructions  # ~4,000 tokens
 
-# After — retrieve relevant chunks only (~300 tokens)
+# After: retrieve relevant chunks only (~300 tokens)
 chunks = vector_store.search(user_query, top_k=3)
 system = instructions  # keep only the instructions
 user_message = f"Relevant context:\\n{'\\n'.join(chunks)}\\n\\n{user_query}"`,
@@ -216,7 +216,7 @@ user_message = f"Relevant context:\\n{'\\n'.join(chunks)}\\n\\n{user_query}"`,
       {
         step: "Enable prompt caching",
         detail: "Anthropic and OpenAI both support caching for stable system prompts. Add cache_control for up to 90% off cached token cost.",
-        code: `# Anthropic — cache the static part of your system prompt
+        code: `# Anthropic: cache the static part of your system prompt
 response = anthropic.messages.create(
     model="claude-3-5-sonnet-20241022",
     system=[{
@@ -231,14 +231,14 @@ response = anthropic.messages.create(
       },
     ],
     impact:
-      "Cutting a 3,000-token prompt to 1,000 tokens saves 2,000 tokens per request — a 67% reduction in system prompt cost that compounds directly with request volume.",
+      "Cutting a 3,000-token prompt to 1,000 tokens saves 2,000 tokens per request. That is a 67% reduction in system prompt cost that compounds directly with request volume.",
   },
 
   token_scaling: {
     title: "No max_tokens Cap: Quadratic Cost Growth",
     tagline: "No max_tokens set on this agent. In multi-turn chains, context accumulates each tool call. Cost scales quadratically with chain depth, not linearly.",
     autoAction: "Traeco will add max_tokens and context truncation to your agent and open a pull request for review.",
-    why: "Day-0 config check — fires at agent creation before any traces. Traeco detects the absence of a max_tokens field in your agent config. Savings are estimated at 30% of actual spend once traces exist (zero until then). The underlying mechanic: a 5-step chain at 2k tokens/step costs 2k+4k+6k+8k+10k = 30k tokens — 3× what a linear model would suggest.",
+    why: "Day-0 config check. Fires at agent creation before any traces. Traeco detects the absence of a max_tokens field in your agent config. Savings are estimated at 30% of actual spend once traces exist (zero until then). The underlying mechanic: a 5-step chain at 2k tokens/step costs 2k+4k+6k+8k+10k = 30k tokens, 3x what a linear model would suggest.",
     how: [
       {
         step: "Set max_tokens on every API call",
@@ -279,9 +279,9 @@ def trim_history(messages: list) -> list:
 
   retry_logic: {
     title: "Retry Loops Compounding Request Cost",
-    tagline: "Error rate or burst patterns suggest retries are compounding token cost — each failed attempt re-sends the full prompt at full price.",
+    tagline: "Error rate or burst patterns suggest retries are compounding token cost. Each failed attempt re-sends the full prompt at full price.",
     autoAction: "Traeco will add exponential backoff with a 3-retry cap to your agent and open a pull request for review.",
-    why: "Detected via two signals: (1) error rate ≥5% across at least 10 requests, or (2) 3+ calls to the same feature_tag within a 10-second window — a strong indicator of a retry burst. Both fire on real trace data, not config. Accuracy depends on your SDK sending status='error' on failed calls; if errors aren't instrumented, the signal may undercount.",
+    why: "Detected via two signals: (1) error rate 5%+ across at least 10 requests, or (2) 3+ calls to the same feature_tag within a 10-second window, a strong indicator of a retry burst. Both fire on real trace data, not config. Accuracy depends on your SDK sending status='error' on failed calls; if errors aren't instrumented, the signal may undercount.",
     how: [
       {
         step: "Cap retries with exponential backoff",
@@ -303,14 +303,14 @@ def call_with_retry(prompt: str, max_retries: int = 3) -> str:
       },
       {
         step: "Distinguish error types",
-        detail: "Only retry on transient errors (rate limits, timeouts, 5xx). Do not retry on logic errors (4xx, invalid prompt, context overflow) — those will always fail.",
+        detail: "Only retry on transient errors (rate limits, timeouts, 5xx). Do not retry on logic errors (4xx, invalid prompt, context overflow). Those will always fail.",
         code: `RETRYABLE_ERRORS = (openai.RateLimitError, openai.APITimeoutError, openai.InternalServerError)
 NON_RETRYABLE = (openai.BadRequestError, openai.AuthenticationError)
 
 try:
     response = call_llm(prompt)
 except NON_RETRYABLE as e:
-    # Log and fail fast — retrying won't help
+    # Log and fail fast. Retrying won't help
     logger.error(f"Non-retryable error: {e}")
     raise
 except RETRYABLE_ERRORS as e:
@@ -494,7 +494,7 @@ export default function RecommendationDetailPage() {
                     const r = await implementRecommendation(token, agentId, type ?? "");
                     if (r.pr_url) window.open(r.pr_url, "_blank");
                   } catch {
-                    alert("Could not open PR — make sure a GitHub repo is linked to this agent.");
+                    alert("Could not open PR. Make sure a GitHub repo is linked to this agent.");
                   }
                 }}
                 className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-600"
