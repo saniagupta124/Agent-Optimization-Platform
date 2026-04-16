@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export default function TopBar() {
@@ -35,6 +36,21 @@ export default function TopBar() {
 
       <div className="flex-1" />
 
+      {/* Add agent */}
+      <Link
+        href="/agents/new"
+        className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90"
+        style={{
+          background: "#E8A020",
+          color: "#1B1B1D",
+          fontFamily: "'Clash Display', sans-serif",
+        }}
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        + Add agent
+      </Link>
     </div>
   );
 }
