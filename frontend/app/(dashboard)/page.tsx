@@ -293,7 +293,7 @@ export default function Dashboard() {
             <span className="font-bold tabular-nums">${summary.current_total_cost_usd.toFixed(2)}</span>{" "}
             the last month.
           </p>
-          <p className="mt-0.5 text-[2.25rem] font-bold leading-none tabular-nums" style={{ color: "#B8F4C8" }}>
+          <p className="mt-0.5 text-[2.25rem] font-bold leading-none tabular-nums" style={{ color: "#1BA86F" }}>
             You could save ${summary.potential_savings_usd.toFixed(2)}.
           </p>
           {summary.top_changes.length > 0 && (

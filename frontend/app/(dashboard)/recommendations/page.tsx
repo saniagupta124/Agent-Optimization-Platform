@@ -103,7 +103,7 @@ export default function RecommendationsPage() {
         <div className="mb-8 rounded-xl border border-[#3A3A3F] bg-[#2E2E33] p-6" style={{ borderLeft: "3px solid #34D399" }}>
           <p className="text-lg text-zinc-300">
             You could save{" "}
-            <span className="font-semibold text-emerald-400">
+            <span className="font-semibold" style={{ color: "#1BA86F" }}>
               ${summary.potential_savings_usd.toFixed(2)}/mo
             </span>{" "}
             across {recs.length} recommendation{recs.length !== 1 ? "s" : ""} in the last {days} days.
@@ -154,7 +154,7 @@ export default function RecommendationsPage() {
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <p className="text-base font-semibold tabular-nums text-[#34D399]">
+                  <p className="text-base font-semibold tabular-nums" style={{ color: "#1BA86F" }}>
                     Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
                   </p>
                   <p className="mt-1 text-xs text-[#71717A]">View details →</p>
