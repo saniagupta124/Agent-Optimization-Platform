@@ -70,7 +70,7 @@ function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="rounded-2xl border p-6"
-      style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "#242427", borderColor: "#2A2A2D" }}
     >
       {children}
     </div>
@@ -210,7 +210,7 @@ Example:
 This lets Traeco break down cost and token usage per feature in the dashboard.`;
 
   return (
-    <div className="min-h-full px-6 py-10 sm:px-10" style={{ background: "#0d0d0e" }}>
+    <div className="min-h-full px-6 py-10 sm:px-10" style={{ background: "#1A1A1E" }}>
       <div className="mx-auto max-w-2xl">
 
         {/* Header */}
