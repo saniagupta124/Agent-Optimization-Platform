@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { createSdkKey, listSdkKeys, SdkKeyCreated } from "../../../lib/api";
+import { createSdkKey, listSdkKeys, SdkKeyCreated } from "../../lib/api";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
