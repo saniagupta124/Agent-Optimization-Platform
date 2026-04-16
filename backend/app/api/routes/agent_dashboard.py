@@ -548,7 +548,7 @@ def _check_model_overkill(
             "span_name": span_name,
             "rec_type": "model_overkill",
             "explanation": (
-                f"Span '{span_name}' uses {model} at ${avg_cost:.4f}/call — "
+                f"Span '{span_name}' uses {model} at ${avg_cost:.4f}/call, "
                 f"well below the threshold where its capability is warranted. "
                 f"Downgrading to {alt} saves ~${monthly_savings:.2f}/mo."
             ),

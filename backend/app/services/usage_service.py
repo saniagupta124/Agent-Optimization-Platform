@@ -86,7 +86,7 @@ def _build_insights(
 ) -> list[str]:
     out: list[str] = []
     if cur["count"] == 0:
-        out.append("No requests in this period — add agents or send traffic to see trends.")
+        out.append("No requests in this period. Add agents or send traffic to see trends.")
         return out
     if prev["count"] == 0:
         out.append("Activity started this period; compare again after the next window.")
@@ -95,7 +95,7 @@ def _build_insights(
     if cost_change_pct is not None:
         if cost_change_pct > 15:
             out.append(
-                f"Spend is up about {cost_change_pct:.0f}% vs the prior period — review model mix and volume."
+                f"Spend is up about {cost_change_pct:.0f}% vs the prior period. Review model mix and volume."
             )
         elif cost_change_pct < -15:
             out.append(
@@ -115,12 +115,12 @@ def _build_insights(
     )
     if abs(tc_ch) > 20:
         out.append(
-            f"Tool calls per request shifted about {tc_ch:+.0f}% — check agent or routing changes."
+            f"Tool calls per request shifted about {tc_ch:+.0f}%. Check agent or routing changes."
         )
 
     stab = cur["success_count"] / max(cur["count"], 1) * 100
     if stab < 95:
-        out.append(f"Success rate is {stab:.1f}% — investigate errors and timeouts.")
+        out.append(f"Success rate is {stab:.1f}%. Investigate errors and timeouts.")
 
     lat_ch = _pct_change(prev["avg_latency"], cur["avg_latency"])
     if abs(lat_ch) > 15 and cur["count"] > 20:
@@ -245,10 +245,10 @@ def get_usage_summary(
     insights = insights[:8]
     if not insights and cur["count"] == 0:
         insights = [
-            "No usage in this window yet — connect agents or send traffic to see savings ideas."
+            "No usage in this window yet. Connect agents or send traffic to see savings ideas."
         ]
     elif not insights:
-        insights = ["No notable automated patterns this period — check optimization cards on each agent for model-specific ideas."]
+        insights = ["No notable automated patterns this period. Check optimization cards on each agent for model-specific ideas."]
 
     return UsageSummaryResponse(
         scope=scope,

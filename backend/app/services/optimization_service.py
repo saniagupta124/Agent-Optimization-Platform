@@ -191,7 +191,7 @@ def _check_model_efficiency(
             "title": f"Switch to {recommended}",
             "description": (
                 f"Cheaper model handles this workload. "
-                f"Switch from {agent.model} to {recommended} — saves ${savings:.2f}/mo ({savings_pct * 100:.0f}%)."
+                f"Switch from {agent.model} to {recommended}. Saves ${savings:.2f}/mo ({savings_pct * 100:.0f}%)."
             ),
             "estimated_savings_usd": round(savings, 2),
             "action": f"Update model from {agent.model} to {recommended}",
@@ -218,7 +218,7 @@ def _check_prompt_efficiency(
             "severity": "medium",
             "title": "Prompts may be too verbose",
             "description": (
-                f"Output/input ratio is {ratio:.2f} — you're sending far more tokens in than you get back. "
+                f"Output/input ratio is {ratio:.2f}. You're sending far more tokens in than you get back. "
                 "Trim system prompts or reduce few-shot examples."
             ),
             "estimated_savings_usd": round(total_cost * 0.15, 2),
@@ -346,7 +346,7 @@ def _check_context_bloat(
             "severity": severity,
             "title": "System prompt re-sent on every request",
             "description": (
-                f"System prompt is ~{prompt_tokens:,} tokens — {excess_tokens:,} tokens of overhead billed on every request. "
+                f"System prompt is ~{prompt_tokens:,} tokens. {excess_tokens:,} tokens of overhead billed on every request. "
                 f"Trim to under {_CONTEXT_BLOAT_THRESHOLD:,} tokens."
             ),
             "estimated_savings_usd": round(potential_savings, 2),
@@ -378,10 +378,10 @@ def _check_token_scaling(recommendations: list, agent: Agent, actual_request_cou
     # If no data yet, show $0 — can't quantify without observing chain depth.
     if actual_total_cost > 0:
         potential_savings = round(actual_total_cost * 0.30, 2)
-        spend_note = f"${actual_total_cost:.2f} spent last 30 days — up to 30% may be excess context accumulation"
+        spend_note = f"${actual_total_cost:.2f} spent last 30 days. Up to 30% may be excess context accumulation"
     else:
         potential_savings = 0.0
-        spend_note = "no spend data yet — risk grows with chain depth"
+        spend_note = "no spend data yet. Risk grows with chain depth"
 
     pricing = MODEL_PRICING.get(agent.model)
     example_cost_uncapped = 0.0
@@ -396,9 +396,9 @@ def _check_token_scaling(recommendations: list, agent: Agent, actual_request_cou
         {
             "type": "token_scaling",
             "severity": severity,
-            "title": "No max_tokens cap — cost grows quadratically with chain depth",
+            "title": "No max_tokens cap: cost grows quadratically with chain depth",
             "description": (
-                f"No max_tokens cap set. Context accumulates across tool calls — cost grows quadratically with chain depth. "
+                f"No max_tokens cap set. Context accumulates across tool calls. Cost grows quadratically with chain depth. "
                 f"{spend_note}."
             ),
             "estimated_savings_usd": potential_savings,
@@ -454,7 +454,7 @@ def _check_retry_logic(
     if has_error_signal and error_cost > 0:
         error_pct = round(error_rate * 100, 1)
         cost_note = (
-            f"{error_pct}% of calls failed last 30 days — "
+            f"{error_pct}% of calls failed last 30 days. "
             f"${error_cost:.2f} spent on failed requests"
         )
         potential_savings = round(error_cost, 2)
@@ -485,7 +485,7 @@ def _check_retry_logic(
             "title": "Retry loops compounding request cost",
             "description": (
                 f"{cost_note}.{burst_note} "
-                "Retries re-send the full prompt — wasted spend with no useful output."
+                "Retries re-send the full prompt. Wasted spend with no useful output."
             ),
             "estimated_savings_usd": potential_savings,
             "action": (

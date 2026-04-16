@@ -37,7 +37,7 @@ const REC_CONTENT: Record<string, RecTypeContent> = {
       {
         step: "Benchmark quality",
         detail: "Run 50-100 representative requests through both models and compare outputs. If accuracy stays within 5%, ship the cheaper model.",
-        code: `# Quick benchmark — run the same prompts through both models
+        code: `# Quick benchmark: run the same prompts through both models
 results = []
 for prompt in sample_prompts:
     a = call_model(prompt, model="gpt-4o")
@@ -67,7 +67,7 @@ response = anthropic.messages.create(
 
   prompt_efficiency: {
     title: "Reduce Prompt Token Usage",
-    tagline: "Your completion-to-prompt ratio is below 0.3 — you're sending far more tokens in than you're getting out, which suggests the prompt can be trimmed.",
+    tagline: "Your completion-to-prompt ratio is below 0.3. You're sending far more tokens in than you're getting out, which suggests the prompt can be trimmed.",
     autoAction: "Traeco will compress your system prompt and open a pull request with the optimized version.",
     why: "Input tokens are billed on every request. When your agent's completion/prompt ratio falls below 0.3, it signals that a large portion of input tokens aren't driving proportional output — common with verbose system prompts, repeated boilerplate, or oversized few-shot examples. Traeco estimates 15% savings as a conservative floor; actual savings depend on how much you trim.",
     how: [
@@ -83,7 +83,7 @@ print(f"System prompt: {len(tokens)} tokens")
       {
         step: "Use RAG instead of stuffing context",
         detail: "Instead of prepending large documents or entire knowledge bases into every prompt, use Retrieval Augmented Generation (RAG) to fetch only the relevant chunks at query time.",
-        code: `# Before — entire doc in every prompt
+        code: `# Before: entire doc in every prompt
 messages = [{"role": "system", "content": FULL_KNOWLEDGE_BASE + instructions}]
 
 # After — retrieve only relevant chunks
@@ -95,7 +95,7 @@ messages = [{"role": "system", "content": instructions},
       {
         step: "Compress few-shot examples",
         detail: "If you're sending 5-10 examples per request, consider summarizing or reducing them to 2-3. For classification tasks, a well-worded instruction often outperforms verbose examples.",
-        code: `# Before — verbose examples
+        code: `# Before: verbose examples
 system = """
 Classify sentiment. Examples:
 "I love this product, it's amazing!" → positive
@@ -130,7 +130,7 @@ response = anthropic.messages.create(
 
   token_limits: {
     title: "Add Maximum Token Limits",
-    tagline: "Your top 5% of requests cost 10× more than your median request — a small number of runaway responses are driving a disproportionate share of spend.",
+    tagline: "Your top 5% of requests cost 10x more than your median request. A small number of runaway responses are driving a disproportionate share of spend.",
     autoAction: "Traeco will add max_tokens to your API calls and open a pull request for review.",
     why: "Traeco flags this when the 95th-percentile request cost exceeds 10× the median, using at least 20 requests of real data. The savings estimate is 50% of the cost of those outlier requests — the assumption being that a token cap would have halved their cost. A max_tokens limit directly eliminates this tail.",
     how: [
@@ -158,7 +158,7 @@ response = anthropic.messages.create(
 # finish = response.stop_reason             # Anthropic
 
 if finish == "length":
-    print("Warning: response truncated — consider raising max_tokens")
+    print("Warning: response truncated. Consider raising max_tokens")
     # Track truncation rate in your metrics`,
       },
       {
@@ -185,7 +185,7 @@ def validate_prompt(prompt: str) -> str:
   },
   context_bloat: {
     title: "System Prompt Sent on Every Request",
-    tagline: "Your system prompt exceeds 1,500 tokens. That fixed overhead is billed on every single request — trim it and the savings scale directly with volume.",
+    tagline: "Your system prompt exceeds 1,500 tokens. That fixed overhead is billed on every single request. Trim it and the savings scale directly with volume.",
     autoAction: "Traeco will trim your system prompt to under 1,500 tokens and open a pull request with the optimized version.",
     why: "Detected at agent creation — no traces needed. Traeco estimates token count from system_prompt length (4 chars ≈ 1 token) and flags anything over 1,500. Once traces come in, savings are calculated from your actual spend: what fraction went to system prompt tokens, multiplied by the fraction that is excess above the threshold.",
     how: [
@@ -197,7 +197,7 @@ enc = tiktoken.encoding_for_model("gpt-4o")
 
 system_prompt = """..."""  # your current prompt
 tokens = enc.encode(system_prompt)
-print(f"Current: {len(tokens)} tokens — target: under 1,500")
+print(f"Current: {len(tokens)} tokens. Target: under 1,500")
 
 # Tips: remove examples, compress multi-sentence rules to bullets,
 # delete repeated formatting instructions`,
@@ -235,8 +235,8 @@ response = anthropic.messages.create(
   },
 
   token_scaling: {
-    title: "No max_tokens Cap — Quadratic Cost Growth",
-    tagline: "No max_tokens set on this agent. In multi-turn chains, context accumulates each tool call — cost scales quadratically with chain depth, not linearly.",
+    title: "No max_tokens Cap: Quadratic Cost Growth",
+    tagline: "No max_tokens set on this agent. In multi-turn chains, context accumulates each tool call. Cost scales quadratically with chain depth, not linearly.",
     autoAction: "Traeco will add max_tokens and context truncation to your agent and open a pull request for review.",
     why: "Day-0 config check — fires at agent creation before any traces. Traeco detects the absence of a max_tokens field in your agent config. Savings are estimated at 30% of actual spend once traces exist (zero until then). The underlying mechanic: a 5-step chain at 2k tokens/step costs 2k+4k+6k+8k+10k = 30k tokens — 3× what a linear model would suggest.",
     how: [
