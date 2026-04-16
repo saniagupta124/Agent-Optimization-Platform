@@ -36,23 +36,6 @@ export default function TopBar() {
 
       <div className="flex-1" />
 
-      {/* Time range */}
-      <div
-        className="flex items-center rounded-lg p-0.5"
-        style={{ background: "#262628", border: "1px solid #333336" }}
-      >
-        {(["7d", "14d", "30d"] as const).map((d) => (
-          <button
-            key={d}
-            type="button"
-            className="rounded-md px-3 py-1.5 text-xs font-medium transition"
-            style={{ color: "#9999A8", fontFamily: "'Clash Display', sans-serif" }}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
-
       {/* Add agent */}
       <Link
         href="/agents/new"
