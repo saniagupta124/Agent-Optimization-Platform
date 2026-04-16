@@ -124,7 +124,7 @@ export default function EditAgentPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="font-display text-2xl font-normal text-white">Edit Agent — {agentName}</h1>
+        <h1 className="font-display text-2xl font-normal text-white">Edit Agent: {agentName}</h1>
         <p className="mt-1 text-sm text-zinc-400">
           Update your agent's settings. Tracing and SDK token are unchanged.
         </p>
@@ -147,7 +147,7 @@ export default function EditAgentPage() {
         <div>
           <label htmlFor="taskDesc" className="mb-1.5 block text-sm font-medium text-zinc-300">
             What does this agent do?
-            <span className="ml-2 text-xs font-normal text-zinc-500">Optional — used to seed initial recommendations</span>
+            <span className="ml-2 text-xs font-normal text-zinc-500">Optional, used to seed initial recommendations</span>
           </label>
           <textarea
             id="taskDesc"
@@ -221,7 +221,7 @@ export default function EditAgentPage() {
           <div>
             <p className="text-sm font-medium text-zinc-300">GitHub Repo Integration</p>
             <p className="text-xs text-zinc-500 mt-0.5">
-              Optional — lets TRAECO open pull requests to implement recommendations automatically.
+              Optional. Lets Traeco open pull requests to implement recommendations automatically.
             </p>
           </div>
           <div>
@@ -263,7 +263,7 @@ export default function EditAgentPage() {
                 <textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} rows={3}
                   className="w-full resize-none rounded-lg border border-[#333333] bg-[#141414] px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-emerald-600"
                   placeholder="You are a helpful customer support agent..." />
-                <p className="mt-1 text-xs text-zinc-500">Stored for context — used to improve recommendations</p>
+                <p className="mt-1 text-xs text-zinc-500">Stored for context, used to improve recommendations</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

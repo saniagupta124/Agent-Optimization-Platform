@@ -285,7 +285,7 @@ export default function AgentDetailPage() {
                 ) : breakdownTab === "step" ? (
                   (dashboard?.by_span ?? []).length === 0 ? (
                     <p className="py-4 text-center text-sm text-zinc-500">
-                      No span data yet — add{" "}
+                      No span data yet. Add{" "}
                       <code className="rounded bg-[#1a1a1a] px-1.5 py-0.5 font-mono text-emerald-400 text-xs">
                         @span
                       </code>{" "}
@@ -392,7 +392,7 @@ export default function AgentDetailPage() {
                           <span className="font-mono font-semibold">{loop.span_name}</span>
                           {" "}fired 3+ times in {loop.window_seconds}s
                         </p>
-                        <p className="mt-0.5 text-xs text-rose-400/70">Possible retry loop — consider adding backoff or caching</p>
+                        <p className="mt-0.5 text-xs text-rose-400/70">Possible retry loop. Consider adding backoff or caching.</p>
                       </div>
                     </div>
                     <span className="shrink-0 rounded-md bg-rose-950/60 px-2 py-0.5 text-xs font-medium text-rose-300 ring-1 ring-rose-800/40">

@@ -172,7 +172,7 @@ export default function NewAgentPage() {
 
         <div>
           <label htmlFor="maxTokens" className="mb-1.5 block text-sm font-medium text-zinc-300">
-            Max Tokens <span className="text-zinc-500">(optional — leave blank to detect uncapped scaling risk)</span>
+            Max Tokens <span className="text-zinc-500">(optional, leave blank to detect uncapped scaling risk)</span>
           </label>
           <input
             id="maxTokens"
@@ -185,7 +185,7 @@ export default function NewAgentPage() {
           />
           {!maxTokens && (
             <p className="mt-1.5 text-xs text-amber-400">
-              No cap set — Traeco will flag this as a quadratic scaling risk
+              No cap set. Traeco will flag this as a quadratic scaling risk.
             </p>
           )}
         </div>
@@ -196,7 +196,7 @@ export default function NewAgentPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
             </svg>
             <span>
-              <span className="font-medium text-zinc-300">Using the SDK?</span> Skip the API key — your agent auto-registers the first time it sends a trace.
+              <span className="font-medium text-zinc-300">Using the SDK?</span> Skip the API key. Your agent auto-registers the first time it sends a trace.
               Your provider key never leaves your machine. Traeco only receives token counts, costs, and model names.
             </span>
           </div>
@@ -204,7 +204,7 @@ export default function NewAgentPage() {
 
         <div>
           <label htmlFor="apiKey" className="mb-1.5 block text-sm font-medium text-zinc-300">
-            Provider API Key <span className="text-zinc-500">(optional — last 4 chars only, for identification)</span>
+            Provider API Key <span className="text-zinc-500">(optional, last 4 chars only, for identification)</span>
           </label>
           <input
             id="apiKey"

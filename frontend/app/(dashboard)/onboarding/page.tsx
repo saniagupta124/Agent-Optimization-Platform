@@ -345,13 +345,13 @@ response = client.chat.completions.create(
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                   </svg>
                   Your {provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} never leaves your machine.
-                  Traeco only receives token counts, costs, model names, and span tags — never prompt content or provider keys.
+                  Traeco only receives token counts, costs, model names, and span tags. Never prompt content or provider keys.
                 </div>
 
                 <CodeBlock code={agentCode} label="agent.py" />
 
                 <p className="mt-3 text-xs" style={{ color: "#52525b" }}>
-                  Works with any OpenAI or Anthropic client. LangChain, CrewAI, and LangGraph supported — see{" "}
+                  Works with any OpenAI or Anthropic client. LangChain, CrewAI, and LangGraph supported. See{" "}
                   <Link href="/settings" className="underline" style={{ color: "#71717a" }}>
                     Settings
                   </Link>{" "}
@@ -422,7 +422,7 @@ response = client.chat.completions.create(
         {/* Skip link */}
         <div className="mt-8 text-center">
           <Link href="/" className="text-sm" style={{ color: "#3f3f46" }}>
-            Skip for now — go to dashboard
+            Skip for now, go to dashboard
           </Link>
         </div>
 

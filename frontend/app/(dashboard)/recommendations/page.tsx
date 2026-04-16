@@ -120,7 +120,7 @@ export default function RecommendationsPage() {
         </div>
       ) : recs.length === 0 ? (
         <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-10 text-center">
-          <p className="text-zinc-500">No recommendations yet — add agents and usage history.</p>
+          <p className="text-zinc-500">No recommendations yet. Add agents and run them to generate data.</p>
         </div>
       ) : (
         <div className="space-y-4">

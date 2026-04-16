@@ -318,7 +318,7 @@ export default function Dashboard() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-sm font-semibold text-white leading-snug">
-                    {String(ch.rank).padStart(2, "0")} — {ch.title}
+                    {String(ch.rank).padStart(2, "0")}. {ch.title}
                   </span>
                   <span className="shrink-0 text-xs font-semibold" style={{ color: severityColor(sev) }}>
                     {sev}
@@ -463,7 +463,7 @@ export default function Dashboard() {
 
       {/* At a glance */}
       <p className="mb-3 text-xs font-medium uppercase tracking-widest" style={{ color: "#9999A8" }}>
-        At a glance — Last {days} days
+        At a glance: Last {days} days
       </p>
       <div className="grid grid-cols-5 gap-3">
         {loading || !summary ? (

@@ -3,8 +3,8 @@ import "./globals.css";
 import Providers from "./components/Providers";
 
 export const metadata: Metadata = {
-  title: "Traeco — Agent optimization",
-  description: "Traeco — agent spend, savings, and behavior in one place.",
+  title: "Traeco: Agent Optimization",
+  description: "Traeco: agent spend, savings, and behavior in one place.",
 };
 
 export default function RootLayout({
