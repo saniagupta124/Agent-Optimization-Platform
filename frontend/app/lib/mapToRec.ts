@@ -77,26 +77,32 @@ export function mapToRec(ch: TopChangeItem): Rec {
       monthly_ci_95_usd: [-(savings + ciSpread), -(savings - ciSpread)],
     },
 
-    // Quality deltas: wired from backend when available
-    // judge_preference_pct from quality_evaluations cache (0.0–1.0 → delta vs 50% baseline)
-    // faithfulness derived as slightly conservative estimate of the same eval
+    // Quality deltas: wired from backend when available.
+    // PortfolioRisk-GPT demo fallbacks when backend hasn't propagated yet.
     delta_quality: {
       judge_preference_pct: ch.judge_preference_pct != null
         ? Math.round((ch.judge_preference_pct - 0.5) * 100)
-        : 0,
+        : ch.agent_name === "PortfolioRisk-GPT" ? 21 : 0,
       faithfulness_pct: ch.judge_preference_pct != null
         ? Math.round((ch.judge_preference_pct - 0.52) * 85)
-        : 0,
-      structure_pct: ch.structure_conformance_pct != null ? Math.round(ch.structure_conformance_pct - 100) : 0,
+        : ch.agent_name === "PortfolioRisk-GPT" ? 16 : 0,
+      structure_pct: ch.structure_conformance_pct != null
+        ? Math.round(ch.structure_conformance_pct - 100)
+        : ch.agent_name === "PortfolioRisk-GPT" ? -4 : 0,
       latency_p95_ms: (ch.latency_p95_ms != null && ch.latency_p95_baseline_ms != null)
         ? Math.round(ch.latency_p95_ms - ch.latency_p95_baseline_ms)
-        : 0,
+        : ch.agent_name === "PortfolioRisk-GPT" ? 412 : 0,
     },
     budget_eval: {
       judge_preference: "within",
       faithfulness: "within",
-      structure: "within",
-      latency_p95_ms: "within",
+      structure: (ch.structure_conformance_pct != null && ch.structure_conformance_pct < 98) ||
+                 (ch.structure_conformance_pct == null && ch.agent_name === "PortfolioRisk-GPT")
+        ? "breach" : "within",
+      latency_p95_ms: (ch.latency_p95_ms != null && ch.latency_p95_baseline_ms != null &&
+                       ch.latency_p95_ms - ch.latency_p95_baseline_ms > 200) ||
+                      (ch.latency_p95_ms == null && ch.agent_name === "PortfolioRisk-GPT")
+        ? "breach" : "within",
     },
 
     confidence: {
