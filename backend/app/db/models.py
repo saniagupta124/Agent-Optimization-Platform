@@ -212,6 +212,32 @@ class Request(Base):
     endpoint_route: Mapped[str] = mapped_column(String, default="")
     error_detail: Mapped[str] = mapped_column(String, default="")
 
+    structure_valid: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=True)
+
     __table_args__ = (
         Index("ix_requests_timestamp_desc", timestamp.desc()),
     )
+
+
+class QualityBudget(Base):
+    __tablename__ = "quality_budgets"
+
+    agent_id: Mapped[str] = mapped_column(String, primary_key=True)
+    max_judge_preference_drop: Mapped[float] = mapped_column(Float, default=2.0)
+    max_faithfulness_drop: Mapped[float] = mapped_column(Float, default=2.0)
+    max_structure_drop: Mapped[float] = mapped_column(Float, default=0.0)
+    max_latency_increase_ms: Mapped[float] = mapped_column(Float, default=200.0)
+    on_breach: Mapped[str] = mapped_column(String, default="alert_only")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class QualityEvaluation(Base):
+    __tablename__ = "quality_evaluations"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    baseline_model: Mapped[str] = mapped_column(String, nullable=False)
+    candidate_model: Mapped[str] = mapped_column(String, nullable=False)
+    preference_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

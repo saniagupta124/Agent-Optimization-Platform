@@ -1,497 +1,241 @@
 "use client";
 
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
-import SpendLineChart from "../../../components/SpendLineChart";
 import {
-  AgentDashboard,
-  AgentWithStats,
-  applySpanRecommendation,
-  deleteAgent,
-  getAgent,
-  getAgentDashboard,
-  getOptimizations,
-  getOverview,
-  getSpanRecommendations,
-  OptimizationResponse,
-  OverviewMetrics,
-  SpanRecommendation,
+  getAgent, getAgentDashboard, getSpanRecommendations,
+  type AgentWithStats, type AgentDashboard, type SpanRecommendation,
 } from "../../../lib/api";
+import { mapToRec } from "../../../lib/mapToRec";
+import type { Rec, RecStatus } from "../../../lib/rec-types";
+import { DecisionCard } from "../../../components/DecisionCard";
 
-const POLL_MS = 10_000;
+function fmt(n: number | undefined | null, d = 2) {
+  if (n == null) return "—";
+  return n.toLocaleString(undefined, { minimumFractionDigits: n < 100 ? d : 0, maximumFractionDigits: d });
+}
 
-const PURPOSE_COLORS: Record<string, string> = {
-  support: "bg-emerald-900/50 text-emerald-300",
-  research: "bg-purple-900/50 text-purple-300",
-  code_review: "bg-green-900/50 text-green-300",
-  sales: "bg-amber-900/50 text-amber-300",
-  email: "bg-emerald-900/50 text-emerald-300",
-  general: "bg-[#1e1e1e] text-zinc-300",
-};
-
-const SEVERITY_COLORS: Record<string, string> = {
-  high: "border-red-800 bg-red-950/30",
-  medium: "border-amber-800 bg-amber-950/30",
-  low: "border-emerald-800 bg-emerald-950/30",
-};
-
-const SEVERITY_BADGE: Record<string, string> = {
-  high: "bg-red-900/50 text-red-300",
-  medium: "bg-amber-900/50 text-amber-300",
-  low: "bg-emerald-900/50 text-emerald-300",
-};
-
-const REC_TYPE_LABELS: Record<string, string> = {
-  model_swap: "Model Swap",
-  retry_loop: "Retry Loop",
-  context_bloat: "Context Bloat",
-  redundant_calls: "Redundant Calls",
-  model_overkill: "Model Overkill",
-};
-
-const REC_TYPE_COLORS: Record<string, string> = {
-  model_swap: "bg-blue-900/50 text-blue-300",
-  retry_loop: "bg-rose-900/50 text-rose-300",
-  context_bloat: "bg-amber-900/50 text-amber-300",
-  redundant_calls: "bg-purple-900/50 text-purple-300",
-  model_overkill: "bg-orange-900/50 text-orange-300",
-};
-
-export default function AgentDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const agentId = params.id as string;
-
+export default function AgentDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const { id } = params;
   const { data: session } = useSession();
   const token = (session as any)?.accessToken as string | undefined;
+  const router = useRouter();
 
-  const [agent, setAgent] = useState<AgentWithStats | null>(null);
-  const [overview, setOverview] = useState<OverviewMetrics | null>(null);
-  const [optimizations, setOptimizations] = useState<OptimizationResponse | null>(null);
-  const [dashboard, setDashboard] = useState<AgentDashboard | null>(null);
-  const [spanRecs, setSpanRecs] = useState<SpanRecommendation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [applying, setApplying] = useState<string | null>(null);
-  const [breakdownTab, setBreakdownTab] = useState<"step" | "model" | "tool">("model");
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [agent, setAgent]       = useState<AgentWithStats | null>(null);
+  const [dash,  setDash]        = useState<AgentDashboard | null>(null);
+  const [recs,  setRecs]        = useState<Rec[]>([]);
+  const [loading, setLoading]   = useState(true);
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Initial load
   useEffect(() => {
-    if (!token || !agentId) return;
-    Promise.all([
-      getAgent(token, agentId),
-      getOverview(token, agentId),
-      getOptimizations(token, agentId),
-    ])
-      .then(([a, o, opt]) => {
-        setAgent(a);
-        setOverview(o);
-        setOptimizations(opt);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [token, agentId]);
-
-  // Poll dashboard + span recs every 10s
-  useEffect(() => {
-    if (!token || !agentId) return;
-
-    function fetchLive() {
-      if (!token) return;
-      getAgentDashboard(token, agentId)
-        .then((d) => { setDashboard(d); setDashboardError(null); })
-        .catch((e) => { console.error("[dashboard]", e); setDashboardError(e.message); });
-      getSpanRecommendations(token, agentId)
-        .then((r) => setSpanRecs(r))
-        .catch((e) => console.error("[spanRecs]", e));
-    }
-
-    fetchLive();
-    pollRef.current = setInterval(fetchLive, POLL_MS);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [token, agentId]);
-
-  async function handleDelete() {
-    if (!token || !confirm("Are you sure you want to delete this agent?")) return;
-    setDeleting(true);
-    try {
-      await deleteAgent(token, agentId);
-      router.push("/agents");
-    } catch (e: any) {
-      setError(e.message);
-      setDeleting(false);
-    }
-  }
-
-  async function handleApply(recId: string) {
     if (!token) return;
-    setApplying(recId);
-    try {
-      await applySpanRecommendation(token, recId);
-      setSpanRecs((prev) =>
-        prev.map((r) => (r.id === recId ? { ...r, applied: true } : r))
-      );
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setApplying(null);
-    }
-  }
+    Promise.all([
+      getAgent(token, id),
+      getAgentDashboard(token, id),
+      getSpanRecommendations(token, id),
+    ]).then(([a, d, spanRecs]) => {
+      setAgent(a);
+      setDash(d);
+      // Map SpanRecommendations → TopChangeItem shape → Rec
+      const mapped = spanRecs.map((sr, idx): Rec => mapToRec({
+        rank: idx + 1,
+        title: `${sr.rec_type.replace(/_/g, " ")} on ${sr.span_name}`,
+        description: sr.explanation,
+        action: sr.rec_type,
+        estimated_savings_usd: sr.savings_per_month,
+        severity: sr.confidence >= 80 ? "medium" : "high",
+        type: sr.rec_type,
+        agent_id: id,
+        agent_name: a.name,
+        confidence_rating: sr.confidence_rating,
+        confidence_n: sr.confidence_n,
+        confidence_score: sr.confidence_score,
+        quality_impact: sr.quality_impact,
+        verdict: sr.verdict,
+        latency_p95_ms: sr.latency_p95_ms,
+        latency_p95_baseline_ms: sr.latency_p95_baseline_ms,
+        structure_conformance_pct: sr.structure_conformance_pct,
+        judge_preference_pct: sr.judge_preference_pct,
+      }));
+      setRecs(mapped);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [token, id]);
+
+  const onStatusChange = (recId: string, next: RecStatus) => {
+    setRecs((prev) => prev.map((r) => (r.num === recId ? { ...r, status: next } : r)));
+  };
+
+  const live = (agent?.request_count_7d ?? 0) > 0;
+  const sessionCost = dash?.session_cost_usd ?? 0;
+  const alltimeCost = dash?.alltime_cost_usd ?? 0;
+  const sessionReqs = dash?.session_request_count ?? 0;
+  const alltimeReqs = dash?.alltime_request_count ?? 0;
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="h-8 w-48 animate-pulse rounded bg-[#1e1e1e]" />
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="h-72 animate-pulse rounded-xl border border-[#2a2a2a] bg-[#141414]" />
-            <div className="h-72 animate-pulse rounded-xl border border-[#2a2a2a] bg-[#141414]" />
-          </div>
-          <div className="h-96 animate-pulse rounded-xl border border-[#2a2a2a] bg-[#141414]" />
+      <div className="tr-page">
+        <div style={{ height: 32, width: 120, background: "var(--bg-card)", borderRadius: 6, marginBottom: 8 }} />
+        <div style={{ height: 48, width: 280, background: "var(--bg-card)", borderRadius: 8, marginBottom: 32 }} />
+        <div className="tr-stat-grid cols-4">
+          {[1,2,3,4].map((i) => <div key={i} className="tr-stat" style={{ height: 100, opacity: 0.5 }} />)}
         </div>
       </div>
     );
   }
 
-  if (error || !agent) {
+  if (!agent) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="rounded-lg border border-red-900 bg-red-950/50 p-6 text-red-400">
-          {error || "Agent not found"}
-        </div>
-        <Link href="/agents" className="mt-4 inline-block text-sm text-emerald-400 hover:text-emerald-300">
-          Back to Agents
-        </Link>
+      <div className="tr-page">
+        <div className="tr-empty">Agent not found.</div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="tr-page">
+      {/* Back */}
+      <button className="tr-back" onClick={() => router.push("/agents")}>
+        <svg width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+        </svg>
+        Back to agents
+      </button>
+
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
+      <div className="tr-page-head">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white">{agent.name}</h1>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                PURPOSE_COLORS[agent.purpose] || PURPOSE_COLORS.general
-              }`}
-            >
-              {agent.purpose}
-            </span>
+          <h1 className="tr-page-title">
+            <span className={`tr-dot${live ? "" : " idle"}`} style={{ marginRight: 6 }} />
+            {agent.name}
+          </h1>
+          <div className="tr-page-sub">
+            {agent.provider} · {agent.model}
           </div>
-          <div className="mt-2 flex items-center gap-4 text-sm text-zinc-400">
-            <span>{agent.provider}</span>
-            <span className="text-gray-600">|</span>
-            <span>{agent.model}</span>
-            {agent.api_key_hint && (
-              <>
-                <span className="text-gray-600">|</span>
-                <span>Key: ****{agent.api_key_hint}</span>
-              </>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="rounded-lg border border-red-800 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-950/50 disabled:opacity-50"
-        >
-          {deleting ? "Deleting..." : "Delete Agent"}
-        </button>
-      </div>
-
-      {/* KPI cards — static 7d overview + live session cost */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-5">
-          <p className="text-sm font-medium text-zinc-400">Monthly Cost Est.</p>
-          <p className="mt-1 text-2xl font-semibold text-white">
-            ${optimizations?.current_monthly_cost_estimate?.toFixed(2) || "0.00"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-5">
-          <p className="text-sm font-medium text-zinc-400">Session Cost (6h)</p>
-          <p className="mt-1 text-2xl font-semibold text-white">
-            ${dashboard?.session_cost_usd?.toFixed(4) ?? overview?.total_cost?.toFixed(2) ?? "0.00"}
-          </p>
-          {dashboard && (
-            <p className="mt-0.5 text-xs text-zinc-600">
-              {dashboard.requests_per_minute.toFixed(1)} req/min
-            </p>
-          )}
-        </div>
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-5">
-          <p className="text-sm font-medium text-zinc-400">7d Requests</p>
-          <p className="mt-1 text-2xl font-semibold text-white">
-            {overview?.request_count?.toLocaleString() ?? "—"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-5">
-          <p className="text-sm font-medium text-zinc-400">Avg Latency</p>
-          <p className="mt-1 text-2xl font-semibold text-white">
-            {overview ? `${(overview.avg_latency / 1000).toFixed(2)}s` : "—"}
-          </p>
         </div>
       </div>
 
-      {/* Main layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left column: charts + span breakdown */}
-        <div className="lg:col-span-2 space-y-6">
-          <SpendLineChart agentId={agentId} />
-
-          {/* Tabbed cost breakdown — always shown */}
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#141414]">
-              {/* Tab bar */}
-              <div className="flex items-center justify-between border-b border-[#2a2a2a] px-5 pt-4">
-                <div className="flex gap-6">
-                  {(
-                    [
-                      { id: "step" as const, label: "By Step" },
-                      { id: "model" as const, label: "By Model" },
-                      { id: "tool" as const, label: "By Tool" },
-                    ]
-                  ).map(({ id, label }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setBreakdownTab(id)}
-                      className={`relative pb-3 text-sm font-medium transition ${
-                        breakdownTab === id
-                          ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-emerald-500"
-                          : "text-zinc-500 hover:text-zinc-300"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <span className="pb-3 text-xs text-zinc-600">updates every 10s</span>
-              </div>
-
-              {/* Tab content */}
-              <div className="p-5">
-                {dashboardError ? (
-                  <p className="py-4 text-center text-sm text-rose-400">Error loading data: {dashboardError}</p>
-                ) : breakdownTab === "step" ? (
-                  (dashboard?.by_span ?? []).length === 0 ? (
-                    <p className="py-4 text-center text-sm text-zinc-500">
-                      No span data yet. Add{" "}
-                      <code className="rounded bg-[#1a1a1a] px-1.5 py-0.5 font-mono text-emerald-400 text-xs">
-                        @span
-                      </code>{" "}
-                      decorators to your agent functions.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {dashboard!.by_span.map((row) => {
-                        const maxCost = dashboard!.by_span[0]?.total_cost || 1;
-                        const pct = Math.round((row.total_cost / maxCost) * 100);
-                        return (
-                          <div key={row.span_name}>
-                            <div className="mb-1.5 flex items-center justify-between text-xs">
-                              <span className="font-mono text-zinc-300">{row.span_name}</span>
-                              <span className="tabular-nums text-zinc-400">
-                                ${row.total_cost.toFixed(4)}{" "}
-                                <span className="text-zinc-600">({row.request_count} calls)</span>
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
-                              <div className="h-full rounded-full bg-emerald-500/70" style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                ) : breakdownTab === "model" ? (
-                  (dashboard?.by_model ?? []).length === 0 ? (
-                    <p className="py-4 text-center text-sm text-zinc-500">No model data for this period.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {dashboard!.by_model.map((row) => {
-                        const maxCost = dashboard!.by_model[0]?.total_cost || 1;
-                        const pct = Math.round((row.total_cost / maxCost) * 100);
-                        return (
-                          <div key={row.model}>
-                            <div className="mb-1.5 flex items-center justify-between text-xs">
-                              <span className="font-mono text-zinc-300">{row.model}</span>
-                              <span className="tabular-nums text-zinc-400">
-                                ${row.total_cost.toFixed(4)}{" "}
-                                <span className="text-zinc-600">· {row.request_count} calls</span>
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
-                              <div className="h-full rounded-full bg-indigo-500/70" style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                ) : (
-                  (dashboard?.by_tool ?? []).length === 0 ? (
-                    <p className="py-4 text-center text-sm text-zinc-500">No tool data for this period.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {dashboard!.by_tool.map((row) => {
-                        const maxCost = dashboard!.by_tool[0]?.total_cost || 1;
-                        const pct = Math.round((row.total_cost / maxCost) * 100);
-                        return (
-                          <div key={row.label}>
-                            <div className="mb-1.5 flex items-center justify-between text-xs">
-                              <span className="font-mono text-zinc-300">{row.label}</span>
-                              <span className="tabular-nums text-zinc-400">
-                                ${row.total_cost.toFixed(4)}{" "}
-                                <span className="text-zinc-600">· {row.request_count} calls</span>
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#222]">
-                              <div className="h-full rounded-full bg-amber-500/70" style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                )}
-
-              </div>
-            </div>
-
-          {/* Anomalies */}
-          {(dashboard?.retry_loops ?? []).length > 0 && (
-            <div className="rounded-xl border border-rose-900/50 bg-[#141414]">
-              <div className="flex items-center gap-2 border-b border-rose-900/30 px-5 py-3">
-                <svg className="h-4 w-4 text-rose-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                </svg>
-                <h2 className="text-sm font-semibold text-rose-300">Anomalies</h2>
-                <span className="ml-auto rounded-full bg-rose-950/60 px-2 py-0.5 text-xs text-rose-400">
-                  {dashboard!.retry_loops.length} detected
-                </span>
-              </div>
-              <div className="space-y-2 p-4">
-                {dashboard!.retry_loops.map((loop, i) => (
-                  <div key={i} className="flex items-start justify-between gap-4 rounded-lg border border-rose-900/30 bg-rose-950/20 px-4 py-3">
-                    <div className="flex items-start gap-2">
-                      <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                      </svg>
-                      <div>
-                        <p className="text-sm text-rose-200">
-                          <span className="font-mono font-semibold">{loop.span_name}</span>
-                          {" "}fired 3+ times in {loop.window_seconds}s
-                        </p>
-                        <p className="mt-0.5 text-xs text-rose-400/70">Possible retry loop. Consider adding backoff or caching.</p>
-                      </div>
-                    </div>
-                    <span className="shrink-0 rounded-md bg-rose-950/60 px-2 py-0.5 text-xs font-medium text-rose-300 ring-1 ring-rose-800/40">
-                      Retry Loop
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* Stats */}
+      <div className="tr-stat-grid cols-4">
+        <div className="tr-stat accent">
+          <div className="tr-stat-label">Session cost</div>
+          <div className="tr-stat-value">${fmt(sessionCost)}</div>
+          <div className="tr-stat-sub">{sessionReqs.toLocaleString()} reqs this session</div>
         </div>
-
-        {/* Right column: recommendations */}
-        <div className="space-y-4">
-
-          {/* Recommendations header */}
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">Recommendations</h2>
+        <div className="tr-stat">
+          <div className="tr-stat-label">All-time cost</div>
+          <div className="tr-stat-value">${fmt(alltimeCost)}</div>
+          <div className="tr-stat-sub">{alltimeReqs.toLocaleString()} total requests</div>
+        </div>
+        <div className="tr-stat">
+          <div className="tr-stat-label">Req / min</div>
+          <div className="tr-stat-value">{(dash?.requests_per_minute ?? 0).toFixed(2)}</div>
+        </div>
+        <div className="tr-stat">
+          <div className="tr-stat-label">Avg cost / req</div>
+          <div className="tr-stat-value">
+            {alltimeReqs > 0 ? `$${(alltimeCost / alltimeReqs).toFixed(4)}` : "—"}
           </div>
-
-          {/* Existing optimization recommendations (model/prompt/outlier) */}
-          {optimizations && optimizations.recommendations.length > 0 && (
-            <div>
-              <h2 className="mb-3 text-sm font-semibold text-zinc-500">Agent-Level Checks</h2>
-              <div className="space-y-3">
-                {optimizations.recommendations.map((rec, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-xl border p-4 ${
-                      SEVERITY_COLORS[rec.severity] || SEVERITY_COLORS.low
-                    }`}
-                  >
-                    <div className="mb-2 flex items-start justify-between">
-                      <h3 className="text-sm font-medium text-white">{rec.title}</h3>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          SEVERITY_BADGE[rec.severity] || SEVERITY_BADGE.low
-                        }`}
-                      >
-                        {rec.severity}
-                      </span>
-                    </div>
-                    <p className="mb-3 text-sm text-zinc-400">{rec.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-green-400">
-                        Save ~${rec.estimated_savings_usd.toFixed(2)}/mo
-                      </span>
-                      <Link
-                        href={`/recommendations/${rec.type}?agent_id=${agent?.id}`}
-                        className="text-xs text-emerald-500 hover:text-emerald-400"
-                      >
-                        How to fix →
-                      </Link>
-                    </div>
-                    <p className="mt-2 rounded-md bg-[#141414]/50 px-3 py-2 text-xs text-zinc-300">
-                      {rec.action}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Provider comparison */}
-          {optimizations && optimizations.provider_comparison.length > 0 && (
-            <div className="rounded-xl border border-[#2a2a2a] bg-[#141414] p-4">
-              <h3 className="mb-3 text-sm font-semibold text-white">Provider Cost Comparison</h3>
-              <div className="space-y-2">
-                {optimizations.provider_comparison.slice(0, 6).map((pc, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between rounded-md bg-[#1e1e1e]/50 px-3 py-2 text-sm"
-                  >
-                    <span className="text-zinc-300">{pc.model}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium text-white">
-                        ${pc.estimated_monthly_cost.toFixed(2)}
-                      </span>
-                      {pc.vs_current && (
-                        <span
-                          className={`text-xs font-medium ${
-                            pc.vs_current.startsWith("-")
-                              ? "text-green-400"
-                              : pc.vs_current.startsWith("+")
-                              ? "text-red-400"
-                              : "text-zinc-500"
-                          }`}
-                        >
-                          {pc.vs_current}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Recommendations */}
+      {recs.length > 0 && (
+        <>
+          <div className="tr-section-title" style={{ marginTop: 40 }}>Recommendations for this agent</div>
+          {recs.map((r) => (
+            <DecisionCard key={r.num} rec={r} onStatusChange={onStatusChange} />
+          ))}
+        </>
+      )}
+
+      {/* Span breakdown (trace table) */}
+      {dash && dash.by_span.length > 0 && (
+        <>
+          <div className="tr-section-title" style={{ marginTop: 40 }}>Span cost breakdown</div>
+          <div className="tr-table-wrap">
+            <table className="tr-table">
+              <thead>
+                <tr>
+                  <th>Step / span</th>
+                  <th className="r">Requests</th>
+                  <th className="r">Total cost</th>
+                  <th className="r">Avg / req</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dash.by_span.map((s) => (
+                  <tr key={s.span_name} style={{ cursor: "default" }}>
+                    <td>{s.span_name}</td>
+                    <td className="r">{s.request_count.toLocaleString()}</td>
+                    <td className="r">${s.total_cost.toFixed(4)}</td>
+                    <td className="r tr-latency">
+                      ${s.request_count > 0 ? (s.total_cost / s.request_count).toFixed(5) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Model breakdown */}
+      {dash && dash.by_model.length > 0 && (
+        <>
+          <div className="tr-section-title">Model breakdown</div>
+          <div className="tr-table-wrap">
+            <table className="tr-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th className="r">Requests</th>
+                  <th className="r">Total cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dash.by_model.map((m) => (
+                  <tr key={m.model} style={{ cursor: "default" }}>
+                    <td>{m.model}</td>
+                    <td className="r">{m.request_count.toLocaleString()}</td>
+                    <td className="r">${m.total_cost.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Retry loops */}
+      {dash && dash.retry_loops.length > 0 && (
+        <>
+          <div className="tr-section-title">Detected retry loops</div>
+          <div className="tr-table-wrap">
+            <table className="tr-table">
+              <thead>
+                <tr>
+                  <th>Span</th>
+                  <th className="r">Occurrences</th>
+                  <th className="r">Window</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dash.retry_loops.map((r) => (
+                  <tr key={r.span_name} style={{ cursor: "default" }}>
+                    <td style={{ color: "var(--warning-high)" }}>{r.span_name}</td>
+                    <td className="r">{r.occurrences}</td>
+                    <td className="r">{r.window_seconds}s</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

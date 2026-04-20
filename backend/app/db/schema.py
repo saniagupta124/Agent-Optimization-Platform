@@ -97,6 +97,28 @@ def ensure_schema() -> None:
         "CREATE INDEX IF NOT EXISTS ix_span_rec_agent_id ON span_recommendations (agent_id)",
         "ALTER TABLE agents ADD COLUMN IF NOT EXISTS system_prompt TEXT",
         "ALTER TABLE agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER",
+        # Phase 2: structure conformance column on requests
+        "ALTER TABLE requests ADD COLUMN IF NOT EXISTS structure_valid BOOLEAN DEFAULT TRUE",
+        # Phase 2: quality budgets and evaluations tables
+        """CREATE TABLE IF NOT EXISTS quality_budgets (
+            agent_id VARCHAR PRIMARY KEY,
+            max_judge_preference_drop FLOAT NOT NULL DEFAULT 2.0,
+            max_faithfulness_drop FLOAT NOT NULL DEFAULT 2.0,
+            max_structure_drop FLOAT NOT NULL DEFAULT 0.0,
+            max_latency_increase_ms FLOAT NOT NULL DEFAULT 200.0,
+            on_breach VARCHAR NOT NULL DEFAULT 'alert_only',
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""",
+        """CREATE TABLE IF NOT EXISTS quality_evaluations (
+            id VARCHAR PRIMARY KEY,
+            agent_id VARCHAR NOT NULL,
+            baseline_model VARCHAR NOT NULL,
+            candidate_model VARCHAR NOT NULL,
+            preference_pct FLOAT,
+            evaluated_at TIMESTAMP DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_quality_evaluations_agent_id ON quality_evaluations (agent_id)",
     ]
     backfill = [
         # Pick earliest member per team as owner when missing
@@ -148,6 +170,8 @@ def ensure_schema() -> None:
         ("users", "onboarding_completed", "BOOLEAN NOT NULL DEFAULT 0"),
         ("agents", "system_prompt", "TEXT"),
         ("agents", "max_tokens", "INTEGER"),
+        # Phase 2: structure conformance
+        ("requests", "structure_valid", "BOOLEAN DEFAULT 1"),
     ]
 
     with engine.begin() as conn:

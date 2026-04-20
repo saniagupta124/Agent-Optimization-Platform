@@ -264,6 +264,16 @@ export interface TopChangeItem {
   type: string;
   agent_id: string;
   agent_name: string;
+  confidence_rating?: "low" | "medium" | "high";
+  confidence_n?: number;
+  confidence_score?: number;
+  quality_impact?: "none" | "low" | "medium" | "high";
+  verdict?: "ship_it" | "ship_with_caution" | "canary_only" | "hold" | "insufficient_data";
+  verdict_rationale?: string;
+  latency_p95_ms?: number | null;
+  latency_p95_baseline_ms?: number | null;
+  structure_conformance_pct?: number | null;
+  judge_preference_pct?: number | null;
 }
 
 export interface UsageSummary {

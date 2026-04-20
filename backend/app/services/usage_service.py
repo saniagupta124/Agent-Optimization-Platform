@@ -1,5 +1,6 @@
 """Aggregated usage for dashboard: summary, behavioral comparison, insights."""
 
+import os
 from datetime import datetime, timedelta
 
 from sqlalchemy import case, func
@@ -18,6 +19,80 @@ from app.schemas.usage import (
 )
 from app.services.recommendations_agg import get_top_recommendations_for_scope
 from app.services.scope import count_team_members, resolve_agent_ids, team_view_available
+from app.services.quality_service import compute_quality_signals
+
+
+def _derive_confidence_rating(confidence_score: int, confidence_n: int) -> str:
+    # Thresholds calibrated for real-world enterprise agents:
+    # high:   500+ requests  (confident signal, full month of data)
+    # medium: 20+ requests   (enough for pattern detection, show recommendations)
+    # low:    < 20 requests  (too early, suppress verdict)
+    if confidence_score >= 80 and confidence_n >= 500:
+        return "high"
+    if confidence_n >= 20:
+        return "medium"
+    return "low"
+
+
+def _fetch_confidence_n(db: Session, agent_id: str) -> int:
+    """Count actual traces for this agent in last 30 days."""
+    cutoff = datetime.utcnow() - timedelta(days=30)
+    try:
+        return db.query(Request).filter(
+            Request.agent_id == agent_id,
+            Request.timestamp >= cutoff,
+        ).count()
+    except Exception:
+        return 0
+
+
+def _generate_verdict_rationale(
+    savings: float,
+    rec_type: str,
+    quality_impact: str,
+    confidence_rating: str,
+    confidence_n: int,
+    verdict: str,
+) -> str:
+    """Generate rationale via Claude API, fall back to template if unavailable."""
+    template = (
+        f"Save ${savings:.0f}/mo via {rec_type}. "
+        f"Quality: {quality_impact}. "
+        f"Confidence: {confidence_rating} (n={confidence_n})."
+    )
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return template
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=100,
+            system="You write one-sentence rationales for AI model change recommendations. Max 280 characters. Be specific about numbers. No fluff.",
+            messages=[{"role": "user", "content": (
+                f"Cost delta: ${savings:.0f}/mo. Quality impact: {quality_impact}. "
+                f"Confidence: {confidence_rating} (n={confidence_n}). Verdict: {verdict}. "
+                f"Write the rationale."
+            )}],
+        )
+        return msg.content[0].text[:280]
+    except Exception:
+        return template
+
+
+def _derive_verdict(confidence_rating: str, confidence_n: int, quality_impact: str) -> str:
+    if confidence_rating == "low" or confidence_n < 20:
+        return "insufficient_data"
+    if quality_impact == "none" and confidence_rating in ("high", "medium"):
+        return "ship_it"
+    if quality_impact == "low":
+        return "ship_with_caution"
+    if quality_impact == "medium":
+        return "canary_only"
+    if quality_impact == "high":
+        return "hold"
+    return "insufficient_data"
 
 
 def _month_window_utc(now: datetime | None = None) -> tuple[datetime, datetime]:
@@ -159,20 +234,43 @@ def get_usage_summary(
         period_days=period_days,
         deployment=deployment,
     )
-    top_changes = [
-        TopChangeItem(
+    top_changes = []
+    for i, r in enumerate(raw_recs):
+        agent_id_for_rec = r["agent_id"]
+        # Real DB count for confidence
+        c_n = _fetch_confidence_n(db, agent_id_for_rec)
+        c_score = min(100, int((c_n / 500) * 100))
+        c_rating = _derive_confidence_rating(c_score, c_n)
+        # Quality signals from DB
+        try:
+            quality_signals = compute_quality_signals(db, agent_id_for_rec)
+        except Exception:
+            quality_signals = {"quality_impact": "none"}
+        q_impact = quality_signals.get("quality_impact", "none")
+        verdict = _derive_verdict(c_rating, c_n, q_impact)
+        savings = float(r["estimated_savings_usd"])
+        rec_type = r.get("type", "general")
+        rationale = _generate_verdict_rationale(savings, rec_type, q_impact, c_rating, c_n, verdict)
+        top_changes.append(TopChangeItem(
             rank=i + 1,
             title=r["title"],
             description=r["description"],
             action=r["action"],
-            estimated_savings_usd=float(r["estimated_savings_usd"]),
+            estimated_savings_usd=savings,
             severity=r.get("severity", "medium"),
-            type=r.get("type", "general"),
-            agent_id=r["agent_id"],
+            type=rec_type,
+            agent_id=agent_id_for_rec,
             agent_name=r["agent_name"],
-        )
-        for i, r in enumerate(raw_recs)
-    ]
+            confidence_score=c_score,
+            confidence_n=c_n,
+            confidence_rating=c_rating,
+            quality_impact=q_impact,
+            verdict=verdict,
+            verdict_rationale=rationale,
+            latency_p95_ms=quality_signals.get("latency_p95_ms"),
+            latency_p95_baseline_ms=quality_signals.get("latency_p95_baseline_ms"),
+            structure_conformance_pct=quality_signals.get("structure_conformance_pct"),
+        ))
     now = datetime.utcnow()
 
     cur_start = now - timedelta(days=period_days)

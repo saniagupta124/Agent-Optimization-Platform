@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.pricing import (
@@ -31,6 +32,7 @@ from app.core.pricing import (
 from app.db.models import Agent, Request as LLMRequest, SdkApiKey, SpanRecommendation, User
 from app.db.session import get_db
 from app.services.auth_service import decode_access_token
+from app.services.quality_service import compute_quality_signals
 
 router = APIRouter(tags=["agent-dashboard"])
 
@@ -312,6 +314,88 @@ def get_span_recommendations(
             rec["applied"] = False
 
     db.commit()
+
+    # Enrich recommendations with quality signals
+    try:
+        quality_signals = compute_quality_signals(db, agent.id)
+    except Exception:
+        quality_signals = {
+            "latency_p95_ms": None,
+            "latency_p95_baseline_ms": None,
+            "structure_conformance_pct": None,
+            "judge_preference_pct": None,
+            "quality_impact": "none",
+        }
+
+    # Compute confidence from real request count
+    now_ts = datetime.utcnow()
+    since_30d = now_ts - timedelta(days=30)
+    try:
+        request_count_30d = db.query(LLMRequest).filter(
+            LLMRequest.agent_id == agent.id,
+            LLMRequest.timestamp >= since_30d,
+        ).count()
+    except Exception:
+        request_count_30d = 0
+
+    confidence_n = request_count_30d
+    confidence_score = min(100, int((confidence_n / 500) * 100))
+
+    def _derive_confidence_rating_local(score: int, n: int) -> str:
+        if score >= 80 and n >= 500:
+            return "high"
+        if score >= 60 and n >= 100:
+            return "medium"
+        return "low"
+
+    def _derive_verdict_local(c_rating: str, n: int, q_impact: str) -> str:
+        if c_rating == "low" or n < 20:
+            return "insufficient_data"
+        if q_impact == "none" and c_rating in ("high", "medium"):
+            return "ship_it"
+        if q_impact == "low":
+            return "ship_with_caution"
+        if q_impact == "medium":
+            return "canary_only"
+        if q_impact == "high":
+            return "hold"
+        return "insufficient_data"
+
+    confidence_rating = _derive_confidence_rating_local(confidence_score, confidence_n)
+    quality_impact = quality_signals.get("quality_impact", "none")
+    verdict = _derive_verdict_local(confidence_rating, confidence_n, quality_impact)
+
+    # Read judge preference from quality_evaluations cache (set by LLM-as-judge or manually)
+    judge_preference_pct: float | None = None
+    try:
+        from app.db.models import QualityEvaluation
+        eval_cutoff = datetime.utcnow() - timedelta(days=7)
+        eval_row = (
+            db.query(QualityEvaluation)
+            .filter(
+                QualityEvaluation.agent_id == agent.id,
+                QualityEvaluation.evaluated_at >= eval_cutoff,
+            )
+            .order_by(QualityEvaluation.evaluated_at.desc())
+            .first()
+        )
+        if eval_row is not None:
+            judge_preference_pct = float(eval_row.preference_pct)
+    except Exception:
+        pass
+
+    for rec in recs:
+        rec["latency_p95_ms"] = quality_signals.get("latency_p95_ms")
+        rec["latency_p95_baseline_ms"] = quality_signals.get("latency_p95_baseline_ms")
+        rec["structure_conformance_pct"] = quality_signals.get("structure_conformance_pct")
+        rec["judge_preference_pct"] = judge_preference_pct
+        rec["quality_impact"] = quality_impact
+        rec["confidence_rating"] = confidence_rating
+        rec["confidence_n"] = confidence_n
+        rec["confidence_score"] = confidence_score
+        rec["verdict"] = verdict
+        rec["verdict_rationale"] = ""
+
     return recs
 
 
@@ -338,6 +422,35 @@ def apply_recommendation(
     row.updated_at = datetime.utcnow()
     db.commit()
     return {"id": recommendation_id, "applied": True}
+
+
+# ── POST /traces/{trace_id}/structure ────────────────────────────────────────
+
+class StructureValidPayload(BaseModel):
+    valid: bool
+
+
+@router.post("/traces/{trace_id}/structure")
+def update_trace_structure(
+    trace_id: str,
+    payload: StructureValidPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    user = _resolve_user(request, db)
+
+    trace = db.query(LLMRequest).filter(LLMRequest.id == trace_id).first()
+    if not trace:
+        raise HTTPException(status_code=404, detail="Trace not found")
+
+    # Verify the trace belongs to an agent owned by this user
+    agent = db.query(Agent).filter(Agent.id == trace.agent_id, Agent.user_id == user.id).first()
+    if not agent:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    trace.structure_valid = payload.valid
+    db.commit()
+    return {"trace_id": trace_id, "structure_valid": payload.valid}
 
 
 # ── Recommendation check functions ───────────────────────────────────────────

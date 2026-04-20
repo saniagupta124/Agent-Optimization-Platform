@@ -11,6 +11,15 @@ class TopChangeItem(BaseModel):
     type: str
     agent_id: str
     agent_name: str
+    confidence_rating: str = "low"
+    confidence_n: int = 0
+    confidence_score: int = 0
+    quality_impact: str = "none"
+    verdict: str = "insufficient_data"
+    verdict_rationale: str = ""
+    latency_p95_ms: float | None = None
+    latency_p95_baseline_ms: float | None = None
+    structure_conformance_pct: float | None = None
 
 
 class BehavioralComparison(BaseModel):

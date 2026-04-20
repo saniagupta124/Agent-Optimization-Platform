@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.agent_dashboard import router as agent_dashboard_router
 from app.api.routes.agents import router as agents_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.budgets import router as budgets_router
 from app.api.routes.github_oauth import router as integrations_router
 from app.api.routes.ingest import router as ingest_router
 from app.api.routes.ingestion import router as ingestion_router
@@ -51,6 +52,7 @@ app.include_router(traces_router)
 app.include_router(subscription_router)
 app.include_router(team_router)
 app.include_router(usage_router)
+app.include_router(budgets_router)
 
 
 @app.get("/health")
