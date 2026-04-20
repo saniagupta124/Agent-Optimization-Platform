@@ -360,7 +360,8 @@ footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2
 <span class="ht-line"><span class="ht-kw">from</span> <span class="ht-fn">openai</span> <span class="ht-kw">import</span> <span class="ht-fn">OpenAI</span></span>
 <span class="ht-line"><span class="ht-kw">from</span> <span class="ht-fn">traeco</span> <span class="ht-kw">import</span> <span class="ht-fn">init</span><span class="ht-op">,</span> <span class="ht-fn">wrap</span></span>
 <span class="ht-line"></span>
-<span class="ht-line"><span class="ht-fn">init</span><span class="ht-op">(</span><span class="ht-fn">api_key</span><span class="ht-op">=</span><span class="ht-str">"tk_live_..."</span><span class="ht-op">)</span></span>
+<span class="ht-line"><span class="ht-cmt"># reads TRAECO_API_KEY from env</span></span>
+<span class="ht-line"><span class="ht-fn">init</span><span class="ht-op">(</span><span class="ht-fn">agent_name</span><span class="ht-op">=</span><span class="ht-str">"my_agent"</span><span class="ht-op">)</span></span>
 <span class="ht-line"><span class="ht-fn">client</span> <span class="ht-op">=</span> <span class="ht-fn">wrap</span><span class="ht-op">(</span><span class="ht-fn">OpenAI</span><span class="ht-op">())</span>  <span class="ht-cmt"># ← that's it</span></span>
 <span class="ht-line"></span>
 <span class="ht-line"><span class="ht-cmt"># Your existing code unchanged</span></span>
@@ -394,8 +395,8 @@ footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2
       <div class="step" id="step0">
         <div class="step-num">01</div>
         <div class="step-content">
-          <div class="step-title">Install the SDK</div>
-          <div class="step-desc">One pip install. Zero dependencies beyond what you already have. Works in any Python 3.8+ environment.</div>
+          <div class="step-title">Install the SDK &amp; set your key</div>
+          <div class="step-desc">One pip install. Then set your Traeco API key as an environment variable — never paste credentials into code.</div>
           <div class="step-chips">
             <span class="chip">Python 3.8+</span>
             <span class="chip">Node.js 18+</span>
@@ -412,11 +413,11 @@ footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2
             </div>
             <div class="cb-body">
 <span class="cb-line"><span class="co">$</span> <span class="cx">pip install traeco-sdk</span></span>
+<span class="cb-line"><span class="co">Successfully installed traeco-sdk-1.0.0</span></span>
 <span class="cb-line"></span>
-<span class="cb-line"><span class="co">Successfully installed traeco-sdk-1.4.2</span></span>
-<span class="cb-line"><span class="co">  traeco-core-1.4.2</span></span>
-<span class="cb-line"><span class="co">  traeco-openai-1.4.2</span></span>
-<span class="cb-line"><span class="co">  traeco-anthropic-1.4.2</span></span>
+<span class="cb-line"><span class="co">$</span> <span class="cx">export TRAECO_API_KEY=tk_live_...</span></span>
+<span class="cb-line"><span class="co"># or add to your .env file:</span></span>
+<span class="cb-line"><span class="co">TRAECO_API_KEY=tk_live_...</span></span>
             </div>
           </div>
         </div>
@@ -427,7 +428,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2
         <div class="step-num">02</div>
         <div class="step-content">
           <div class="step-title">Add 3 lines to your agent</div>
-          <div class="step-desc">Import, init with your API key, and wrap your LLM client. Traeco intercepts calls transparently — your logic stays exactly the same.</div>
+          <div class="step-desc">Import, init, and wrap your LLM client. <code style="font-family:var(--mono);font-size:12px;color:var(--tx)">wrap()</code> is a read-only observability wrapper — it logs token counts, latency, and cost to your dashboard. It does not modify requests or store prompt content. Your calls go directly to the provider.</div>
           <div class="step-chips">
             <span class="chip">OpenAI</span>
             <span class="chip">Anthropic</span>
@@ -446,10 +447,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;position:relative;z-index:2
             <div class="cb-body">
 <span class="cb-line"><span class="ck">from</span> <span class="cf">traeco</span> <span class="ck">import</span> <span class="cf">init</span><span class="co">,</span> <span class="cf">wrap</span></span>
 <span class="cb-line"></span>
-<span class="cb-line"><span class="cc"># 1. Initialize with your key</span></span>
-<span class="cb-line"><span class="cf">init</span><span class="co">(</span><span class="cf">api_key</span><span class="co">=</span><span class="cs">"tk_live_..."</span><span class="co">)</span></span>
+<span class="cb-line"><span class="cc"># 1. Init — reads TRAECO_API_KEY from env</span></span>
+<span class="cb-line"><span class="cf">init</span><span class="co">(</span><span class="cf">agent_name</span><span class="co">=</span><span class="cs">"my_agent"</span><span class="co">)</span></span>
 <span class="cb-line"></span>
-<span class="cb-line"><span class="cc"># 2. Wrap your client</span></span>
+<span class="cb-line"><span class="cc"># 2. Read-only observability wrapper</span></span>
 <span class="cb-line"><span class="cf">client</span> <span class="co">=</span> <span class="cf">wrap</span><span class="co">(</span><span class="cf">OpenAI</span><span class="co">())</span></span>
 <span class="cb-line"></span>
 <span class="cb-line"><span class="cc"># 3. Done — use client as normal</span></span>

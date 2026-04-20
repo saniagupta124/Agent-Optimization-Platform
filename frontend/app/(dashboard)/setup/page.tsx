@@ -126,7 +126,10 @@ export default function SetupPage() {
     ? `from anthropic import Anthropic
 from traeco import init, wrap
 
-init(api_key="${apiKey}", agent_name="my_agent")
+# Set TRAECO_API_KEY in your environment first (see key below)
+init(agent_name="my_agent")
+# wrap() is a read-only observability wrapper — logs token counts,
+# latency & cost to Traeco. Does not modify requests or store prompts.
 client = wrap(Anthropic())
 
 response = client.messages.create(
@@ -137,7 +140,10 @@ response = client.messages.create(
     : `from openai import OpenAI
 from traeco import init, wrap
 
-init(api_key="${apiKey}", agent_name="my_agent")
+# Set TRAECO_API_KEY in your environment first (see key below)
+init(agent_name="my_agent")
+# wrap() is a read-only observability wrapper — logs token counts,
+# latency & cost to Traeco. Does not modify requests or store prompts.
 client = wrap(OpenAI())
 
 response = client.chat.completions.create(
@@ -183,16 +189,26 @@ def summarize_context(docs: list) -> str:
     )
     return response.choices[0].message.content`;
 
-  const claudeCodeBasicPrompt = `Add Traeco SDK tracing to my agent file. Do the following exactly:
+  const claudeCodeBasicPrompt = `Before running this prompt:
+1. Install the SDK: pip install traeco-sdk  (https://pypi.org/project/traeco-sdk/1.0.0/)
+2. Set your Traeco key in your environment: export TRAECO_API_KEY=<your key from the Traeco dashboard>
 
-1. Run: pip install traeco-sdk
-2. At the top of the agent file, add:
+Add Traeco SDK tracing to my agent file. Do the following exactly:
+
+1. At the top of the agent file, add:
    from traeco import init, wrap
-   init(api_key="${apiKey}", agent_name="my_agent")
-3. Find where the ${provider === "anthropic" ? "Anthropic()" : "OpenAI()"} client is instantiated and wrap it:
+   init(agent_name="my_agent")
+   (Traeco reads TRAECO_API_KEY from your environment automatically — no key needed in code.)
+
+2. Find where the ${provider === "anthropic" ? "Anthropic()" : "OpenAI()"} client is instantiated and wrap it:
    client = wrap(${provider === "anthropic" ? "Anthropic()" : "OpenAI()"})
 
-Do not change any other logic. The client works identically after wrapping.`;
+   Note: wrap() is a read-only observability wrapper from Traeco (https://pypi.org/project/traeco-sdk/1.0.0/).
+   It intercepts responses only to log token counts, latency, and cost to your Traeco dashboard.
+   It does not alter requests, store prompt content, or proxy your traffic to a third-party server.
+   Your calls go directly to ${provider === "anthropic" ? "Anthropic" : "OpenAI"}'s API as normal.
+
+Do not change any other logic. The client behaves identically after wrapping.`;
 
   const claudeCodeSpansPrompt = `Add Traeco @span decorators to my agent to enable per-feature cost tracking. Do the following:
 
@@ -207,7 +223,8 @@ Example:
   def classify_ticket(text):
       ...
 
-This lets Traeco break down cost and token usage per feature in the dashboard.`;
+@span decorators attach a name and timing metadata to each function call so Traeco
+can break down cost and token usage per feature in the dashboard. No logic is changed.`;
 
   return (
     <div className="min-h-full px-6 py-10 sm:px-10" style={{ background: "#1A1A1E" }}>
@@ -240,7 +257,7 @@ This lets Traeco break down cost and token usage per feature in the dashboard.`;
 
           {/* Step 2: Add 3 lines */}
           <Card>
-            <SectionHeader n={2} title="Add 3 lines to your agent" subtitle="Your API key is pre-filled. Paste into your agent file." />
+            <SectionHeader n={2} title="Add 3 lines to your agent" subtitle="Copy your Traeco key below, set it as an env var, then paste the code into your agent." />
 
             {/* Provider toggle */}
             <div className="flex gap-1 rounded-lg p-1 mb-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", width: "fit-content" }}>
@@ -269,12 +286,12 @@ This lets Traeco break down cost and token usage per feature in the dashboard.`;
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                 </svg>
                 <span style={{ color: "#a1a1aa" }}>
-                  Your Traeco key:{" "}
+                  Set in your terminal:{" "}
                   <code style={{ color: "#2de080", fontFamily: "monospace" }}>
-                    {keyObj.raw_key.length > 24 ? keyObj.raw_key.slice(0, 24) + "..." : keyObj.raw_key}
+                    export TRAECO_API_KEY={keyObj.raw_key.length > 24 ? keyObj.raw_key.slice(0, 24) + "..." : keyObj.raw_key}
                   </code>
                 </span>
-                <CopyButton text={keyObj.raw_key} />
+                <CopyButton text={`export TRAECO_API_KEY=${keyObj.raw_key}`} />
               </div>
             )}
 
