@@ -503,6 +503,16 @@ export interface SpanRecommendation {
   savings_per_month: number;
   confidence: number;
   applied: boolean;
+  // Quality signals from backend
+  latency_p95_ms?: number | null;
+  latency_p95_baseline_ms?: number | null;
+  structure_conformance_pct?: number | null;
+  judge_preference_pct?: number | null;
+  quality_impact?: string;
+  confidence_rating?: "low" | "medium" | "high";
+  confidence_n?: number;
+  confidence_score?: number;
+  verdict?: string;
 }
 
 export function getAgentDashboard(token: string, agentId: string) {
