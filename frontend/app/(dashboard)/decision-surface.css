@@ -1,0 +1,570 @@
+/* ============================================================
+   Traeco Decision Surface — scoped styles
+   All rules live under .traeco-dashboard to avoid colliding
+   with the existing dashboard Tailwind styles.
+   ============================================================ */
+
+.traeco-dashboard {
+  /* Surfaces */
+  --bg-app: #1A1A1E;
+  --bg-card: #27272B;
+  --bg-card-elevated: #2E2E33;
+  --bg-input: #2A2A2F;
+  --border-default: #3A3A3F;
+  --border-subtle: #2F2F35;
+
+  /* Text */
+  --fg1: #FFFFFF;
+  --fg2: #A1A1AA;
+  --fg3: #71717A;
+  --fg4: #52525B;
+
+  /* Brand */
+  --yellow: #F5C518;
+  --green: #34D399;
+  --teal: #2DD4BF;
+  --blue: #60A5FA;
+  --amber: #FBBF24;
+
+  /* Semantic */
+  --success: #34D399;
+  --warning-high: #F87171;
+  --warning-med: #FBBF24;
+
+  /* Radii */
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  /* Fonts */
+  --td-font-heading: "Clash Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --td-font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --td-font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+  color: var(--fg1);
+  font-family: var(--td-font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.traeco-dashboard *,
+.traeco-dashboard *::before,
+.traeco-dashboard *::after { box-sizing: border-box; }
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.traeco-dashboard .tr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  gap: 7px;
+  height: 38px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 8px;
+  font: 600 13px/1 var(--td-font-body);
+  cursor: pointer;
+  transition: filter 150ms ease, transform 100ms ease;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.15);
+}
+.traeco-dashboard .tr-btn:active { transform: translateY(1px); }
+
+.traeco-dashboard .tr-btn-primary { background: var(--yellow); color: var(--bg-app); }
+.traeco-dashboard .tr-btn-primary:hover { filter: brightness(1.06); }
+
+.traeco-dashboard .tr-btn-success { background: var(--green); color: #0A2E20; padding: 0 18px; }
+.traeco-dashboard .tr-btn-success:hover { filter: brightness(1.04); }
+
+.traeco-dashboard .tr-btn-ghost {
+  background: transparent;
+  color: var(--fg2);
+  border: 1px solid var(--border-subtle);
+  box-shadow: none;
+}
+.traeco-dashboard .tr-btn-ghost:hover { color: var(--fg1); border-color: var(--fg4); }
+
+.traeco-dashboard .tr-btn-sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.traeco-dashboard .tr-right { margin-left: auto; }
+
+/* ── Rec num + verdict pill ───────────────────────────────── */
+.traeco-dashboard .tr-rec-num {
+  font: 500 11px/1 var(--td-font-mono);
+  color: var(--fg4);
+  letter-spacing: 0.04em;
+}
+
+.traeco-dashboard .tr-verdict {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font: 500 11px/1.4 var(--td-font-body);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Decision Card ────────────────────────────────────────── */
+.traeco-dashboard .tr-decision {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  transition: border-color 150ms ease;
+}
+.traeco-dashboard .tr-decision:last-child { margin-bottom: 0; }
+
+.traeco-dashboard .tr-decision-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.traeco-dashboard .tr-decision-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 15px/1.35 var(--td-font-heading);
+  letter-spacing: -0.01em;
+  color: var(--fg1);
+  flex-wrap: wrap;
+}
+.traeco-dashboard .tr-decision-title-sep { color: var(--fg4); }
+.traeco-dashboard .tr-decision-change { color: var(--fg2); font-weight: 400; }
+.traeco-dashboard .tr-decision-meta {
+  font: 400 11.5px/1.4 var(--td-font-body);
+  color: var(--fg4);
+  margin-top: 4px;
+}
+
+/* 3-column body */
+.traeco-dashboard .tr-decision-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 18px 22px;
+}
+.traeco-dashboard .tr-decision-col {
+  padding: 0 20px;
+  border-left: 1px solid var(--border-subtle);
+}
+.traeco-dashboard .tr-decision-col:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+.traeco-dashboard .tr-decision-col-label {
+  font: 500 10.5px/1 var(--td-font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--fg4);
+  margin-bottom: 10px;
+}
+
+.traeco-dashboard .tr-decision-hero {
+  font: 500 22px/1.1 var(--td-font-heading);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+.traeco-dashboard .tr-decision-hero-sub {
+  font: 400 12px/1 var(--td-font-body);
+  color: var(--fg4);
+  margin-left: 3px;
+  letter-spacing: 0;
+}
+
+.traeco-dashboard .tr-decision-line {
+  font: 500 13px/1.5 var(--td-font-body);
+  color: var(--fg2);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.traeco-dashboard .tr-decision-line-sub {
+  font: 400 11.5px/1.4 var(--td-font-body);
+  color: var(--fg4);
+}
+.traeco-dashboard .tr-decision-ci {
+  font: 400 11px/1.4 var(--td-font-mono);
+  color: var(--fg4);
+  margin-top: 8px;
+}
+
+/* Confidence */
+.traeco-dashboard .tr-decision-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 14px/1.2 var(--td-font-body);
+}
+.traeco-dashboard .tr-decision-conf-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.traeco-dashboard .conf-high   { color: var(--green); }
+.traeco-dashboard .conf-high   .tr-decision-conf-dot { background: var(--green); box-shadow: 0 0 8px rgba(52,211,153,0.5); }
+.traeco-dashboard .conf-medium { color: var(--warning-med); }
+.traeco-dashboard .conf-medium .tr-decision-conf-dot { background: var(--warning-med); }
+.traeco-dashboard .conf-low    { color: var(--warning-high); }
+.traeco-dashboard .conf-low    .tr-decision-conf-dot { background: var(--warning-high); }
+
+.traeco-dashboard .tr-decision-conf-stats {
+  margin-top: 4px;
+  font-family: var(--td-font-mono);
+  font-size: 11.5px;
+  color: var(--fg4);
+}
+.traeco-dashboard .tr-decision-flags {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.traeco-dashboard .tr-decision-flag {
+  font: 400 11.5px/1.4 var(--td-font-body);
+  color: var(--fg3);
+}
+.traeco-dashboard .tr-decision-flag-more { color: var(--fg4); cursor: pointer; }
+
+/* Rationale */
+.traeco-dashboard .tr-decision-rationale {
+  background: rgba(0,0,0,0.15);
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-subtle);
+}
+.traeco-dashboard .tr-decision-rationale .tr-decision-col-label { margin-bottom: 6px; }
+.traeco-dashboard .tr-decision-rationale p {
+  margin: 0;
+  font: 400 13px/1.55 var(--td-font-body);
+  color: var(--fg2);
+  max-width: 70ch;
+}
+
+/* Actions footer */
+.traeco-dashboard .tr-decision-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+.traeco-dashboard .tr-decision-actions .tr-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Post-decision status bar */
+.traeco-dashboard .tr-decision-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 22px;
+  border-top: 1px solid var(--border-subtle);
+}
+.traeco-dashboard .tr-decision-status-label {
+  font: 500 14px/1 var(--td-font-heading);
+  letter-spacing: -0.01em;
+}
+.traeco-dashboard .tr-decision-status-accepted { background: rgba(52,211,153,0.06); }
+.traeco-dashboard .tr-decision-status-accepted .tr-decision-status-label { color: var(--green); }
+.traeco-dashboard .tr-decision-status-rejected { background: rgba(248,113,113,0.06); }
+.traeco-dashboard .tr-decision-status-rejected .tr-decision-status-label { color: var(--warning-high); }
+.traeco-dashboard .tr-decision-status-deferred { background: rgba(255,255,255,0.02); }
+.traeco-dashboard .tr-decision-status-deferred .tr-decision-status-label { color: var(--fg2); }
+
+/* ── Compact decision card ────────────────────────────────── */
+.traeco-dashboard .tr-decision-compact {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+  min-height: 200px;
+}
+.traeco-dashboard .tr-decision-compact:hover {
+  border-color: var(--border-default);
+  background: var(--bg-card-elevated);
+}
+.traeco-dashboard .tr-decision-compact-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.traeco-dashboard .tr-decision-compact-title {
+  font: 500 15px/1.35 var(--td-font-heading);
+  letter-spacing: -0.01em;
+  color: var(--fg1);
+}
+.traeco-dashboard .tr-decision-compact-agent {
+  font: 400 12px/1.4 var(--td-font-body);
+  color: var(--fg4);
+  margin-bottom: 2px;
+}
+.traeco-dashboard .tr-decision-compact-stats {
+  margin-top: auto;
+  padding-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+}
+.traeco-dashboard .tr-decision-compact-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.traeco-dashboard .tr-decision-compact-stat-label {
+  font: 500 10px/1 var(--td-font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg4);
+}
+.traeco-dashboard .tr-decision-compact-stat-val {
+  font: 500 14px/1.1 var(--td-font-heading);
+  letter-spacing: -0.01em;
+  color: var(--fg1);
+  font-variant-numeric: tabular-nums;
+}
+.traeco-dashboard .tr-decision-compact-stat-val > span {
+  font: 400 10.5px/1 var(--td-font-body);
+  color: var(--fg4);
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+.traeco-dashboard .tr-decision-compact-stat-val.conf-high   { color: var(--green); }
+.traeco-dashboard .tr-decision-compact-stat-val.conf-medium { color: var(--warning-med); }
+.traeco-dashboard .tr-decision-compact-stat-val.conf-low    { color: var(--warning-high); }
+
+/* ── Inbox tabs ───────────────────────────────────────────── */
+.traeco-dashboard .tr-inbox-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+.traeco-dashboard .tr-inbox-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--fg3);
+  font: 500 13px/1 var(--td-font-body);
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+.traeco-dashboard .tr-inbox-tab:hover:not(.active) { color: var(--fg1); }
+.traeco-dashboard .tr-inbox-tab.active {
+  color: var(--fg1);
+  border-bottom-color: var(--yellow);
+}
+.traeco-dashboard .tr-inbox-tab-count {
+  font: 500 11px/1 var(--td-font-body);
+  color: var(--fg4);
+  background: var(--bg-card-elevated);
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-variant-numeric: tabular-nums;
+}
+.traeco-dashboard .tr-inbox-tab.active .tr-inbox-tab-count { color: var(--fg1); }
+
+.traeco-dashboard .tr-inbox-filters {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+.traeco-dashboard .tr-inbox-select { min-width: 140px; }
+
+/* ── Select ───────────────────────────────────────────────── */
+.traeco-dashboard .tr-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--fg1);
+  font: 500 13px/1 var(--td-font-body);
+  padding: 0 28px 0 10px;
+  height: 32px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg3) 50%),
+                    linear-gradient(135deg, var(--fg3) 50%, transparent 50%);
+  background-position: calc(100% - 14px) center, calc(100% - 9px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* ── Empty state ──────────────────────────────────────────── */
+.traeco-dashboard .tr-empty {
+  padding: 40px 22px;
+  text-align: center;
+  color: var(--fg3);
+  font: 400 13px/1.5 var(--td-font-body);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+/* ── Set row label (used inside RejectModal) ──────────────── */
+.traeco-dashboard .tr-set-row-label {
+  font: 500 13px/1.3 var(--td-font-body);
+  color: var(--fg1);
+  margin-bottom: 3px;
+}
+
+/* ── Icon button ──────────────────────────────────────────── */
+.traeco-dashboard .tr-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg3);
+  font: 500 18px/1 var(--td-font-body);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.traeco-dashboard .tr-icon-btn:hover {
+  color: var(--fg1);
+  border-color: var(--border-subtle);
+  background: rgba(255,255,255,0.03);
+}
+
+/* ── Reject modal ─────────────────────────────────────────── */
+.traeco-dashboard .tr-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: tr-fade-in 150ms ease-out both;
+}
+@keyframes tr-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.traeco-dashboard .tr-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+  width: 100%;
+  max-width: 520px;
+  animation: tr-modal-in 180ms ease-out both;
+}
+@keyframes tr-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.traeco-dashboard .tr-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 20px;
+}
+.traeco-dashboard .tr-modal-eyebrow {
+  font: 500 10.5px/1 var(--td-font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--warning-high);
+  margin-bottom: 8px;
+}
+.traeco-dashboard .tr-modal-title {
+  font: 500 16px/1.3 var(--td-font-heading);
+  color: var(--fg1);
+  letter-spacing: -0.01em;
+}
+.traeco-dashboard .tr-modal-body { padding: 18px 22px; }
+.traeco-dashboard .tr-modal-cats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.traeco-dashboard .tr-modal-cat {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.traeco-dashboard .tr-modal-cat:hover { border-color: var(--fg4); }
+.traeco-dashboard .tr-modal-cat.active {
+  border-color: var(--warning-high);
+  background: rgba(248, 113, 113, 0.06);
+}
+.traeco-dashboard .tr-modal-cat-label {
+  font: 500 13px/1.2 var(--td-font-body);
+  color: var(--fg1);
+  margin-bottom: 3px;
+}
+.traeco-dashboard .tr-modal-cat-hint {
+  font: 400 11.5px/1.35 var(--td-font-body);
+  color: var(--fg3);
+}
+.traeco-dashboard .tr-modal-textarea {
+  margin-top: 8px;
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--fg1);
+  font: 400 13px/1.5 var(--td-font-body);
+  padding: 10px 12px;
+  outline: none;
+  resize: vertical;
+  min-height: 72px;
+}
+.traeco-dashboard .tr-modal-textarea:focus { border-color: var(--fg3); }
+.traeco-dashboard .tr-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .traeco-dashboard .tr-decision-body { grid-template-columns: 1fr; gap: 14px; }
+  .traeco-dashboard .tr-decision-col { padding-left: 0; border-left: none; padding-top: 14px; border-top: 1px solid var(--border-subtle); }
+  .traeco-dashboard .tr-decision-col:first-child { padding-top: 0; border-top: none; }
+  .traeco-dashboard .tr-modal-cats { grid-template-columns: 1fr; }
+}

@@ -1,28 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { getUsageSummary, TopChangeItem, UsageSummary } from "../../lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { getUsageSummary, type TopChangeItem, type UsageSummary } from "../../lib/api";
+import { mapToRec } from "../../lib/mapToRec";
+import type { Rec, RecStatus, Verdict } from "../../lib/rec-types";
+import { DecisionCard } from "../../components/DecisionCard";
 
-function severityLabel(s: string): "High" | "Med" | "Low" {
-  const u = s.toLowerCase();
-  if (u.includes("high") || u.includes("critical")) return "High";
-  if (u.includes("low")) return "Low";
-  return "Med";
-}
+type VerdictFilter = "all" | Verdict;
 
-function severityBadgeClass(label: "High" | "Med" | "Low"): string {
-  if (label === "High") return "text-[#F87171]";
-  if (label === "Low") return "text-[#71717A]";
-  return "text-[#FBBF24]";
-}
+const VERDICT_OPTIONS: Array<{ id: VerdictFilter; label: string }> = [
+  { id: "all",               label: "All verdicts" },
+  { id: "ship_it",           label: "Ship it" },
+  { id: "ship_with_caution", label: "Ship with caution" },
+  { id: "canary_only",       label: "Canary only" },
+  { id: "hold",              label: "Hold" },
+  { id: "insufficient_data", label: "Insufficient data" },
+];
 
-const TYPE_LABELS: Record<string, string> = {
-  model_switch: "Model Switch",
-  prompt_efficiency: "Prompt Efficiency",
-  token_limits: "Token Limits",
-};
+const STATUS_TABS: Array<{ id: RecStatus | "all"; label: string }> = [
+  { id: "pending",  label: "Pending" },
+  { id: "accepted", label: "Accepted" },
+  { id: "rejected", label: "Rejected" },
+  { id: "deferred", label: "Deferred" },
+  { id: "all",      label: "All" },
+];
 
 export default function RecommendationsPage() {
   const { data: session } = useSession();
@@ -32,27 +34,66 @@ export default function RecommendationsPage() {
   const [days, setDays] = useState(30);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recs, setRecs] = useState<Rec[]>([]);
+  const [statusFilter, setStatusFilter] = useState<RecStatus | "all">("pending");
+  const [verdictFilter, setVerdictFilter] = useState<VerdictFilter>("all");
+  const [agentFilter, setAgentFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!token) return;
     setLoading(true);
     getUsageSummary(token, days, scope)
-      .then(setSummary)
-      .catch(() => setSummary(null))
+      .then((s) => {
+        setSummary(s);
+        setRecs((s.top_changes ?? []).map(mapToRec));
+      })
+      .catch(() => {
+        setSummary(null);
+        setRecs([]);
+      })
       .finally(() => setLoading(false));
   }, [token, days, scope]);
 
-  const recs: TopChangeItem[] = summary?.top_changes ?? [];
   const teamAvailable = summary?.team_view_available ?? false;
 
+  // Unique agents for the filter dropdown
+  const agentOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of recs) seen.set(r.agentId, r.agent);
+    return Array.from(seen.entries());
+  }, [recs]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: recs.length };
+    for (const r of recs) counts[r.status] = (counts[r.status] || 0) + 1;
+    return counts;
+  }, [recs]);
+
+  const filtered = useMemo(() => {
+    return recs.filter((r) => {
+      if (agentFilter !== "all" && r.agentId !== agentFilter) return false;
+      if (verdictFilter !== "all" && r.verdict !== verdictFilter) return false;
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      return true;
+    });
+  }, [recs, agentFilter, verdictFilter, statusFilter]);
+
+  const onStatusChange = (id: string, next: RecStatus) => {
+    setRecs((prev) => prev.map((r) => (r.num === id ? { ...r, status: next } : r)));
+  };
+
+  const pendingSavings = recs
+    .filter((r) => r.status === "pending")
+    .reduce((s, r) => s + parseFloat(r.savings.replace(/[$,]/g, "")), 0);
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Recommendations</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Optimization opportunities ranked by estimated monthly impact.
+            Cost, quality, and confidence side-by-side. Accept, reject, or defer in one action.
           </p>
         </div>
 
@@ -99,71 +140,94 @@ export default function RecommendationsPage() {
       </div>
 
       {/* Savings summary */}
-      {!loading && summary && (
-        <div className="mb-8 rounded-xl border border-[#3A3A3F] bg-[#2E2E33] p-6" style={{ borderLeft: "3px solid #34D399" }}>
-          <p className="text-lg text-zinc-300">
-            You could save{" "}
-            <span className="font-semibold" style={{ color: "#1BA86F" }}>
-              ${summary.potential_savings_usd.toFixed(2)}/mo
-            </span>{" "}
-            across {recs.length} recommendation{recs.length !== 1 ? "s" : ""} in the last {days} days.
+      {!loading && recs.length > 0 && (
+        <div
+          className="mb-8 rounded-xl border border-[#3A3A3F] bg-[#27272B] p-6"
+          style={{ borderLeft: "3px solid #34D399" }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#34D399" }}>
+            Savings available
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-white" style={{ letterSpacing: "-0.02em" }}>
+            ${Math.round(pendingSavings).toLocaleString()}/mo
+          </p>
+          <p className="mt-1 text-sm text-zinc-500">
+            {recs.filter((r) => r.status === "pending").length} pending recommendation
+            {recs.filter((r) => r.status === "pending").length !== 1 ? "s" : ""} in the last {days} days
           </p>
         </div>
       )}
 
-      {/* Recommendations list */}
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl border border-[#2a2a2a] bg-[#141414]/30" />
-          ))}
-        </div>
-      ) : recs.length === 0 ? (
-        <div className="rounded-2xl border border-[#2a2a2a]/90 bg-[#161617] p-10 text-center">
-          <p className="text-zinc-500">No recommendations yet. Add agents and run them to generate data.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {recs.map((ch) => {
-            const sev = severityLabel(ch.severity);
-            return (
-              <Link
-                key={`${ch.agent_id}-${ch.type}-${ch.rank}`}
-                href={`/recommendations/${ch.type}?agent_id=${ch.agent_id}&days=${days}&scope=${scope}`}
-                className="flex flex-col gap-3 rounded-xl border border-[#3A3A3F] bg-[#2E2E33] p-5 transition hover:border-[#4A4A50] hover:bg-[#27272B] sm:flex-row sm:items-start"
-              >
-                {/* Rank */}
-                <span className="text-3xl font-bold tabular-nums text-zinc-700 sm:w-10 sm:shrink-0">
-                  {String(ch.rank).padStart(2, "0")}
-                </span>
+      {/* Decision surface */}
+      <div className="traeco-dashboard" style={{ background: "transparent" }}>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-56 animate-pulse rounded-xl"
+                style={{ background: "#27272B", border: "1px solid #2F2F35" }}
+              />
+            ))}
+          </div>
+        ) : recs.length === 0 ? (
+          <div className="tr-empty">
+            No recommendations yet. Add agents and run them to generate data.
+          </div>
+        ) : (
+          <>
+            {/* Status tabs + filters */}
+            <div className="tr-inbox-tabs">
+              {STATUS_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  className={`tr-inbox-tab ${statusFilter === t.id ? "active" : ""}`}
+                  onClick={() => setStatusFilter(t.id)}
+                >
+                  {t.label}
+                  <span className="tr-inbox-tab-count">{statusCounts[t.id] ?? 0}</span>
+                </button>
+              ))}
+              <div className="tr-inbox-filters">
+                {agentOptions.length > 1 && (
+                  <select
+                    className="tr-select tr-inbox-select"
+                    value={agentFilter}
+                    onChange={(e) => setAgentFilter(e.target.value)}
+                    aria-label="Filter by agent"
+                  >
+                    <option value="all">All agents</option>
+                    {agentOptions.map(([id, name]) => (
+                      <option key={id} value={id}>{name}</option>
+                    ))}
+                  </select>
+                )}
+                <select
+                  className="tr-select tr-inbox-select"
+                  value={verdictFilter}
+                  onChange={(e) => setVerdictFilter(e.target.value as VerdictFilter)}
+                  aria-label="Filter by verdict"
+                >
+                  {VERDICT_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-semibold text-zinc-100">{ch.title}</span>
-                    <span className={`text-xs font-semibold uppercase tracking-wide ${severityBadgeClass(sev)}`}>
-                      {sev}
-                    </span>
-                    {ch.type && (
-                      <span className="rounded bg-[#242424] px-2 py-0.5 text-xs text-zinc-400">
-                        {TYPE_LABELS[ch.type] ?? ch.type}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-[#71717A]">{ch.agent_name}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-[#A1A1AA]">{ch.description}</p>
-                </div>
-
-                <div className="shrink-0 text-right">
-                  <p className="text-base font-semibold tabular-nums" style={{ color: "#1BA86F" }}>
-                    Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
-                  </p>
-                  <p className="mt-1 text-xs text-[#71717A]">View details →</p>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+            {/* Cards */}
+            {filtered.length === 0 ? (
+              <div className="tr-empty">No recommendations match the current filters.</div>
+            ) : (
+              <div>
+                {filtered.map((r) => (
+                  <DecisionCard key={r.num} rec={r} onStatusChange={onStatusChange} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

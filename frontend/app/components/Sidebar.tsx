@@ -3,156 +3,135 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useState } from "react";
 
-
-const NAV_ITEMS = [
+const NAV = [
   {
-    label: "Dashboard",
-    href: "/",
-    match: "dashboard" as const,
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
-      </svg>
-    ),
+    id: "dashboard", label: "Dashboard", href: "/",
+    icon: <svg width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
   },
   {
-    label: "Agents",
-    href: "/agents",
-    match: "agents" as const,
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Z" />
-      </svg>
-    ),
+    id: "agents", label: "Agents", href: "/agents",
+    icon: <svg width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1v1a4 4 0 0 1-8 0v-1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1V6a4 4 0 0 1 4-4z"/><path d="M9 14h6"/><circle cx="9.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="14.5" cy="10.5" r=".5" fill="currentColor"/></svg>,
   },
   {
-    label: "Recommendations",
-    href: "/recommendations",
-    match: "recommendations" as const,
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-      </svg>
-    ),
+    id: "recommendations", label: "Recommendations", href: "/recommendations",
+    icon: <svg width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
   },
   {
-    label: "Team",
-    href: "/team",
-    match: "team" as const,
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 0 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-      </svg>
-    ),
+    id: "team", label: "Team", href: "/team",
+    icon: <svg width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   },
   {
-    label: "Setup",
-    href: "/setup",
-    match: "setup" as const,
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
-      </svg>
-    ),
+    id: "setup", label: "Setup", href: "/setup",
+    icon: <svg width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
   },
   {
-    label: "Settings",
-    href: "/settings",
-    match: "settings" as const,
-    icon: (
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-      </svg>
-    ),
+    id: "settings", label: "Settings", href: "/settings",
+    icon: <svg width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
   },
 ];
 
-function isActive(pathname: string, match: string) {
-  if (match === "dashboard") return pathname === "/";
-  if (match === "agents") return pathname.startsWith("/agents") || pathname.startsWith("/onboarding");
-  return pathname.startsWith("/" + match);
+function isActive(pathname: string, id: string) {
+  if (id === "dashboard") return pathname === "/";
+  if (id === "agents") return pathname.startsWith("/agents");
+  return pathname.startsWith("/" + id);
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const { data: session } = useSession();
-  const name = session?.user?.name || "User";
-  const email = session?.user?.email || "";
+  const [collapsed, setCollapsed] = useState(false);
+
+  const name  = session?.user?.name  ?? "User";
+  const email = session?.user?.email ?? "";
   const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
+  const toggle = () => {
+    setCollapsed((c) => !c);
+    const shell = document.getElementById("tr-shell");
+    if (shell) shell.classList.toggle("collapsed");
+  };
+
   return (
-    <aside
-      className="flex h-screen w-[195px] shrink-0 flex-col"
-      style={{ background: "#1B1B1D", borderRight: "1px solid #2A2A2D" }}
-    >
-      {/* Logo */}
-      <div className="flex h-[60px] items-center gap-2.5 px-5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="Traeco" width={22} height={22} style={{ filter: "invert(1)", objectFit: "contain" }} />
-        <span
-          className="text-[16px] font-semibold text-white"
-          style={{ fontFamily: "'Clash Display', sans-serif", letterSpacing: "-0.01em" }}
+    <aside className={`tr-sidebar${collapsed ? " collapsed" : ""}`}>
+      {/* Brand */}
+      <div className="tr-brand">
+        <button
+          className="tr-brand-logo"
+          onClick={collapsed ? toggle : undefined}
+          style={{ cursor: collapsed ? "pointer" : "default" }}
+          aria-label={collapsed ? "Expand sidebar" : undefined}
         >
-          traeco
-        </span>
+          <svg width="22" height="24" viewBox="0 0 52 56" fill="none">
+            <defs>
+              <radialGradient id="slg" cx="35%" cy="25%" r="75%">
+                <stop offset="0%" stopColor="#2bdb82"/>
+                <stop offset="45%" stopColor="#1BA86F"/>
+                <stop offset="100%" stopColor="#084830"/>
+              </radialGradient>
+            </defs>
+            <circle cx="16" cy="12" r="12" fill="url(#slg)"/>
+            <circle cx="37" cy="14" r="10" fill="url(#slg)"/>
+            <circle cx="11" cy="36" r="9" fill="url(#slg)"/>
+            <circle cx="34" cy="42" r="8" fill="url(#slg)"/>
+            <ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#slg)"/>
+          </svg>
+        </button>
+        {!collapsed && <span className="tr-wordmark">traeco</span>}
+        {!collapsed && (
+          <button className="tr-collapse-btn" onClick={toggle} aria-label="Collapse sidebar">
+            <svg width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-0.5 px-3 py-2">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(pathname, item.match);
+      <nav className="tr-nav">
+        {NAV.map((item) => {
+          const active = isActive(pathname, item.id);
           return (
             <Link
-              key={item.href}
+              key={item.id}
               href={item.href}
-              className="flex items-center gap-3 rounded-lg px-2 py-2 text-[13px] font-medium transition-colors"
-              style={{
-                background: active ? "#262628" : "transparent",
-                color: active ? "#ffffff" : "#9999A8",
-              }}
+              className={`tr-nav-item${active ? " active" : ""}`}
+              title={collapsed ? item.label : undefined}
             >
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors"
-                style={{
-                  background: active ? "#1BA86F" : "#262628",
-                  color: active ? "#ffffff" : "#9999A8",
-                }}
-              >
-                {item.icon}
-              </span>
-              {item.label}
+              <span className="tr-nav-icon">{item.icon}</span>
+              {!collapsed && item.label}
             </Link>
           );
         })}
       </nav>
 
       {/* User */}
-      <div className="p-4" style={{ borderTop: "1px solid #2A2A2D" }}>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-            style={{ background: "#1BA86F" }}
-          >
-            {initials}
+      <div className="tr-user">
+        <div
+          className="tr-avatar"
+          style={{ background: "linear-gradient(135deg,#1BA86F,#2DD4BF)" }}
+        >
+          {initials}
+        </div>
+        {!collapsed && (
+          <div className="tr-user-text">
+            <div className="tr-user-name">{name}</div>
+            <div className="tr-user-email">{email}</div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-medium text-white">{name}</p>
-            <p className="truncate text-[11px]" style={{ color: "#9999A8" }}>{email}</p>
-          </div>
+        )}
+        {!collapsed && (
           <button
-            type="button"
+            className="tr-icon-btn"
             onClick={() => signOut({ callbackUrl: "/signin" })}
-            className="shrink-0 p-1 transition"
-            style={{ color: "#9999A8" }}
             title="Sign out"
+            style={{ marginLeft: "auto", fontSize: 14 }}
           >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+            <svg width={14} height={14} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
           </button>
-        </div>
+        )}
       </div>
     </aside>
   );

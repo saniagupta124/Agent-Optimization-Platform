@@ -1,515 +1,334 @@
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
-
-const DASHBOARD_REFRESH_MS = 30_000;
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
-  AgentWithStats,
-  DashboardUsageBreakdown,
-  getAgents,
-  getUsageBreakdown,
-  getUsageSummary,
-  getUsageTimeline,
-  UsageSummary,
-  UsageTimeline,
+  getUsageSummary, getUsageBreakdown, getUsageTimeline,
+  type UsageSummary, type DashboardUsageBreakdown, type UsageBreakdownRow, type TimelinePoint,
 } from "../lib/api";
-import type { UsageBreakdownRow } from "../lib/api";
+import { mapToRec } from "../lib/mapToRec";
+import type { Rec } from "../lib/rec-types";
+import { DecisionCardCompact } from "../components/DecisionCard";
 
-/** Design-system chart palette */
-const CHART_HEX = ["#1BA86F", "#2DD4BF", "#60A5FA", "#A3E635"] as const;
+const ROW_COLORS = ["#34D399","#A3E635","#60A5FA","#FBBF24","#C084FC","#2DD4BF"];
 
-function fmtPct(n: number | null): string {
-  if (n === null || Number.isNaN(n)) return "—";
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(1)}%`;
+// ── Grouped bar chart ───────────────────────────────────────────
+interface WeekBar { label: string; cost: number }
+interface ChartSeries { label: string; share: number; color: string; totalCost: number }
+
+const CHART_H = 160; // px — bar column height
+
+function yLabel(v: number) {
+  if (v === 0) return "$0";
+  return v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${Math.round(v)}`;
 }
 
-function fmtDollars(n: number): string {
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
-  if (n >= 100) return `$${n.toFixed(0)}`;
-  return `$${n.toFixed(2)}`;
-}
+function SpendBarChart({ weeks, series }: { weeks: WeekBar[]; series: ChartSeries[] }) {
+  const n       = Math.min(series.length, 4);
+  const maxCost = Math.max(...weeks.map((w) => w.cost), 0.001);
+  const ticks   = [1, 0.75, 0.5, 0.25, 0];
 
-function severityColor(label: "High" | "Med" | "Low"): string {
-  if (label === "High") return "#F87171";
-  if (label === "Low") return "#9999A8";
-  return "#FBBF24";
-}
-
-function severityLabel(s: string): "High" | "Med" | "Low" {
-  const u = s.toLowerCase();
-  if (u.includes("high") || u.includes("critical")) return "High";
-  if (u.includes("low")) return "Low";
-  return "Med";
-}
-
-function KpiCard({
-  label,
-  value,
-  subline,
-}: {
-  label: string;
-  value: React.ReactNode;
-  subline?: React.ReactNode;
-}) {
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: "#262628", border: "1px solid #333336" }}
-    >
-      <p className="text-xs font-medium" style={{ color: "#9999A8" }}>{label}</p>
-      <div className="mt-2 text-2xl font-bold leading-none text-white tabular-nums">
-        {value}
+    <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+      {/* Y-axis labels */}
+      <div style={{ width: 44, flexShrink: 0, display: "flex", flexDirection: "column",
+        justifyContent: "space-between", paddingBottom: 28 }}>
+        {ticks.map((t) => (
+          <div key={t} style={{ fontSize: 10, color: "rgba(255,255,255,0.3)",
+            textAlign: "right", paddingRight: 8, lineHeight: 1 }}>
+            {yLabel(maxCost * t)}
+          </div>
+        ))}
       </div>
-      {subline && (
-        <div className="mt-1.5 text-xs leading-relaxed" style={{ color: "#9999A8" }}>
-          {subline}
+
+      {/* Chart body */}
+      <div style={{ flex: 1, position: "relative", minWidth: 0 }}>
+        {/* Horizontal gridlines */}
+        {ticks.map((t) => (
+          <div key={t} style={{
+            position: "absolute", left: 0, right: 0,
+            top: (1 - t) * CHART_H,
+            height: 1,
+            background: t === 0 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)",
+          }} />
+        ))}
+
+        {/* Week groups */}
+        <div style={{ display: "flex", height: CHART_H + 28 }}>
+          {weeks.map((week) => {
+            const isEmpty = week.cost === 0;
+            return (
+              <div key={week.label} style={{ flex: 1, display: "flex",
+                flexDirection: "column", alignItems: "center", justifyContent: "flex-end" }}>
+                {/* Bar cluster */}
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: CHART_H }}>
+                  {series.slice(0, n).map((s, si) => {
+                    const h = isEmpty
+                      ? 6 + si * 2
+                      : Math.max(4, (week.cost * s.share / maxCost) * CHART_H);
+                    return (
+                      <div key={s.label} style={{
+                        width: 22, height: h,
+                        background: s.color,
+                        opacity: isEmpty ? 0.15 : 1,
+                        borderRadius: "3px 3px 0 0",
+                        flexShrink: 0,
+                      }} />
+                    );
+                  })}
+                </div>
+                {/* Week label */}
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)",
+                  marginTop: 8, height: 20, lineHeight: "20px" }}>
+                  {week.label}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-export default function Dashboard() {
+// ── Legend list below chart ──────────────────────────────────────
+function SpendLegend({ rows }: { rows: UsageBreakdownRow[] }) {
+  const max = Math.max(...rows.map((r) => r.share_of_cost_pct), 1);
+  return (
+    <div className="tr-legend">
+      {rows.slice(0, 6).map((row, i) => (
+        <div key={row.label} className="tr-legend-row">
+          <div className="tr-legend-ident">
+            <span className="tr-legend-dot" style={{ background: ROW_COLORS[i % ROW_COLORS.length] }} />
+            <div>
+              <div className="tr-legend-name">{row.label}</div>
+            </div>
+          </div>
+          <div className="tr-track">
+            <div
+              className="tr-fill"
+              style={{ width: `${(row.share_of_cost_pct / max) * 100}%`, background: ROW_COLORS[i % ROW_COLORS.length] }}
+            />
+          </div>
+          <div className="tr-legend-amt">
+            ${row.total_cost_usd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </div>
+          <div className="tr-legend-delta" style={{ color: "var(--fg4)" }}>
+            {row.share_of_cost_pct.toFixed(1)}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────
+const BREAKDOWN_TABS = [
+  { id: "by_model",    label: "By tool spend" },
+  { id: "by_step",     label: "By step" },
+  { id: "by_provider", label: "By provider" },
+  { id: "by_agent",    label: "By agent" },
+] as const;
+type BreakdownTab = typeof BREAKDOWN_TABS[number]["id"];
+
+// ── Page ──────────────────────────────────────────────────────────
+export default function DashboardPage() {
   const { data: session } = useSession();
   const token = (session as any)?.accessToken as string | undefined;
+  const router = useRouter();
 
-  const [scope, setScope] = useState<"me" | "team">("me");
-  const [days, setDays] = useState(30);
-  const [breakdownTab, setBreakdownTab] = useState<"member" | "step" | "provider" | "tool">("member");
-  const [search, setSearch] = useState("");
-
-  const [summary, setSummary] = useState<UsageSummary | null>(null);
+  const [summary,   setSummary]   = useState<UsageSummary | null>(null);
   const [breakdown, setBreakdown] = useState<DashboardUsageBreakdown | null>(null);
-  const [timeline, setTimeline] = useState<UsageTimeline | null>(null);
-  const [agents, setAgents] = useState<AgentWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [timeline,  setTimeline]  = useState<TimelinePoint[]>([]);
+  const [tab,       setTab]       = useState<BreakdownTab>("by_model");
+  const [recs,      setRecs]      = useState<Rec[]>([]);
 
   useEffect(() => {
     if (!token) return;
-    const auth = token;
-    let cancelled = false;
+    Promise.all([
+      getUsageSummary(token, 30),
+      getUsageBreakdown(token, 30),
+      getUsageTimeline(token, 30),
+    ]).then(([s, b, tl]) => {
+      setSummary(s);
+      setBreakdown(b);
+      setTimeline(tl?.points ?? []);
+      setRecs((s.top_changes ?? []).slice(0, 3).map(mapToRec));
+    }).catch(() => {});
+  }, [token]);
 
-    async function load(showSpinner: boolean) {
-      if (showSpinner) { setLoading(true); setError(null); }
-      try {
-        const [s, b, t, a] = await Promise.all([
-          getUsageSummary(auth, days, scope),
-          getUsageBreakdown(auth, days, scope),
-          getUsageTimeline(auth, Math.max(days, 35), scope),
-          getAgents(auth, scope),
-        ]);
-        if (!cancelled) { setSummary(s); setBreakdown(b); setTimeline(t); setAgents(a); }
-      } catch (e: unknown) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load dashboard");
-      } finally {
-        if (!cancelled && showSpinner) setLoading(false);
+  const firstName = (session?.user?.name ?? "there").split(" ")[0];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const savings   = summary?.potential_savings_usd ?? 0;
+  const totalCost = summary?.current_total_cost_usd ?? 0;
+  const monthCost = summary?.monthly_cost_usd ?? 0;
+  const runs      = summary?.request_count ?? 0;
+  const avgRun    = runs > 0 ? totalCost / runs : 0;
+
+  // Tab rows (legend list)
+  const tabRows: UsageBreakdownRow[] = useMemo(() => {
+    if (!breakdown) return [];
+    return (breakdown[tab] ?? []);
+  }, [breakdown, tab]);
+
+  // Group timeline daily points → weeks, always pad to 4 weeks
+  const weeklyBars: WeekBar[] = useMemo(() => {
+    const sorted = [...timeline].sort((a, b) => a.date.localeCompare(b.date));
+    const weeks: WeekBar[] = [];
+    let wNum = 0;
+    let bucket: TimelinePoint[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+      bucket.push(sorted[i]);
+      if (bucket.length === 7 || i === sorted.length - 1) {
+        wNum++;
+        weeks.push({
+          label: `Week ${wNum}`,
+          cost: bucket.reduce((s, p) => s + (p.cost_usd ?? 0), 0),
+        });
+        bucket = [];
       }
     }
-
-    void load(true);
-    const interval = setInterval(() => void load(false), DASHBOARD_REFRESH_MS);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [token, days, scope]);
-
-  const chartModel = useMemo(() => {
-    const points = [...(timeline?.points ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-    const NUM_BARS = 5;
-    const weekTotals: number[] = [];
-    const weekLabels: string[] = [];
-
-    if (!points.length) {
-      for (let w = 0; w < NUM_BARS; w++) { weekTotals.push(0); weekLabels.push(`Week ${w + 1}`); }
-    } else {
-      const chunk = Math.max(1, Math.ceil(points.length / NUM_BARS));
-      for (let w = 0; w < NUM_BARS; w++) {
-        const sl = points.slice(w * chunk, (w + 1) * chunk);
-        weekTotals.push(sl.reduce((s, p) => s + p.cost_usd, 0));
-        if (sl.length) {
-          const d = new Date(sl[0].date + "T00:00:00");
-          weekLabels.push(`${d.getMonth() + 1}/${d.getDate()}`);
-        } else {
-          weekLabels.push(`Week ${w + 1}`);
-        }
-      }
+    // Always show 4 weeks — future weeks get a near-zero placeholder cost
+    while (weeks.length < 4) {
+      weeks.push({ label: `Week ${weeks.length + 1}`, cost: 0 });
     }
+    return weeks.slice(0, 4);
+  }, [timeline]);
 
-    let slices: { label: string; proportion: number }[] = [];
-    if (breakdownTab === "member") {
-      const top = [...(breakdown?.by_agent ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
-      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
-      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
-    } else if (breakdownTab === "step") {
-      const top = [...(breakdown?.by_step ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
-      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
-      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
-    } else if (breakdownTab === "provider") {
-      const top = [...(breakdown?.by_provider ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
-      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
-      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
-    } else {
-      const top = [...(breakdown?.by_endpoint ?? [])].sort((a, b) => b.total_cost_usd - a.total_cost_usd).slice(0, 4);
-      const sum = top.reduce((s, r) => s + r.total_cost_usd, 0) || 1;
-      slices = top.map((r) => ({ label: r.label, proportion: r.total_cost_usd / sum }));
-    }
-    while (slices.length < 4) slices.push({ label: "—", proportion: 0 });
+  // Series: tab rows as proportional slices of each weekly bar
+  const chartSeries: ChartSeries[] = useMemo(() => {
+    if (!tabRows.length) return [];
+    const total = tabRows.reduce((s, r) => s + r.share_of_cost_pct, 0) || 100;
+    return tabRows.slice(0, 4).map((r, i) => ({
+      label: r.label,
+      share: r.share_of_cost_pct / total,
+      color: ROW_COLORS[i % ROW_COLORS.length],
+      totalCost: r.total_cost_usd,
+    }));
+  }, [tabRows]);
 
-    return {
-      weekTotals,
-      weekLabels,
-      props: slices.slice(0, 4).map((s) => s.proportion),
-      labels: slices.slice(0, 4).map((s) => s.label),
-    };
-  }, [timeline, breakdown, breakdownTab]);
-
-  const CHART_H = 140;
-
-  const displayMax = useMemo(() => {
-    let m = 1e-9;
-    for (const w of chartModel.weekTotals) m = Math.max(m, w);
-    const raw = Math.max(m * 1.08, 0.0001);
-    const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
-    const steps = [1, 2, 2.5, 5, 10];
-    for (const s of steps) {
-      const candidate = Math.ceil(raw / (magnitude * s)) * (magnitude * s);
-      if (candidate >= raw) return candidate;
-    }
-    return Math.ceil(raw / magnitude) * magnitude;
-  }, [chartModel]);
-
-  const yTickLabels = useMemo(() => {
-    const fmt = (v: number) => {
-      if (v === 0) return "$0";
-      if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`;
-      if (v >= 1) return `$${Math.round(v)}`;
-      if (v >= 0.01) return `$${v.toFixed(2)}`;
-      return `$${v.toFixed(4)}`;
-    };
-    return [displayMax, displayMax * 0.75, displayMax * 0.5, displayMax * 0.25, 0].map(fmt);
-  }, [displayMax]);
-
-  const agentBreakdownRows: UsageBreakdownRow[] = breakdown?.by_agent ?? [];
-  const sortedAgents = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let rows = [...agentBreakdownRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
-    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
-    return rows;
-  }, [agentBreakdownRows, search]);
-
-  const toolRows: UsageBreakdownRow[] = breakdown?.by_endpoint ?? [];
-  const sortedTools = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let rows = [...toolRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
-    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
-    return rows;
-  }, [toolRows, search]);
-
-  const stepRows: UsageBreakdownRow[] = breakdown?.by_step ?? [];
-  const sortedSteps = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let rows = [...stepRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
-    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
-    return rows;
-  }, [stepRows, search]);
-
-  const providerRows: UsageBreakdownRow[] = breakdown?.by_provider ?? [];
-  const sortedProviders = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let rows = [...providerRows].sort((a, b) => b.total_cost_usd - a.total_cost_usd);
-    if (q) rows = rows.filter((r) => r.label.toLowerCase().includes(q));
-    return rows;
-  }, [providerRows, search]);
-
-  const maxMemberCost = Math.max(...sortedAgents.map((r) => r.total_cost_usd), 1e-9);
-  const maxToolCost   = Math.max(...sortedTools.map((r) => r.total_cost_usd), 1e-9);
-  const maxStepCost   = Math.max(...sortedSteps.map((r) => r.total_cost_usd), 1e-9);
-  const maxProviderCost = Math.max(...sortedProviders.map((r) => r.total_cost_usd), 1e-9);
-  const teamAvailable = summary?.team_view_available ?? false;
-
-  const TABS = [
-    { id: "member"   as const, label: "By team member" },
-    { id: "tool"     as const, label: "By tool spend"  },
-    { id: "step"     as const, label: "By step"        },
-    { id: "provider" as const, label: "By provider"    },
-  ];
+  const hasChart = weeklyBars.length > 0 && chartSeries.length > 0;
 
   return (
-    <div className="px-8 py-7 pb-16 max-w-5xl">
-      {error && (
-        <div className="mb-6 rounded-xl p-4 text-sm text-red-300" style={{ background: "#2A1515", border: "1px solid #4A2020" }}>
-          {error}
+    <div className="tr-page">
+      {/* Header */}
+      <div className="tr-page-head">
+        <div>
+          <h1 className="tr-page-title">{greeting}, {firstName}</h1>
+          <div className="tr-page-sub">Here&apos;s what your agents spent in the last 30 days.</div>
+        </div>
+      </div>
+
+      {/* Savings banner */}
+      {savings > 0 && (
+        <div className="tr-savings">
+          <div className="tr-savings-copy">
+            <div className="tr-eyebrow">Savings available</div>
+            <div className="tr-savings-hero">
+              Save <span style={{ color: "var(--green)", fontWeight: 600 }}>${Math.round(savings).toLocaleString()}/mo</span> in {recs.length} changes
+            </div>
+            <div className="tr-savings-sub">Ranked by estimated monthly impact. Accept or defer in one click.</div>
+          </div>
+          <button className="tr-btn tr-btn-success" onClick={() => router.push("/recommendations")}>
+            <svg width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Review all
+          </button>
         </div>
       )}
 
-      {/* Page header */}
-      <div className="mb-5 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white" style={{ letterSpacing: "-0.02em" }}>
-            Spend &amp; Behavior
-          </h1>
-          <p className="mt-0.5 text-sm" style={{ color: "#9999A8" }}>
-            What it cost, what changed, and where your budget goes
-          </p>
+      {/* Top recs */}
+      {recs.length > 0 && (
+        <>
+          <div className="tr-section-title">Top recommendations</div>
+          <div className="tr-rec-row">
+            {recs.map((r) => (
+              <DecisionCardCompact
+                key={r.num}
+                rec={r}
+                onClick={() => router.push("/recommendations")}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* At a glance */}
+      <div className="tr-section-title">At a glance</div>
+      <div className="tr-stat-grid cols-4">
+        <div className="tr-stat accent">
+          <div className="tr-stat-label">Month to date</div>
+          <div className="tr-stat-value">${monthCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+          <div className="tr-stat-sub" style={{ color: "var(--fg4)" }}>
+            {summary?.cost_budget_utilization_pct != null
+              ? `${summary.cost_budget_utilization_pct.toFixed(0)}% of budget`
+              : ""}
+          </div>
         </div>
-        {/* Period + scope controls */}
-        <div className="flex items-center gap-2">
-          {teamAvailable && (
-            <div className="flex rounded-lg p-0.5" style={{ background: "#262628", border: "1px solid #333336" }}>
-              {(["me", "team"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => setScope(s)}
-                  className="rounded-md px-3 py-1.5 text-xs font-medium transition"
-                  style={{ background: scope === s ? "#333336" : "transparent", color: scope === s ? "#fff" : "#9999A8" }}>
-                  {s === "me" ? "My workspace" : "Team"}
-                </button>
-              ))}
+        <div className="tr-stat">
+          <div className="tr-stat-label">Total cost (30d)</div>
+          <div className="tr-stat-value">${totalCost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+          {summary?.cost_change_pct != null && (
+            <div className="tr-stat-delta" style={{ color: summary.cost_change_pct > 0 ? "var(--warning-high)" : "var(--green)" }}>
+              {summary.cost_change_pct > 0 ? "+" : ""}{summary.cost_change_pct.toFixed(1)}% vs prev 30d
             </div>
           )}
-          <div className="flex rounded-lg p-0.5" style={{ background: "#262628", border: "1px solid #333336" }}>
-            {([7, 14, 30] as const).map((d) => (
-              <button key={d} type="button" onClick={() => setDays(d)}
-                className="rounded-md px-3 py-1.5 text-xs font-medium transition"
-                style={{ background: days === d ? "#333336" : "transparent", color: days === d ? "#fff" : "#9999A8" }}>
-                {d}d
-              </button>
-            ))}
+        </div>
+        <div className="tr-stat">
+          <div className="tr-stat-label">Runs (30d)</div>
+          <div className="tr-stat-value">{runs.toLocaleString()}</div>
+          <div className="tr-stat-sub">
+            {summary?.avg_tool_calls_per_request != null
+              ? `${summary.avg_tool_calls_per_request.toFixed(1)} tool calls/req`
+              : ""}
+          </div>
+        </div>
+        <div className="tr-stat">
+          <div className="tr-stat-label">Avg cost / run</div>
+          <div className="tr-stat-value">${avgRun.toFixed(4)}</div>
+          <div className="tr-stat-sub">
+            {summary?.avg_tokens_per_request != null
+              ? `${Math.round(summary.avg_tokens_per_request).toLocaleString()} tokens/req`
+              : ""}
           </div>
         </div>
       </div>
 
-      {/* Savings hero */}
-      {loading || !summary ? (
-        <div className="mb-6 space-y-3">
-          <div className="h-7 w-80 animate-pulse rounded-lg" style={{ background: "#262628" }} />
-          <div className="h-12 w-64 animate-pulse rounded-lg" style={{ background: "#262628" }} />
-          <div className="h-4 w-72 animate-pulse rounded-lg" style={{ background: "#262628" }} />
-        </div>
-      ) : (
-        <div className="mb-6">
-          <p className="text-lg font-medium text-white">
-            You spent{" "}
-            <span className="font-bold tabular-nums">${summary.current_total_cost_usd.toFixed(2)}</span>{" "}
-            the last month.
-          </p>
-          <p className="mt-0.5 text-[2.25rem] font-bold leading-none tabular-nums" style={{ color: "#1BA86F" }}>
-            You could save ${summary.potential_savings_usd.toFixed(2)}.
-          </p>
-          {summary.top_changes.length > 0 && (
-            <p className="mt-2 text-sm" style={{ color: "#9999A8" }}>
-              {summary.top_changes.length} changes across your agents, ranked by estimated monthly impact.
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Recommendation cards */}
-      {!loading && summary && summary.top_changes.length > 0 && (
-        <div className="mb-8 grid grid-cols-3 gap-3">
-          {summary.top_changes.slice(0, 3).map((ch) => {
-            const sev = severityLabel(ch.severity);
-            return (
-              <Link
-                key={`${ch.agent_id}-${ch.type}-${ch.rank}`}
-                href={`/recommendations/${ch.type}?agent_id=${ch.agent_id}&days=${days}&scope=${scope}`}
-                className="flex flex-col rounded-xl p-4 transition hover:opacity-90"
-                style={{ background: "#262628", border: "1px solid #333336" }}
+      {/* Spend breakdown */}
+      <div className="tr-section-title">Spend breakdown</div>
+      <div className="tr-chart">
+        <div className="tr-chart-head">
+          <div className="tr-tabs">
+            {BREAKDOWN_TABS.map((t) => (
+              <button
+                key={t.id}
+                className={`tr-tab${tab === t.id ? " active" : ""}`}
+                onClick={() => setTab(t.id)}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-semibold text-white leading-snug">
-                    {String(ch.rank).padStart(2, "0")}. {ch.title}
-                  </span>
-                  <span className="shrink-0 text-xs font-semibold" style={{ color: severityColor(sev) }}>
-                    {sev}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs" style={{ color: "#666670" }}>{ch.agent_name}</p>
-                <p className="mt-2 line-clamp-4 flex-1 text-xs leading-relaxed" style={{ color: "#9999A8" }}>
-                  {ch.description}
-                </p>
-                <p className="mt-4 text-sm font-semibold tabular-nums" style={{ color: "#1BA86F" }}>
-                  Save ~${ch.estimated_savings_usd.toFixed(2)}/mo
-                </p>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Spend Breakdown */}
-      <p className="mb-2 text-sm font-medium text-white">Spend Breakdown</p>
-      <section className="mb-8 rounded-xl overflow-hidden" style={{ background: "#262628", border: "1px solid #333336" }}>
-        {/* Tabs */}
-        <div className="flex gap-0 overflow-x-auto" style={{ borderBottom: "1px solid #333336" }}>
-          {TABS.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setBreakdownTab(id)}
-              className="relative shrink-0 px-5 py-3 text-sm font-medium transition"
-              style={{
-                color: breakdownTab === id ? "#ffffff" : "#9999A8",
-                borderBottom: breakdownTab === id ? "2px solid #1BA86F" : "2px solid transparent",
-              }}
-            >
-              {label}
-            </button>
-          ))}
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {loading || !timeline ? (
-          <div className="h-48 animate-pulse m-5 rounded-lg" style={{ background: "#333336" }} />
-        ) : (
+        {!hasChart && tabRows.length === 0 ? (
+          <div className="tr-empty" style={{ border: "none", background: "transparent", padding: "24px 0" }}>
+            No data yet for this period.
+          </div>
+        ) : hasChart ? (
           <>
-            {/* Chart */}
-            <div className="px-5 pt-5 pb-2">
-              <div className="flex gap-2">
-                {/* Y-axis */}
-                <div className="flex w-10 shrink-0 flex-col justify-between pb-0.5 text-right text-[11px] tabular-nums" style={{ color: "#666670" }}>
-                  {yTickLabels.map((t, i) => <span key={i}>{t}</span>)}
-                </div>
-                {/* Bars */}
-                <div className="relative flex-1" style={{ borderLeft: "1px solid #333336" }}>
-                  <div
-                    className="pointer-events-none absolute inset-0 left-0"
-                    style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0, transparent calc(25% - 0.5px), #333336 calc(25% - 0.5px), #333336 25%)" }}
-                    aria-hidden
-                  />
-                  <div className="relative flex items-end justify-between gap-1 px-2" style={{ height: CHART_H }}>
-                    {chartModel.weekTotals.map((weekTotal, wi) => (
-                      <div key={wi} className="flex h-full flex-1 items-end justify-center gap-[2px]">
-                        {chartModel.props.map((p, si) => {
-                          const raw = weekTotal * p;
-                          const h = Math.max(raw > 0 ? 3 : 0, Math.round((raw / displayMax) * CHART_H));
-                          return (
-                            <div
-                              key={si}
-                              className="w-full max-w-[10px] rounded-t-sm"
-                              style={{ height: `${h}px`, backgroundColor: CHART_HEX[si] }}
-                              title={`${chartModel.labels[si]}: $${raw.toFixed(4)}`}
-                            />
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {/* X-axis */}
-              <div className="mt-2 flex pl-12 text-[11px]" style={{ color: "#666670" }}>
-                {chartModel.weekLabels.map((lbl, i) => (
-                  <div key={i} className="flex-1 text-center">{lbl}</div>
-                ))}
-              </div>
-              {/* Legend */}
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 pl-12">
-                {chartModel.labels.map((lbl, i) => lbl !== "—" ? (
-                  <div key={lbl} className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: CHART_HEX[i] }} />
-                    <span className="text-[11px] truncate max-w-[120px]" style={{ color: "#9999A8" }}>{lbl}</span>
-                  </div>
-                ) : null)}
-              </div>
-            </div>
-
-            {/* Breakdown rows */}
-            <ul className="mt-2 divide-y" style={{ borderTop: "1px solid #333336", ['--tw-divide-opacity' as any]: 1 }}>
-              {(() => {
-                let rows: UsageBreakdownRow[] = [];
-                let maxCost = 1e-9;
-                if (breakdownTab === "member") { rows = sortedAgents; maxCost = maxMemberCost; }
-                else if (breakdownTab === "step") { rows = sortedSteps; maxCost = maxStepCost; }
-                else if (breakdownTab === "provider") { rows = sortedProviders; maxCost = maxProviderCost; }
-                else { rows = sortedTools; maxCost = maxToolCost; }
-
-                if (rows.length === 0) {
-                  return (
-                    <li className="py-6 text-center text-sm" style={{ color: "#9999A8" }}>
-                      No data for this period.
-                    </li>
-                  );
-                }
-                return rows.slice(0, 6).map((row, i) => (
-                  <li key={row.label} className="flex items-center gap-3 px-5 py-3.5" style={{ borderColor: "#333336" }}>
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: CHART_HEX[i % 4] }} />
-                    <div className="w-32 shrink-0 min-w-0">
-                      <p className="truncate text-sm font-medium text-white">{row.label}</p>
-                      <p className="truncate text-xs" style={{ color: "#666670" }}>
-                        {row.request_count.toLocaleString()} req
-                      </p>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#333336" }}>
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${Math.min(100, (row.total_cost_usd / maxCost) * 100)}%`, background: "#1BA86F" }}
-                        />
-                      </div>
-                    </div>
-                    <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-white">
-                      ${row.total_cost_usd.toFixed(2)}
-                    </span>
-                    <span className="w-16 shrink-0 text-right text-xs tabular-nums" style={{ color: "#666670" }}>
-                      {row.share_of_cost_pct.toFixed(1)}%
-                    </span>
-                  </li>
-                ));
-              })()}
-            </ul>
+            <SpendBarChart weeks={weeklyBars} series={chartSeries} />
+            <SpendLegend rows={tabRows} />
           </>
-        )}
-      </section>
-
-      {/* At a glance */}
-      <p className="mb-3 text-xs font-medium uppercase tracking-widest" style={{ color: "#9999A8" }}>
-        At a glance: Last {days} days
-      </p>
-      <div className="grid grid-cols-5 gap-3">
-        {loading || !summary ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl" style={{ background: "#262628" }} />
-          ))
         ) : (
-          <>
-            <KpiCard
-              label="Total Cost"
-              value={fmtDollars(summary.current_total_cost_usd)}
-              subline={
-                <span style={{ color: (summary.cost_change_pct ?? 0) < 0 ? "#1BA86F" : "#F87171" }}>
-                  {fmtPct(summary.cost_change_pct)} vs prev {days}d
-                </span>
-              }
-            />
-            <KpiCard
-              label="Avg tokens/req"
-              value={summary.avg_tokens_per_request.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              subline="Larger prompts cost more"
-            />
-            <KpiCard
-              label="Avg tool calls/req"
-              value={summary.avg_tool_calls_per_request.toFixed(2)}
-              subline="Tools, retrieval, sub-calls"
-            />
-            <KpiCard
-              label="Stability"
-              value={<>{summary.stability_score.toFixed(0)}<span className="text-base font-medium" style={{ color: "#9999A8" }}>%</span></>}
-              subline="Requests that succeeded"
-            />
-            <KpiCard
-              label="Month to date"
-              value={fmtDollars(summary.monthly_cost_usd)}
-              subline={`${summary.cost_budget_utilization_pct.toFixed(0)}% of monthly budget`}
-            />
-          </>
+          /* Fallback: no timeline but have breakdown totals */
+          <SpendLegend rows={tabRows} />
         )}
       </div>
-
-      <p className="mt-8 text-sm" style={{ color: "#666670" }}>
-        <Link href="/agents" className="transition hover:opacity-80" style={{ color: "#1BA86F" }}>
-          View all agents →
-        </Link>
-      </p>
     </div>
   );
 }
