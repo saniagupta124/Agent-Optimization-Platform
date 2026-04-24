@@ -95,6 +95,19 @@ def ensure_schema() -> None:
             CONSTRAINT uq_span_rec UNIQUE (agent_id, span_name, rec_type)
         )""",
         "CREATE INDEX IF NOT EXISTS ix_span_rec_agent_id ON span_recommendations (agent_id)",
+        "ALTER TABLE span_recommendations ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'pending'",
+        # Persisted accept/reject/defer decisions for general recommendations (top_changes)
+        """CREATE TABLE IF NOT EXISTS rec_decisions (
+            id VARCHAR PRIMARY KEY,
+            user_id VARCHAR NOT NULL,
+            agent_id VARCHAR NOT NULL,
+            rec_type VARCHAR NOT NULL,
+            status VARCHAR(16) NOT NULL DEFAULT 'pending',
+            reject_reason VARCHAR NOT NULL DEFAULT '',
+            updated_at TIMESTAMP DEFAULT NOW(),
+            CONSTRAINT uq_rec_decision UNIQUE (user_id, agent_id, rec_type)
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_rec_decisions_user_id ON rec_decisions (user_id)",
         "ALTER TABLE agents ADD COLUMN IF NOT EXISTS system_prompt TEXT",
         "ALTER TABLE agents ADD COLUMN IF NOT EXISTS max_tokens INTEGER",
         # Phase 2: structure conformance column on requests
@@ -172,6 +185,7 @@ def ensure_schema() -> None:
         ("agents", "max_tokens", "INTEGER"),
         # Phase 2: structure conformance
         ("requests", "structure_valid", "BOOLEAN DEFAULT 1"),
+        ("span_recommendations", "status", "VARCHAR(16) NOT NULL DEFAULT 'pending'"),
     ]
 
     with engine.begin() as conn:

@@ -1,13 +1,12 @@
-"""Quality evaluation service — latency p95, structure conformance, LLM-as-judge."""
+"""Quality evaluation service — latency p95, structure conformance, confidence signals."""
 
-import os
 from datetime import datetime, timedelta
+from statistics import mean, stdev
 from sqlalchemy.orm import Session
 from app.db.models import Request
 
 
 def compute_latency_p95(db: Session, agent_id: str, days: int = 30) -> float | None:
-    """Returns p95 latency in ms for the agent over the last `days` days, or None."""
     cutoff = datetime.utcnow() - timedelta(days=days)
     rows = (
         db.query(Request.latency_ms)
@@ -22,7 +21,6 @@ def compute_latency_p95(db: Session, agent_id: str, days: int = 30) -> float | N
 
 
 def compute_structure_conformance(db: Session, agent_id: str, days: int = 30) -> float | None:
-    """Returns % of traces with structure_valid=True. None if column missing or no data."""
     try:
         cutoff = datetime.utcnow() - timedelta(days=days)
         total = db.query(Request).filter(Request.agent_id == agent_id, Request.timestamp >= cutoff).count()
@@ -39,12 +37,6 @@ def compute_structure_conformance(db: Session, agent_id: str, days: int = 30) ->
 
 
 def run_judge_evaluation(db: Session, agent_id: str, baseline_model: str, candidate_model: str, sample_size: int = 50) -> float | None:
-    """
-    Returns % of times candidate wins over baseline, or None if prompts not stored.
-    Uses cached result from quality_evaluations table if evaluated within 24h.
-    All Claude calls are wrapped in try/except — failure returns None gracefully.
-    """
-    # Check cache first
     try:
         from app.db.models import QualityEvaluation
         cutoff_24h = datetime.utcnow() - timedelta(hours=24)
@@ -62,15 +54,10 @@ def run_judge_evaluation(db: Session, agent_id: str, baseline_model: str, candid
             return cached.preference_pct
     except Exception:
         pass
-
-    # Privacy-preserving mode: only run judge if prompts are stored
-    # We check by looking at whether any trace has non-null prompt content
-    # Since we don't store prompt text by default, return None
     return None
 
 
 def get_latency_budget(db: Session, agent_id: str) -> float:
-    """Read max_latency_increase_ms from quality_budgets, fall back to 200ms."""
     try:
         from app.db.models import QualityBudget
         budget = db.query(QualityBudget).filter(QualityBudget.agent_id == agent_id).first()
@@ -82,26 +69,89 @@ def get_latency_budget(db: Session, agent_id: str) -> float:
 
 
 def get_structure_threshold(db: Session, agent_id: str) -> float:
-    """Read max_structure_drop from quality_budgets, return conformance threshold (default 98.0)."""
     try:
         from app.db.models import QualityBudget
         budget = db.query(QualityBudget).filter(QualityBudget.agent_id == agent_id).first()
         if budget is not None:
-            # max_structure_drop=0 means no drop allowed from 100% → threshold is 100%
-            # We treat threshold as 100 - max_structure_drop, min 98 for safety
             return max(98.0, 100.0 - float(budget.max_structure_drop))
     except Exception:
         pass
     return 98.0
 
 
+def compute_confidence_flags(db: Session, agent_id: str, recent_requests: list) -> list[str]:
+    """
+    Derive confidence flags from behavioral signals in the Request table.
+    Returns a list of human-readable flag strings.
+    """
+    flags: list[str] = []
+    now = datetime.utcnow()
+
+    if not recent_requests:
+        return flags
+
+    # 1. Stale data — last request too long ago
+    timestamps = sorted(r.timestamp for r in recent_requests if r.timestamp)
+    if timestamps:
+        days_since_last = (now - timestamps[-1]).days
+        if days_since_last > 7:
+            flags.append(f"stale data — last request {days_since_last}d ago")
+
+    # 2. Error rate instability — compare current 7d vs prior 7-30d
+    cutoff_7d = now - timedelta(days=7)
+    cutoff_30d = now - timedelta(days=30)
+    current_reqs = [r for r in recent_requests if r.timestamp and r.timestamp >= cutoff_7d]
+    baseline_reqs = [r for r in recent_requests if r.timestamp and r.timestamp < cutoff_7d]
+
+    if current_reqs and baseline_reqs:
+        cur_err_rate = sum(1 for r in current_reqs if r.status == "error") / len(current_reqs)
+        base_err_rate = sum(1 for r in baseline_reqs if r.status == "error") / len(baseline_reqs)
+        if abs(cur_err_rate - base_err_rate) > 0.05:
+            flags.append(f"error rate unstable ({base_err_rate*100:.1f}% → {cur_err_rate*100:.1f}%)")
+
+    # 3. High latency variance — p95 >> p50
+    latencies = [r.latency_ms for r in recent_requests if r.latency_ms is not None]
+    if len(latencies) >= 10:
+        sorted_lat = sorted(latencies)
+        p50 = sorted_lat[len(sorted_lat) // 2]
+        p95 = sorted_lat[int(len(sorted_lat) * 0.95)]
+        if p50 > 0 and p95 > p50 * 3:
+            flags.append(f"high latency variance (p50={p50}ms, p95={p95}ms)")
+
+    # 4. Bursty traffic — coefficient of variation across 4 weekly buckets
+    weeks: list[list] = [[], [], [], []]
+    for r in recent_requests:
+        if not r.timestamp:
+            continue
+        age_days = (now - r.timestamp).days
+        week_idx = min(age_days // 7, 3)
+        weeks[week_idx].append(r)
+    week_counts = [len(w) for w in weeks]
+    non_zero = [c for c in week_counts if c > 0]
+    if len(non_zero) >= 2:
+        avg = mean(non_zero)
+        sd = stdev(non_zero) if len(non_zero) > 1 else 0
+        cv = sd / avg if avg > 0 else 0
+        if cv > 0.5:
+            flags.append("bursty traffic pattern — weekly volume varies significantly")
+
+    # 5. Multiple models in use — recommendation targets primary model only
+    distinct_models = {r.model for r in recent_requests if r.model}
+    if len(distinct_models) > 1:
+        flags.append(f"{len(distinct_models)} models in use — recommendation targets primary only")
+
+    return flags
+
+
+def derive_confidence_rating(n: int, flags: list[str]) -> str:
+    if n >= 500 and len(flags) == 0:
+        return "high"
+    if n >= 100 and len(flags) <= 2:
+        return "medium"
+    return "low"
+
+
 def compute_quality_signals(db: Session, agent_id: str) -> dict:
-    """
-    Returns dict with:
-      latency_p95_ms, latency_p95_baseline_ms, structure_conformance_pct,
-      judge_preference_pct, quality_impact
-    """
-    # Current p95 (last 7 days) vs baseline p95 (7-30 days ago)
     now = datetime.utcnow()
 
     # Current window: last 7 days
@@ -142,7 +192,6 @@ def compute_quality_signals(db: Session, agent_id: str) -> dict:
 
     # Derive quality_impact
     quality_impact = "none"
-
     latency_budget = get_latency_budget(db, agent_id)
     if (
         latency_p95_ms is not None

@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
-import { getUsageSummary, type TopChangeItem, type UsageSummary } from "../../lib/api";
+import { getUsageSummary, getRecDecisions, type TopChangeItem, type UsageSummary } from "../../lib/api";
 import { mapToRec } from "../../lib/mapToRec";
 import type { Rec, RecStatus, Verdict } from "../../lib/rec-types";
 import { DecisionCard } from "../../components/DecisionCard";
@@ -42,10 +42,19 @@ export default function RecommendationsPage() {
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    getUsageSummary(token, days, scope)
-      .then((s) => {
+    Promise.all([
+      getUsageSummary(token, days, scope),
+      getRecDecisions(token).catch(() => [] as import("../../lib/api").RecDecision[]),
+    ])
+      .then(([s, decisions]) => {
         setSummary(s);
-        setRecs((s.top_changes ?? []).map(mapToRec));
+        const mapped = (s.top_changes ?? []).map(mapToRec).map((r) => {
+          const d = decisions.find(
+            (dec) => dec.agent_id === r.agentId && dec.rec_type === r.type
+          );
+          return d ? { ...r, status: d.status as Rec["status"] } : r;
+        });
+        setRecs(mapped);
       })
       .catch(() => {
         setSummary(null);
@@ -221,7 +230,7 @@ export default function RecommendationsPage() {
             ) : (
               <div>
                 {filtered.map((r) => (
-                  <DecisionCard key={r.num} rec={r} onStatusChange={onStatusChange} />
+                  <DecisionCard key={r.num} rec={r} token={token} onStatusChange={onStatusChange} />
                 ))}
               </div>
             )}

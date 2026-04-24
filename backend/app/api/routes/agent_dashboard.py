@@ -29,10 +29,10 @@ from app.core.pricing import (
     MODEL_PRICING,
     calculate_cost,
 )
-from app.db.models import Agent, Request as LLMRequest, SdkApiKey, SpanRecommendation, User
+from app.db.models import Agent, RecDecision, Request as LLMRequest, SdkApiKey, SpanRecommendation, User
 from app.db.session import get_db
 from app.services.auth_service import decode_access_token
-from app.services.quality_service import compute_quality_signals
+from app.services.quality_service import compute_quality_signals, compute_confidence_flags, derive_confidence_rating
 
 router = APIRouter(tags=["agent-dashboard"])
 
@@ -238,6 +238,26 @@ def _monthly_projection(cost_in_window: float, days: int = 30) -> float:
     return cost_in_window * (30 / max(days, 1))
 
 
+def _days_spanned(reqs: list) -> int:
+    return len({r.timestamp.date() for r in reqs}) if reqs else 0
+
+
+def _span_confidence(n: int, days: int, pattern_score: float) -> int:
+    """Score 0-100 from sample size, temporal spread, and pattern clarity."""
+    size_pts = min(30, n // 10)
+    days_pts = min(20, days * 4)
+    pattern_pts = int(40 * min(max(pattern_score, 0.0), 1.0))
+    return min(95, 10 + size_pts + days_pts + pattern_pts)
+
+
+def _confidence_rating_from_score(score: int, n: int) -> str:
+    if score >= 80 and n >= 500:
+        return "high"
+    if score >= 60 and n >= 100:
+        return "medium"
+    return "low"
+
+
 @router.get("/recommendations/{agent_id_or_name}")
 def get_span_recommendations(
     agent_id_or_name: str,
@@ -288,7 +308,7 @@ def get_span_recommendations(
             .first()
         )
         if existing:
-            # Refresh numbers, preserve applied state
+            # Refresh numbers, preserve applied state and user decision status
             existing.explanation = rec["explanation"]
             existing.current_monthly_cost = rec["current_monthly_cost"]
             existing.projected_monthly_cost = rec["projected_monthly_cost"]
@@ -297,6 +317,7 @@ def get_span_recommendations(
             existing.updated_at = datetime.utcnow()
             rec["id"] = existing.id
             rec["applied"] = existing.applied
+            rec["status"] = existing.status
         else:
             row = SpanRecommendation(
                 id=str(uuid.uuid4()),
@@ -312,6 +333,7 @@ def get_span_recommendations(
             db.add(row)
             rec["id"] = row.id
             rec["applied"] = False
+            rec["status"] = "pending"
 
     db.commit()
 
@@ -327,26 +349,13 @@ def get_span_recommendations(
             "quality_impact": "none",
         }
 
-    # Compute confidence from real request count
-    now_ts = datetime.utcnow()
-    since_30d = now_ts - timedelta(days=30)
-    try:
-        request_count_30d = db.query(LLMRequest).filter(
-            LLMRequest.agent_id == agent.id,
-            LLMRequest.timestamp >= since_30d,
-        ).count()
-    except Exception:
-        request_count_30d = 0
-
-    confidence_n = request_count_30d
+    # Compute confidence from behavioral signals + request count
+    confidence_n = len(reqs)
     confidence_score = min(100, int((confidence_n / 500) * 100))
+    confidence_flags = compute_confidence_flags(db, agent.id, reqs)
+    confidence_rating = derive_confidence_rating(confidence_n, confidence_flags)
 
-    def _derive_confidence_rating_local(score: int, n: int) -> str:
-        if score >= 80 and n >= 500:
-            return "high"
-        if score >= 60 and n >= 100:
-            return "medium"
-        return "low"
+    quality_impact = quality_signals.get("quality_impact", "none")
 
     def _derive_verdict_local(c_rating: str, n: int, q_impact: str) -> str:
         if c_rating == "low" or n < 20:
@@ -361,8 +370,6 @@ def get_span_recommendations(
             return "hold"
         return "insufficient_data"
 
-    confidence_rating = _derive_confidence_rating_local(confidence_score, confidence_n)
-    quality_impact = quality_signals.get("quality_impact", "none")
     verdict = _derive_verdict_local(confidence_rating, confidence_n, quality_impact)
 
     # Read judge preference from quality_evaluations cache (set by LLM-as-judge or manually)
@@ -390,10 +397,13 @@ def get_span_recommendations(
         rec["structure_conformance_pct"] = quality_signals.get("structure_conformance_pct")
         rec["judge_preference_pct"] = judge_preference_pct
         rec["quality_impact"] = quality_impact
-        rec["confidence_rating"] = confidence_rating
-        rec["confidence_n"] = confidence_n
-        rec["confidence_score"] = confidence_score
-        rec["verdict"] = verdict
+        # Per-recommendation confidence rating: derived from that rec's own score + span sample size
+        span_n = rec.pop("confidence_span_n", confidence_n)
+        rec["confidence_rating"] = _confidence_rating_from_score(rec["confidence"], span_n)
+        rec["confidence_n"] = span_n
+        rec["confidence_score"] = rec["confidence"]
+        rec["confidence_flags"] = confidence_flags
+        rec["verdict"] = _derive_verdict_local(rec["confidence_rating"], span_n, quality_impact)
         rec["verdict_rationale"] = ""
 
     return recs
@@ -419,9 +429,124 @@ def apply_recommendation(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     row.applied = True
+    row.status = "accepted"
     row.updated_at = datetime.utcnow()
     db.commit()
     return {"id": recommendation_id, "applied": True}
+
+
+# ── PATCH /recommendations/{recommendation_id}/status ────────────────────────
+
+class RecStatusUpdate(BaseModel):
+    status: str  # pending | accepted | rejected | deferred
+    reject_reason: str = ""
+
+
+@router.patch("/recommendations/{recommendation_id}/status")
+def update_span_rec_status(
+    recommendation_id: str,
+    body: RecStatusUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    if body.status not in ("pending", "accepted", "rejected", "deferred"):
+        raise HTTPException(status_code=422, detail="Invalid status")
+    user = _resolve_user(request, db)
+    row = db.query(SpanRecommendation).filter(SpanRecommendation.id == recommendation_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    agent = db.query(Agent).filter(Agent.id == row.agent_id, Agent.user_id == user.id).first()
+    if not agent:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    row.status = body.status
+    row.updated_at = datetime.utcnow()
+    db.commit()
+    return {"id": recommendation_id, "status": body.status}
+
+
+# ── PATCH /rec-decisions/{agent_id}/{rec_type} ───────────────────────────────
+
+class RecDecisionBody(BaseModel):
+    status: str  # pending | accepted | rejected | deferred
+    reject_reason: str = ""
+
+
+@router.patch("/rec-decisions/{agent_id}/{rec_type}")
+def upsert_rec_decision(
+    agent_id: str,
+    rec_type: str,
+    body: RecDecisionBody,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    if body.status not in ("pending", "accepted", "rejected", "deferred"):
+        raise HTTPException(status_code=422, detail="Invalid status")
+    user = _resolve_user(request, db)
+    existing = (
+        db.query(RecDecision)
+        .filter(
+            RecDecision.user_id == user.id,
+            RecDecision.agent_id == agent_id,
+            RecDecision.rec_type == rec_type,
+        )
+        .first()
+    )
+    if existing:
+        existing.status = body.status
+        existing.reject_reason = body.reject_reason
+        existing.updated_at = datetime.utcnow()
+    else:
+        db.add(RecDecision(
+            user_id=user.id,
+            agent_id=agent_id,
+            rec_type=rec_type,
+            status=body.status,
+            reject_reason=body.reject_reason,
+        ))
+    db.commit()
+    return {"agent_id": agent_id, "rec_type": rec_type, "status": body.status}
+
+
+@router.get("/rec-decisions")
+def get_rec_decisions(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> list[dict[str, Any]]:
+    user = _resolve_user(request, db)
+    rows = db.query(RecDecision).filter(RecDecision.user_id == user.id).all()
+    return [
+        {"agent_id": r.agent_id, "rec_type": r.rec_type, "status": r.status}
+        for r in rows
+    ]
+
+
+# ── POST /agents/{agent_id}/eval ─────────────────────────────────────────────
+
+class EvalBody(BaseModel):
+    baseline_model: str
+    candidate_model: str
+    preference_pct: float  # 0–100, preference for candidate over baseline
+
+
+@router.post("/agents/{agent_id_or_name}/eval")
+def store_eval(
+    agent_id_or_name: str,
+    body: EvalBody,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    user = _resolve_user(request, db)
+    agent = _resolve_agent(db, user, agent_id_or_name)
+    from app.db.models import QualityEvaluation
+    row = QualityEvaluation(
+        agent_id=agent.id,
+        baseline_model=body.baseline_model,
+        candidate_model=body.candidate_model,
+        preference_pct=body.preference_pct,
+    )
+    db.add(row)
+    db.commit()
+    return {"agent_id": agent.id, "preference_pct": body.preference_pct}
 
 
 # ── POST /traces/{trace_id}/structure ────────────────────────────────────────
@@ -565,6 +690,11 @@ def _check_context_bloat(
     monthly_after = monthly_current * 0.60
     monthly_savings = monthly_current - monthly_after
 
+    n = len(span_reqs)
+    days = _days_spanned(span_reqs)
+    consistency = growing / max(len(growths), 1)
+    confidence = _span_confidence(n, days, consistency)
+
     recs.append({
         "span_name": span_name,
         "rec_type": "context_bloat",
@@ -575,7 +705,8 @@ def _check_context_bloat(
         "current_monthly_cost": round(monthly_current, 4),
         "projected_monthly_cost": round(monthly_after, 4),
         "savings_per_month": round(monthly_savings, 4),
-        "confidence": 72,
+        "confidence": confidence,
+        "confidence_span_n": n,
     })
 
 
@@ -609,6 +740,10 @@ def _check_redundant_calls(
     monthly_current = _monthly_projection(total_cost)
     monthly_savings = _monthly_projection(savings)
 
+    n = len(span_reqs)
+    days = _days_spanned(span_reqs)
+    confidence = _span_confidence(n, days, savings_fraction)
+
     recs.append({
         "span_name": span_name,
         "rec_type": "redundant_calls",
@@ -619,7 +754,8 @@ def _check_redundant_calls(
         "current_monthly_cost": round(monthly_current, 4),
         "projected_monthly_cost": round(monthly_current - monthly_savings, 4),
         "savings_per_month": round(monthly_savings, 4),
-        "confidence": 65,
+        "confidence": confidence,
+        "confidence_span_n": n,
     })
 
 
@@ -657,6 +793,11 @@ def _check_model_overkill(
         monthly_alt = _monthly_projection(alt_cost)
         monthly_savings = monthly_current - monthly_alt
 
+        n = len(model_reqs)
+        days = _days_spanned(model_reqs)
+        savings_frac = savings / max(total_cost, 1e-9)
+        confidence = _span_confidence(n, days, min(savings_frac, 1.0))
+
         recs.append({
             "span_name": span_name,
             "rec_type": "model_overkill",
@@ -668,5 +809,6 @@ def _check_model_overkill(
             "current_monthly_cost": round(monthly_current, 4),
             "projected_monthly_cost": round(monthly_alt, 4),
             "savings_per_month": round(monthly_savings, 4),
-            "confidence": 80,
+            "confidence": confidence,
+            "confidence_span_n": n,
         })

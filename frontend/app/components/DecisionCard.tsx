@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { RejectModal, type RejectReasonCategory } from "./RejectModal";
 import type { BudgetEval, Rec, Verdict } from "../lib/rec-types";
+import { patchRecDecision } from "../lib/api";
 
 // Verdict metadata — single source of truth for colors + copy.
 const VERDICT_META: Record<Verdict, { label: string; short: string; color: string; bg: string }> = {
@@ -97,9 +98,11 @@ function dateShort(iso: string): string {
 // Full Decision Card
 export function DecisionCard({
   rec,
+  token,
   onStatusChange,
 }: {
   rec: Rec;
+  token?: string;
   onStatusChange?: (
     id: string,
     next: Rec["status"],
@@ -108,13 +111,23 @@ export function DecisionCard({
 }) {
   const [rejectOpen, setRejectOpen] = useState(false);
 
-  const accept = (asCanary = false) => {
-    onStatusChange?.(rec.num, "accepted");
-    // TODO: wire to real accept mutation
-    void asCanary;
+  const persist = (status: Rec["status"], rejectReason = "") => {
+    if (token && rec.agentId && rec.type) {
+      patchRecDecision(token, rec.agentId, rec.type, status, rejectReason).catch(() => {});
+    }
   };
-  const defer = () => onStatusChange?.(rec.num, "deferred");
+
+  const accept = (asCanary = false) => {
+    void asCanary;
+    persist("accepted");
+    onStatusChange?.(rec.num, "accepted");
+  };
+  const defer = () => {
+    persist("deferred");
+    onStatusChange?.(rec.num, "deferred");
+  };
   const reject = (category: RejectReasonCategory, note: string) => {
+    persist("rejected", `${category}: ${note}`);
     onStatusChange?.(rec.num, "rejected", { category, note });
     setRejectOpen(false);
   };
@@ -263,7 +276,7 @@ export function DecisionCard({
             </span>
             <button
               className="tr-btn tr-btn-ghost tr-btn-sm"
-              onClick={() => onStatusChange?.(rec.num, "pending")}
+              onClick={() => { persist("pending"); onStatusChange?.(rec.num, "pending"); }}
             >
               Undo
             </button>

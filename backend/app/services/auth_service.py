@@ -19,9 +19,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
+REFRESH_TOKEN_EXPIRE_DAYS = 30
+
+
 def create_access_token(user_id: str, email: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": user_id, "email": email, "exp": expire}
+    payload = {"sub": user_id, "email": email, "exp": expire, "type": "access"}
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
+def create_refresh_token(user_id: str, email: str) -> str:
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {"sub": user_id, "email": email, "exp": expire, "type": "refresh"}
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
@@ -30,6 +39,16 @@ def decode_access_token(token: str) -> dict | None:
         return jwt.decode(
             token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
         )
+    except JWTError:
+        return None
+
+
+def decode_refresh_token(token: str) -> dict | None:
+    try:
+        data = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        if data.get("type") != "refresh":
+            return None
+        return data
     except JWTError:
         return None
 

@@ -1,5 +1,11 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+function _handle401() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth:unauthorized"));
+  }
+}
+
 async function fetchJSON<T>(path: string, token?: string): Promise<T> {
   const headers: Record<string, string> = {};
   if (token) {
@@ -9,6 +15,7 @@ async function fetchJSON<T>(path: string, token?: string): Promise<T> {
     cache: "no-store",
     headers,
   });
+  if (res.status === 401) { _handle401(); throw new Error("Unauthorized"); }
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
@@ -27,6 +34,7 @@ async function postJSON<T>(path: string, body: unknown, token?: string): Promise
     headers,
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { _handle401(); throw new Error("Unauthorized"); }
   if (!res.ok) {
     const text = await res.text();
     try {
@@ -274,6 +282,7 @@ export interface TopChangeItem {
   latency_p95_baseline_ms?: number | null;
   structure_conformance_pct?: number | null;
   judge_preference_pct?: number | null;
+  confidence_flags?: string[];
 }
 
 export interface UsageSummary {
@@ -503,6 +512,7 @@ export interface SpanRecommendation {
   savings_per_month: number;
   confidence: number;
   applied: boolean;
+  status: "pending" | "accepted" | "rejected" | "deferred";
   // Quality signals from backend
   latency_p95_ms?: number | null;
   latency_p95_baseline_ms?: number | null;
@@ -512,6 +522,7 @@ export interface SpanRecommendation {
   confidence_rating?: "low" | "medium" | "high";
   confidence_n?: number;
   confidence_score?: number;
+  confidence_flags?: string[];
   verdict?: string;
 }
 
@@ -527,6 +538,69 @@ export function applySpanRecommendation(token: string, recommendationId: string)
   return postJSON<{ id: string; applied: boolean }>(
     `/apply/${recommendationId}`,
     {},
+    token
+  );
+}
+
+async function patchJSON<T>(path: string, body: unknown, token?: string): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+export function patchSpanRecStatus(
+  token: string,
+  recommendationId: string,
+  status: "pending" | "accepted" | "rejected" | "deferred",
+  rejectReason = ""
+) {
+  return patchJSON<{ id: string; status: string }>(
+    `/recommendations/${recommendationId}/status`,
+    { status, reject_reason: rejectReason },
+    token
+  );
+}
+
+export function patchRecDecision(
+  token: string,
+  agentId: string,
+  recType: string,
+  status: "pending" | "accepted" | "rejected" | "deferred",
+  rejectReason = ""
+) {
+  return patchJSON<{ agent_id: string; rec_type: string; status: string }>(
+    `/rec-decisions/${agentId}/${recType}`,
+    { status, reject_reason: rejectReason },
+    token
+  );
+}
+
+export interface RecDecision {
+  agent_id: string;
+  rec_type: string;
+  status: "pending" | "accepted" | "rejected" | "deferred";
+}
+
+export function getRecDecisions(token: string) {
+  return fetchJSON<RecDecision[]>("/rec-decisions", token);
+}
+
+export function storeEval(
+  token: string,
+  agentId: string,
+  baselineModel: string,
+  candidateModel: string,
+  preferencePct: number
+) {
+  return postJSON<{ agent_id: string; preference_pct: number }>(
+    `/agents/${agentId}/eval`,
+    { baseline_model: baselineModel, candidate_model: candidateModel, preference_pct: preferencePct },
     token
   );
 }

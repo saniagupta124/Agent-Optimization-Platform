@@ -7,7 +7,7 @@ Usage:
     client = wrap(OpenAI())
 """
 
-from traeco._core import init, wrap, span
+from traeco._core import init, wrap, span, run_eval
 
-__all__ = ["init", "wrap", "span"]
+__all__ = ["init", "wrap", "span", "run_eval"]
 __version__ = "1.0.0"

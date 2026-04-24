@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
+    RefreshRequest,
     RegisterRequest,
     UpdateProfileRequest,
     UserResponse,
@@ -14,7 +15,10 @@ from app.schemas.auth import (
 from app.services.auth_service import (
     authenticate_user,
     create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
     delete_user,
+    get_user_by_id,
     register_user,
     update_user,
 )
@@ -48,7 +52,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT, detail=str(e)
         )
     token = create_access_token(user.id, user.email)
-    return AuthResponse(access_token=token, user=_user_response(user))
+    refresh = create_refresh_token(user.id, user.email)
+    return AuthResponse(access_token=token, refresh_token=refresh, user=_user_response(user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -60,7 +65,20 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid credentials",
         )
     token = create_access_token(user.id, user.email)
-    return AuthResponse(access_token=token, user=_user_response(user))
+    refresh = create_refresh_token(user.id, user.email)
+    return AuthResponse(access_token=token, refresh_token=refresh, user=_user_response(user))
+
+
+@router.post("/refresh")
+def refresh_token(payload: RefreshRequest, db: Session = Depends(get_db)):
+    data = decode_refresh_token(payload.refresh_token)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+    user = get_user_by_id(db, data["sub"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    new_token = create_access_token(user.id, user.email)
+    return {"access_token": new_token, "token_type": "bearer"}
 
 
 @router.get("/me", response_model=UserResponse)

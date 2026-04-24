@@ -45,10 +45,14 @@ export function mapToRec(ch: TopChangeItem): Rec {
   const ciSpread = savings * 0.12;
   const sampleSize = ch.confidence_n ?? 0;
 
-  const flags: string[] = [];
-  if (!ch.confidence_rating) flags.push("quality eval not yet available");
-  if (conf === "medium") flags.push("high-impact change — verify on canary first");
-  if (verdict === "insufficient_data") flags.push("more trace data needed for a reliable signal");
+  // Use real behavioral flags from backend when available, fall back to generic ones
+  const flags: string[] = ch.confidence_flags && ch.confidence_flags.length > 0
+    ? ch.confidence_flags
+    : [
+        ...(!ch.confidence_rating ? ["quality eval not yet available"] : []),
+        ...(conf === "medium" ? ["high-impact change — verify on canary first"] : []),
+        ...(verdict === "insufficient_data" ? ["more trace data needed for a reliable signal"] : []),
+      ];
 
   return {
     num: String(ch.rank).padStart(2, "0"),

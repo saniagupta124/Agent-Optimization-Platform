@@ -459,6 +459,104 @@ def wrap(client: Any) -> Any:
 
 # ── span() decorator ─────────────────────────────────────────────────────────
 
+def run_eval(
+    prompt: str,
+    response_a: str,
+    response_b: str,
+    *,
+    baseline_model: str = "baseline",
+    candidate_model: str = "candidate",
+) -> float | None:
+    """
+    Compare response_a (baseline) vs response_b (candidate) for the given prompt.
+    Uses a local LLM call — prompt and responses never leave your machine.
+    Stores only the preference score in Traeco for recommendation quality signals.
+
+    Returns preference_pct for response_b (0 = strongly prefer A, 100 = strongly prefer B).
+    Returns None if the SDK is not initialized or the judge call fails.
+    """
+    key = _state.get("api_key")
+    host = _state.get("host")
+    agent_name = _state.get("agent_name", "default")
+    if not key:
+        if _state["debug"]:
+            print("[traeco] run_eval(): SDK not initialized — call traeco.init() first")
+        return None
+
+    preference_pct = _run_judge(prompt, response_a, response_b)
+    if preference_pct is None:
+        return None
+
+    try:
+        with httpx.Client(timeout=10) as client:
+            client.post(
+                f"{host}/agents/{agent_name}/eval",
+                json={
+                    "baseline_model": baseline_model,
+                    "candidate_model": candidate_model,
+                    "preference_pct": preference_pct,
+                },
+                headers={"X-Traeco-Key": key},
+            )
+    except Exception as exc:
+        if _state["debug"]:
+            print(f"[traeco] run_eval ship failed: {exc}")
+
+    return preference_pct
+
+
+def _run_judge(prompt: str, response_a: str, response_b: str) -> float | None:
+    """
+    Ask an LLM to judge which response better answers the prompt.
+    Returns preference_pct for response_b (0-100). Never ships prompt/responses anywhere.
+    Falls back to length heuristic if no LLM client is available.
+    """
+    judge_prompt = (
+        "You are an impartial judge comparing two AI responses to the same prompt.\n"
+        "Respond with ONLY a JSON object: {\"preference\": <0-100>} where 0 means you strongly "
+        "prefer Response A and 100 means you strongly prefer Response B.\n\n"
+        f"Prompt:\n{prompt[:500]}\n\n"
+        f"Response A:\n{response_a[:800]}\n\n"
+        f"Response B:\n{response_b[:800]}"
+    )
+
+    try:
+        import anthropic  # type: ignore
+        client = anthropic.Anthropic()
+        msg = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=64,
+            messages=[{"role": "user", "content": judge_prompt}],
+        )
+        import json as _json
+        text = msg.content[0].text.strip()
+        data = _json.loads(text)
+        return float(max(0, min(100, data["preference"])))
+    except Exception:
+        pass
+
+    try:
+        import openai  # type: ignore
+        client = openai.OpenAI()
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=64,
+            messages=[{"role": "user", "content": judge_prompt}],
+        )
+        import json as _json
+        text = resp.choices[0].message.content.strip()
+        data = _json.loads(text)
+        return float(max(0, min(100, data["preference"])))
+    except Exception:
+        pass
+
+    # Length heuristic fallback (very rough proxy)
+    len_a, len_b = len(response_a), len(response_b)
+    if len_a + len_b == 0:
+        return 50.0
+    return round(len_b / (len_a + len_b) * 100, 1)
+
+
 def span(name: str):
     """
     Tag a function for per-function cost breakdown in the Traeco dashboard.

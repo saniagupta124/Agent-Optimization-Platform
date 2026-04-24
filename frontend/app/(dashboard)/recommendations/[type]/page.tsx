@@ -492,10 +492,9 @@ export default function RecommendationDetailPage() {
                   if (!token || !agentId) return;
                   try {
                     const r = await implementRecommendation(token, agentId, type ?? "");
-                    if (r.pr_url) window.open(r.pr_url, "_blank");
-                  } catch {
-                    alert("Could not open PR. Make sure a GitHub repo is linked to this agent.");
-                  }
+                    if (r.pr_url) { window.open(r.pr_url, "_blank"); return; }
+                  } catch {}
+                  document.getElementById("manual-steps")?.scrollIntoView({ behavior: "smooth" });
                 }}
                 className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-600"
               >
@@ -506,7 +505,7 @@ export default function RecommendationDetailPage() {
         </div>
 
         {/* Manual */}
-        <p className="mb-4 text-sm font-semibold text-zinc-500">Manual</p>
+        <p id="manual-steps" className="mb-4 text-sm font-semibold text-zinc-500">Manual</p>
         <ol className="space-y-5">
           {content.how.map((step, i) => (
             <li key={i} className="flex gap-4">

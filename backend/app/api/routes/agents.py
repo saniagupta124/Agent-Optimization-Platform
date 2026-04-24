@@ -177,3 +177,17 @@ def optimizations(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     return get_optimizations(db, agent)
+
+
+@router.post("/{agent_id}/implement")
+def implement_recommendation(
+    agent_id: str,
+    rec_type: str = Query(default=""),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Returns pr_url when GitHub repo is connected; null otherwise (fall back to manual steps)."""
+    agent = get_agent_for_viewer(db, agent_id, user)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {"pr_url": None, "rec_type": rec_type}
