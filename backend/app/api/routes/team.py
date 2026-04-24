@@ -11,13 +11,29 @@ from app.schemas.team import (
     TeamInfoResponse,
     TeamOverviewResponse,
 )
+from pydantic import BaseModel
+
+
+class CreateInviteRequest(BaseModel):
+    expires_days: int = 14
+
+
+class PreviewInviteRequest(BaseModel):
+    token: str
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str
 from app.services.team_service import (
+    accept_team_invite,
     create_team,
+    create_team_invite,
     get_team_member_count,
     get_team_member_detail,
     get_team_overview,
     join_team,
     leave_team,
+    preview_team_invite,
 )
 
 router = APIRouter(prefix="/team")
@@ -81,6 +97,51 @@ def leave(
         )
     leave_team(db, user)
     return {"ok": True}
+
+
+@router.post("/invites")
+def create_invite(
+    payload: CreateInviteRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        inv = create_team_invite(db, user, expires_days=payload.expires_days)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    from app.core.config import settings
+    base = settings.PUBLIC_APP_URL.rstrip("/")
+    invite_url = f"{base}/join?token={inv.token}" if base else None
+    return {
+        "token": inv.token,
+        "team_id": inv.team_id,
+        "team_name": inv.team_name,
+        "expires_at": inv.expires_at,
+        "invite_url": invite_url,
+    }
+
+
+@router.post("/invites/preview")
+def preview_invite(payload: PreviewInviteRequest, db: Session = Depends(get_db)):
+    result = preview_team_invite(db, payload.token)
+    return result
+
+
+@router.post("/invites/accept")
+def accept_invite(
+    payload: AcceptInviteRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        team = accept_team_invite(db, user, payload.token)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return TeamInfoResponse(
+        id=team.id,
+        name=team.name,
+        member_count=get_team_member_count(db, team.id),
+    )
 
 
 @router.get("/members", response_model=TeamOverviewResponse)

@@ -59,7 +59,7 @@ def _local_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float
 _state: dict[str, Any] = {
     "api_key": None,
     "agent_name": "default",
-    "host": "https://api.traeco.ai",
+    "host": "https://traeco-backend-production.up.railway.app",
     "debug": False,
 }
 _lock = threading.Lock()
@@ -74,7 +74,7 @@ def init(
     api_key: str,
     *,
     agent_name: str = "default",
-    host: str = "https://api.traeco.ai",
+    host: str = "https://traeco-backend-production.up.railway.app",
     debug: bool = False,
 ) -> None:
     """Initialize Traeco. Call once at startup before wrapping any client."""

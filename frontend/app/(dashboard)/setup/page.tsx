@@ -125,9 +125,12 @@ export default function SetupPage() {
   const agentCode = provider === "anthropic"
     ? `from anthropic import Anthropic
 from traeco import init, wrap
+import os
 
-# Set TRAECO_API_KEY in your environment first (see key below)
-init(agent_name="my_agent")
+init(
+    api_key=os.environ["TRAECO_API_KEY"],
+    agent_name="my_agent",
+)
 # wrap() is a read-only observability wrapper — logs token counts,
 # latency & cost to Traeco. Does not modify requests or store prompts.
 client = wrap(Anthropic())
@@ -139,9 +142,12 @@ response = client.messages.create(
 )`
     : `from openai import OpenAI
 from traeco import init, wrap
+import os
 
-# Set TRAECO_API_KEY in your environment first (see key below)
-init(agent_name="my_agent")
+init(
+    api_key=os.environ["TRAECO_API_KEY"],
+    agent_name="my_agent",
+)
 # wrap() is a read-only observability wrapper — logs token counts,
 # latency & cost to Traeco. Does not modify requests or store prompts.
 client = wrap(OpenAI())

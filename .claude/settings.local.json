@@ -23,7 +23,17 @@
       "Bash(xargs sed:*)",
       "Bash(railway link:*)",
       "Bash(vercel --prod)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "WebFetch(domain:x.com)",
+      "Bash(vercel ls *)",
+      "Bash(vercel env *)",
+      "Read(//tmp/**)",
+      "Bash(railway variables *)",
+      "Bash(openssl rand *)",
+      "Bash(railway logs *)",
+      "Bash(railway up *)",
+      "Bash(railway --version)",
+      "Bash(python3 *)"
     ]
   }
 }
