@@ -16,6 +16,7 @@ class CreateAgentRequest(BaseModel):
     deployment_environment: str = "production"
     system_prompt: str | None = None
     max_tokens: int | None = None
+    repo_url: str | None = None
 
 
 class UpdateAgentRequest(BaseModel):
@@ -27,6 +28,7 @@ class UpdateAgentRequest(BaseModel):
     deployment_environment: str | None = None
     system_prompt: str | None = None
     max_tokens: int | None = None
+    repo_url: str | None = None
 
 
 class AgentResponse(BaseModel):
@@ -40,6 +42,7 @@ class AgentResponse(BaseModel):
     deployment_environment: str = "production"
     system_prompt: str | None = None
     max_tokens: int | None = None
+    repo_url: str | None = None
     created_at: datetime
 
     class Config:

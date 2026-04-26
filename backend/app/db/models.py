@@ -147,6 +147,8 @@ class User(Base):
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, default=False
     )
+    github_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    github_username: Mapped[str | None] = mapped_column(String, nullable=True)
 
     team = relationship("Team", back_populates="members", foreign_keys=[team_id])
     team_memberships = relationship(
@@ -174,6 +176,7 @@ class Agent(Base):
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Max tokens cap — absence triggers non-linear scaling warning.
     max_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    repo_url: Mapped[str | None] = mapped_column(String, nullable=True)
     # internal | production — scopes analytics and comparisons.
     deployment_environment: Mapped[str] = mapped_column(
         String, default="production", index=True

@@ -19,6 +19,7 @@ def create_agent(
     deployment_environment: str = "production",
     system_prompt: str | None = None,
     max_tokens: int | None = None,
+    repo_url: str | None = None,
 ) -> Agent:
     key_hash: str | None = None
     hint = api_key_hint
@@ -41,6 +42,7 @@ def create_agent(
         deployment_environment=dep,
         system_prompt=system_prompt,
         max_tokens=max_tokens,
+        repo_url=repo_url,
     )
     db.add(agent)
     db.commit()
@@ -60,6 +62,7 @@ def update_agent(
     deployment_environment: str | None = None,
     system_prompt: str | None = None,
     max_tokens: int | None = None,
+    repo_url: str | None = None,
 ) -> Agent:
     if name is not None:
         agent.name = name
@@ -91,6 +94,8 @@ def update_agent(
         agent.system_prompt = system_prompt
     if max_tokens is not None:
         agent.max_tokens = max_tokens
+    if repo_url is not None:
+        agent.repo_url = repo_url
     db.commit()
     db.refresh(agent)
     return agent

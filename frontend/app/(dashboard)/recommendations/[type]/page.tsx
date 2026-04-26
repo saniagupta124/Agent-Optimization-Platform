@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { getUsageSummary, implementRecommendation, TopChangeItem } from "../../../lib/api";
+import { getUsageSummary, implementRecommendation, patchRecDecision, TopChangeItem } from "../../../lib/api";
 
 /* ---- Static content per recommendation type ---- */
 interface RecTypeContent {
@@ -382,6 +382,13 @@ export default function RecommendationDetailPage() {
   const [rec, setRec] = useState<TopChangeItem | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
+  // GitHub PR flow state
+  const [implState, setImplState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [prUrl, setPrUrl] = useState<string | null>(null);
+  const [showRepoInput, setShowRepoInput] = useState(false);
+  const [repoInput, setRepoInput] = useState("");
+  const [githubConnected, setGithubConnected] = useState<boolean | null>(null);
+
   function copyCode(code: string, idx: number) {
     navigator.clipboard.writeText(code).then(() => {
       setCopiedIdx(idx);
@@ -400,6 +407,16 @@ export default function RecommendationDetailPage() {
       })
       .catch(() => setRec(null));
   }, [token, type, agentId, days, scope]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/github/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setGithubConnected(d.connected))
+      .catch(() => setGithubConnected(false));
+  }, [token]);
 
   const content = REC_CONTENT[type ?? ""] ?? null;
 
@@ -477,26 +494,108 @@ export default function RecommendationDetailPage() {
         </h2>
 
         {/* Automatic */}
-        <div className="mb-6 rounded-xl border border-emerald-900/40 bg-emerald-950/10 p-5">
+        <div className="mb-6 rounded-xl border border-[rgba(52,211,153,0.25)] bg-[rgba(52,211,153,0.12)] p-5">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-emerald-400">Automatic</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#34D399]">Automatic</p>
               <p className="mt-1 text-sm text-zinc-400">{content.autoAction}</p>
               {!agentId && (
                 <p className="mt-2 text-xs text-zinc-600">Open this from an agent page to enable automatic implementation.</p>
               )}
+
+              {/* Success: PR opened */}
+              {implState === "done" && prUrl && (
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-[rgba(52,211,153,0.25)] bg-[rgba(52,211,153,0.12)] px-3 py-2">
+                  <svg className="h-4 w-4 shrink-0 text-[#34D399]" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  <span className="text-sm text-zinc-300">
+                    PR created —{" "}
+                    <a
+                      href={prUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-[#34D399] underline underline-offset-2 hover:text-white transition-colors"
+                    >
+                      PR opened →
+                    </a>
+                  </span>
+                </div>
+              )}
+
+              {/* Success: no PR URL (manual fallback) */}
+              {implState === "done" && !prUrl && (
+                <p className="mt-3 text-sm text-zinc-400">
+                  Implementation guide ready — see manual steps below.
+                </p>
+              )}
+
+              {/* Error state */}
+              {implState === "error" && (
+                <p className="mt-3 text-sm text-red-400">
+                  Failed to create PR. Check your GitHub connection in Settings and try again.
+                </p>
+              )}
+
+              {/* Repo input (shown after clicking Implement when GitHub connected) */}
+              {showRepoInput && implState !== "done" && (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={repoInput}
+                    onChange={(e) => setRepoInput(e.target.value)}
+                    placeholder="owner/repo"
+                    className="flex-1 rounded-lg border border-[#3A3A3F] bg-[#2A2A2F] px-3 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-[rgba(52,211,153,0.5)] focus:ring-0"
+                  />
+                  <button
+                    disabled={implState === "loading" || !repoInput.trim()}
+                    onClick={async () => {
+                      if (!token || !agentId || !repoInput.trim()) return;
+                      setImplState("loading");
+                      try {
+                        const r = await implementRecommendation(token, agentId, type ?? "", repoInput.trim());
+                        setPrUrl(r.pr_url ?? null);
+                        setImplState("done");
+                        setShowRepoInput(false);
+                        if (r.pr_url) window.open(r.pr_url, "_blank");
+                      } catch {
+                        setImplState("error");
+                      }
+                    }}
+                    className="shrink-0 rounded-lg bg-[#34D399] px-4 py-1.5 text-sm font-medium text-zinc-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {implState === "loading" ? "Creating PR…" : "Create PR"}
+                  </button>
+                </div>
+              )}
+
+              {/* GitHub not connected note */}
+              {agentId && githubConnected === false && implState === "idle" && !showRepoInput && (
+                <p className="mt-2 text-xs text-zinc-600">
+                  Connect GitHub in{" "}
+                  <Link href="/settings" className="text-[#34D399] hover:underline">Settings</Link>
+                  {" "}to auto-create PRs.
+                </p>
+              )}
             </div>
-            {agentId && (
+
+            {/* Implement button — only when idle and not showing repo input */}
+            {agentId && implState === "idle" && !showRepoInput && (
               <button
                 onClick={async () => {
                   if (!token || !agentId) return;
+                  // Mark rec as accepted
                   try {
-                    const r = await implementRecommendation(token, agentId, type ?? "");
-                    if (r.pr_url) { window.open(r.pr_url, "_blank"); return; }
+                    await patchRecDecision(token, agentId, type ?? "", "accepted");
                   } catch {}
-                  document.getElementById("manual-steps")?.scrollIntoView({ behavior: "smooth" });
+
+                  if (githubConnected) {
+                    setShowRepoInput(true);
+                  } else {
+                    document.getElementById("manual-steps")?.scrollIntoView({ behavior: "smooth" });
+                  }
                 }}
-                className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-600"
+                className="shrink-0 rounded-lg bg-[#34D399] px-4 py-2 text-sm font-medium text-zinc-900 transition hover:bg-white"
               >
                 Implement →
               </button>

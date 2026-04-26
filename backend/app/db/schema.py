@@ -96,6 +96,9 @@ def ensure_schema() -> None:
         )""",
         "CREATE INDEX IF NOT EXISTS ix_span_rec_agent_id ON span_recommendations (agent_id)",
         "ALTER TABLE span_recommendations ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'pending'",
+        "ALTER TABLE span_recommendations ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP",
+        # structure_valid: NULL = not measured, TRUE = valid, FALSE = invalid
+        "ALTER TABLE requests ALTER COLUMN structure_valid DROP DEFAULT",
         # Persisted accept/reject/defer decisions for general recommendations (top_changes)
         """CREATE TABLE IF NOT EXISTS rec_decisions (
             id VARCHAR PRIMARY KEY,
@@ -129,9 +132,32 @@ def ensure_schema() -> None:
             baseline_model VARCHAR NOT NULL,
             candidate_model VARCHAR NOT NULL,
             preference_pct FLOAT,
+            span_name VARCHAR NOT NULL DEFAULT '',
+            rec_type VARCHAR NOT NULL DEFAULT '',
             evaluated_at TIMESTAMP DEFAULT NOW()
         )""",
         "CREATE INDEX IF NOT EXISTS ix_quality_evaluations_agent_id ON quality_evaluations (agent_id)",
+        "ALTER TABLE quality_evaluations ADD COLUMN IF NOT EXISTS span_name VARCHAR NOT NULL DEFAULT ''",
+        "ALTER TABLE quality_evaluations ADD COLUMN IF NOT EXISTS rec_type VARCHAR NOT NULL DEFAULT ''",
+        """CREATE TABLE IF NOT EXISTS eval_clusters (
+            id VARCHAR PRIMARY KEY,
+            agent_id VARCHAR NOT NULL,
+            cluster_label VARCHAR NOT NULL,
+            cluster_size INTEGER NOT NULL DEFAULT 0,
+            example_input TEXT NOT NULL DEFAULT '',
+            auto_draft_criteria TEXT NOT NULL DEFAULT '',
+            good_answer_criteria TEXT,
+            skip_criteria BOOLEAN NOT NULL DEFAULT FALSE,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_eval_clusters_agent_id ON eval_clusters (agent_id)",
+        # GitHub OAuth columns
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_token TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS github_username VARCHAR",
+        # Agent repo URL for PR creation
+        "ALTER TABLE agents ADD COLUMN IF NOT EXISTS repo_url VARCHAR",
     ]
     backfill = [
         # Pick earliest member per team as owner when missing
@@ -186,6 +212,10 @@ def ensure_schema() -> None:
         # Phase 2: structure conformance
         ("requests", "structure_valid", "BOOLEAN DEFAULT 1"),
         ("span_recommendations", "status", "VARCHAR(16) NOT NULL DEFAULT 'pending'"),
+        ("span_recommendations", "accepted_at", "TIMESTAMP"),
+        ("users", "github_token", "TEXT"),
+        ("users", "github_username", "VARCHAR"),
+        ("agents", "repo_url", "VARCHAR"),
     ]
 
     with engine.begin() as conn:
