@@ -61,8 +61,15 @@ _state: dict[str, Any] = {
     "agent_name": "default",
     "host": "https://traeco-backend-production.up.railway.app",
     "debug": False,
+    "auto_judge": True,
+    "judge_sample_rate": 0.10,
+    "judge_model": "claude-haiku-4-5",
+    "_judge_target": None,    # recommendation metadata only — no user data
+    "_rubric_criteria": {},   # {cluster_label: criteria} from Stage 5 evals
 }
 _lock = threading.Lock()
+_last_seen_model: str = ""
+_judge_thread_started: bool = False
 
 # Thread/async-safe span tracking — each coroutine/thread gets its own value
 _current_span: ContextVar[str] = ContextVar("_current_span", default="")
@@ -76,15 +83,26 @@ def init(
     agent_name: str = "default",
     host: str = "https://traeco-backend-production.up.railway.app",
     debug: bool = False,
+    auto_judge: bool = True,
+    judge_sample_rate: float = 0.10,
+    judge_model: str = "claude-haiku-4-5",
 ) -> None:
     """Initialize Traeco. Call once at startup before wrapping any client."""
+    global _judge_thread_started
     with _lock:
         _state["api_key"] = api_key
         _state["agent_name"] = agent_name
         _state["host"] = host.rstrip("/")
         _state["debug"] = debug
+        _state["auto_judge"] = auto_judge
+        _state["judge_sample_rate"] = judge_sample_rate
+        _state["judge_model"] = judge_model
     if debug:
         print(f"[traeco] initialized — agent={agent_name!r}, host={_state['host']}")
+    if auto_judge and not _judge_thread_started:
+        _judge_thread_started = True
+        t = threading.Thread(target=_judge_poll_loop, daemon=True)
+        t.start()
 
 
 # ── Trace shipping ───────────────────────────────────────────────────────────
@@ -114,6 +132,196 @@ def _ship_async(payload: dict) -> None:
     """Fire-and-forget — non-daemon so the process stays alive until trace is sent."""
     t = threading.Thread(target=_ship, args=(payload,), daemon=False)
     t.start()
+
+
+# ── Auto-judge system ────────────────────────────────────────────────────────
+# No user data stored ever. Prompts/outputs exist only as local variables during
+# evaluation (~2s), then garbage collected. Only numeric scores are shipped.
+
+import random as _random
+
+def _judge_poll_loop() -> None:
+    while True:
+        import time as _time; _time.sleep(300)
+        _refresh_judge_target()
+
+def _refresh_judge_target() -> None:
+    if not _state.get("auto_judge") or not _state.get("api_key"):
+        return
+    try:
+        key = _state["api_key"]; host = _state["host"]; agent = _state.get("agent_name", "default")
+        with httpx.Client(timeout=10) as client:
+            r = client.get(f"{host}/recommendations/{agent}", headers={"X-Traeco-Key": key})
+        if r.status_code != 200:
+            return
+        target = None
+        for rec in r.json():
+            rt = rec.get("rec_type"); span = rec.get("span_name", "")
+            if rt in ("model_swap", "model_overkill"):
+                b, c = rec.get("baseline_model"), rec.get("candidate_model")
+                if b and c:
+                    target = {"rec_type": rt, "span_name": span, "baseline_model": b, "candidate_model": c}; break
+            elif rt == "context_bloat":
+                red = rec.get("savings_per_month", 0) / max(rec.get("current_monthly_cost", 1), 1e-9)
+                target = {"rec_type": "context_bloat", "span_name": span, "reduction_pct": min(max(red, 0.1), 0.7)}; break
+            elif rt == "max_tokens_cap":
+                rm = rec.get("recommended_max_tokens")
+                if rm:
+                    target = {"rec_type": "max_tokens_cap", "span_name": span, "recommended_max_tokens": rm}; break
+        _state["_judge_target"] = target
+        if _state["debug"] and target:
+            print(f"[traeco] auto-judge target: {target}")
+        try:
+            rc = client.get(f"{host}/agents/{agent}/eval-clusters", headers={"X-Traeco-Key": key})
+            if rc.status_code == 200:
+                data = rc.json()
+                _state["_rubric_criteria"] = {
+                    c["cluster_label"]: c["good_answer_criteria"]
+                    for c in data.get("clusters", [])
+                    if not c.get("skip_criteria") and c.get("good_answer_criteria")
+                }
+        except Exception:
+            pass
+    except Exception as exc:
+        if _state["debug"]:
+            print(f"[traeco] auto-judge refresh failed: {exc}")
+
+def _apply_windowing(messages: list, reduction_pct: float) -> list:
+    system = [m for m in messages if m.get("role") == "system"]
+    convo = [m for m in messages if m.get("role") != "system"]
+    if len(convo) <= 2:
+        return messages
+    keep = max(2, int(len(convo) * (1 - reduction_pct)))
+    if keep % 2 != 0:
+        keep = max(2, keep - 1)
+    return system + convo[-keep:]
+
+def _match_cluster(user_input: str, criteria_map: dict) -> str | None:
+    if not criteria_map or not user_input:
+        return None
+    user_lower = user_input.lower()
+    best_label, best_hits = None, 0
+    for label in criteria_map:
+        keywords = label.replace("/", " ").replace("-", " ").replace("_", " ").split()
+        hits = sum(1 for kw in keywords if len(kw) > 3 and kw in user_lower)
+        if hits > best_hits:
+            best_hits, best_label = hits, label
+    return best_label if best_hits > 0 else None
+
+def _maybe_shadow_judge(messages: list, baseline_output: str, current_model: str, provider: str) -> None:
+    global _last_seen_model
+    if not _state.get("auto_judge"):
+        return
+    if current_model and current_model != _last_seen_model and _last_seen_model:
+        if _state["debug"]:
+            print(f"[traeco] model change: {_last_seen_model} → {current_model}")
+        threading.Thread(target=_refresh_judge_target, daemon=True).start()
+    _last_seen_model = current_model
+    target = _state.get("_judge_target")
+    if not target or _random.random() > _state.get("judge_sample_rate", 0.10):
+        return
+    target_span = target.get("span_name", "")
+    if target_span and target_span != _current_span.get():
+        return
+    rt = target.get("rec_type")
+    if rt in ("model_swap", "model_overkill"):
+        bm, cm = target["baseline_model"], target["candidate_model"]
+        shadow = cm if current_model == bm else (bm if current_model == cm else None)
+        if not shadow:
+            return
+        threading.Thread(target=_shadow_evaluate, args=(list(messages), baseline_output, shadow, bm, cm, None, None, target_span, rt), daemon=True).start()
+    elif rt == "context_bloat" and len(messages) > 2:
+        windowed = _apply_windowing(list(messages), target.get("reduction_pct", 0.4))
+        if windowed == messages:
+            return
+        threading.Thread(target=_shadow_evaluate, args=(list(messages), baseline_output, current_model, current_model, current_model, windowed, None, target_span, "context_bloat"), daemon=True).start()
+    elif rt == "max_tokens_cap":
+        rm = target.get("recommended_max_tokens")
+        if rm:
+            threading.Thread(target=_shadow_evaluate, args=(list(messages), baseline_output, current_model, current_model, current_model, None, rm, target_span, "max_tokens_cap"), daemon=True).start()
+
+def _shadow_evaluate(messages, current_output, shadow_model, baseline_model, candidate_model, windowed_messages, shadow_max_tokens, span_name="", rec_type=""):
+    try:
+        shadow_input = windowed_messages if windowed_messages is not None else messages
+        shadow_output = _replay(shadow_input, shadow_model, _provider_from_model(shadow_model), shadow_max_tokens)
+        if not shadow_output:
+            return
+        user_input = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+        criteria_map: dict = _state.get("_rubric_criteria", {})
+        criteria = criteria_map.get(_match_cluster(user_input, criteria_map)) if criteria_map else None
+        score = _judge_pair(messages, current_output, shadow_output, _state["judge_model"], criteria=criteria)
+        if score is None:
+            return
+        _ship_eval_score(baseline_model, candidate_model, score, span_name=span_name, rec_type=rec_type)
+        if _state["debug"]:
+            print(f"[traeco] auto-judge: [{span_name}/{rec_type}] {score:.1f}% prefer candidate")
+    except Exception as exc:
+        if _state["debug"]:
+            print(f"[traeco] auto-judge failed: {exc}")
+
+def _replay(messages: list, model: str, provider: str, max_tokens: int | None = None) -> str | None:
+    cap = max_tokens or 1024
+    try:
+        if "anthropic" in provider or model.startswith("claude"):
+            import anthropic as _ant  # type: ignore
+            client = _ant.Anthropic()
+            system = next((m["content"] for m in messages if m.get("role") == "system"), None)
+            user_msgs = [m for m in messages if m.get("role") != "system"]
+            kwargs: dict = {"model": model, "max_tokens": cap, "messages": user_msgs}
+            if system:
+                kwargs["system"] = system
+            resp = client.messages.create(**kwargs)
+            return resp.content[0].text if resp.content else None
+        else:
+            import openai as _oai  # type: ignore
+            resp = _oai.OpenAI().chat.completions.create(model=model, messages=messages, max_tokens=cap)
+            return resp.choices[0].message.content
+    except Exception:
+        return None
+
+def _judge_pair(messages: list, baseline: str, candidate: str, judge_model: str, criteria: str | None = None) -> float | None:
+    user_input = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+    scores = []
+    for order in [("A", "B"), ("B", "A")]:
+        a_label, b_label = order
+        a_text = baseline if a_label == "A" else candidate
+        b_text = candidate if b_label == "B" else baseline
+        if criteria:
+            prompt = f"You are evaluating two AI agent responses.\n\nCriteria:\n{criteria}\n\nInput: {user_input[:400]}\n\nResponse A: {a_text[:600]}\n\nResponse B: {b_text[:600]}\n\nWhich better satisfies the criteria? Reply ONLY with A, B, or tie."
+        else:
+            prompt = f"Which response better answers this input? Reply with exactly A, B, or tie.\n\nInput: {user_input[:400]}\n\nResponse A: {a_text[:600]}\n\nResponse B: {b_text[:600]}"
+        verdict = _call_judge(prompt, judge_model)
+        if verdict is None:
+            continue
+        if verdict == "TIE":
+            scores.append(50.0)
+        elif (verdict == "B" and b_label == "B") or (verdict == "A" and a_label == "B"):
+            scores.append(100.0)
+        else:
+            scores.append(0.0)
+    return sum(scores) / len(scores) if scores else None
+
+def _call_judge(prompt: str, judge_model: str) -> str | None:
+    try:
+        if judge_model.startswith("claude"):
+            import anthropic as _ant  # type: ignore
+            resp = _ant.Anthropic().messages.create(model=judge_model, max_tokens=10, messages=[{"role": "user", "content": prompt}])
+            return resp.content[0].text.strip().upper().split()[0] if resp.content else None
+        else:
+            import openai as _oai  # type: ignore
+            resp = _oai.OpenAI().chat.completions.create(model=judge_model, max_tokens=10, messages=[{"role": "user", "content": prompt}])
+            return resp.choices[0].message.content.strip().upper().split()[0]
+    except Exception:
+        return None
+
+def _ship_eval_score(baseline_model: str, candidate_model: str, preference_pct: float, span_name: str = "", rec_type: str = "") -> None:
+    key = _state.get("api_key"); host = _state.get("host"); agent = _state.get("agent_name", "default")
+    try:
+        with httpx.Client(timeout=8) as client:
+            client.post(f"{host}/agents/{agent}/eval", json={"baseline_model": baseline_model, "candidate_model": candidate_model, "preference_pct": preference_pct, "span_name": span_name, "rec_type": rec_type}, headers={"X-Traeco-Key": key})
+    except Exception as exc:
+        if _state["debug"]:
+            print(f"[traeco] auto-judge ship failed: {exc}")
 
 
 def _build_payload(
@@ -189,6 +397,7 @@ class _WrappedCompletions:
             completion_tokens=getattr(usage, "completion_tokens", 0),
             latency_ms=latency_ms,
         ))
+        _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "openai"), actual_model, "openai")
         return response
 
     def _create_streaming(self, model: str, t0: float, **kwargs):
@@ -235,6 +444,7 @@ class _WrappedCompletions:
             completion_tokens=getattr(usage, "completion_tokens", 0),
             latency_ms=latency_ms,
         ))
+        _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "openai"), actual_model, "openai")
         return response
 
 
@@ -344,6 +554,7 @@ class _WrappedAnthropicMessages:
             completion_tokens=getattr(usage, "output_tokens", 0),
             latency_ms=latency_ms,
         ))
+        _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "anthropic"), actual_model, "anthropic")
         return response
 
     async def acreate(self, **kwargs):
@@ -371,6 +582,7 @@ class _WrappedAnthropicMessages:
             completion_tokens=getattr(usage, "output_tokens", 0),
             latency_ms=latency_ms,
         ))
+        _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "anthropic"), actual_model, "anthropic")
         return response
 
     def stream(self, **kwargs):

@@ -32,7 +32,7 @@ from app.core.pricing import (
 from app.db.models import Agent, RecDecision, Request as LLMRequest, SdkApiKey, SpanRecommendation, User
 from app.db.session import get_db
 from app.services.auth_service import decode_access_token
-from app.services.quality_service import compute_quality_signals, compute_confidence_flags, derive_confidence_rating
+from app.services.quality_service import compute_quality_signals, derive_confidence_rating
 
 router = APIRouter(tags=["agent-dashboard"])
 
@@ -292,6 +292,8 @@ def get_span_recommendations(
         _check_context_bloat(recs, agent.id, span_name, span_reqs)
         _check_redundant_calls(recs, agent.id, span_name, span_reqs)
         _check_model_overkill(recs, agent.id, span_name, span_reqs)
+        _check_prompt_caching(recs, agent.id, span_name, span_reqs)
+        _check_max_tokens_cap(recs, agent.id, span_name, span_reqs, agent.max_tokens)
 
     # Sort by savings descending
     recs.sort(key=lambda r: r["savings_per_month"], reverse=True)
@@ -343,17 +345,26 @@ def get_span_recommendations(
     except Exception:
         quality_signals = {
             "latency_p95_ms": None,
-            "latency_p95_baseline_ms": None,
             "structure_conformance_pct": None,
+            "faithfulness_score": None,
+            "latency_stability": None,
+            "error_rate": None,
+            "truncation_rate": None,
             "judge_preference_pct": None,
             "quality_impact": "none",
         }
 
-    # Compute confidence from behavioral signals + request count
+    # Compute confidence from quality signals + request count
     confidence_n = len(reqs)
     confidence_score = min(100, int((confidence_n / 500) * 100))
-    confidence_flags = compute_confidence_flags(db, agent.id, reqs)
-    confidence_rating = derive_confidence_rating(confidence_n, confidence_flags)
+    confidence_rating = derive_confidence_rating(
+        confidence_n,
+        schema_conformance_pct=quality_signals.get("structure_conformance_pct"),
+        faithfulness_score=quality_signals.get("faithfulness_score"),
+        latency_stability=quality_signals.get("latency_stability"),
+        error_rate=quality_signals.get("error_rate"),
+        truncation_rate=quality_signals.get("truncation_rate"),
+    )
 
     quality_impact = quality_signals.get("quality_impact", "none")
 
@@ -393,16 +404,26 @@ def get_span_recommendations(
 
     for rec in recs:
         rec["latency_p95_ms"] = quality_signals.get("latency_p95_ms")
-        rec["latency_p95_baseline_ms"] = quality_signals.get("latency_p95_baseline_ms")
         rec["structure_conformance_pct"] = quality_signals.get("structure_conformance_pct")
+        rec["error_rate"] = quality_signals.get("error_rate")
+        rec["truncation_rate"] = quality_signals.get("truncation_rate")
+        rec["faithfulness_score"] = quality_signals.get("faithfulness_score")
+        rec["latency_stability"] = quality_signals.get("latency_stability")
         rec["judge_preference_pct"] = judge_preference_pct
         rec["quality_impact"] = quality_impact
-        # Per-recommendation confidence rating: derived from that rec's own score + span sample size
+        # Per-recommendation confidence rating: derived from that rec's own span sample size + quality signals
         span_n = rec.pop("confidence_span_n", confidence_n)
-        rec["confidence_rating"] = _confidence_rating_from_score(rec["confidence"], span_n)
+        rec["confidence_rating"] = derive_confidence_rating(
+            span_n,
+            schema_conformance_pct=quality_signals.get("structure_conformance_pct"),
+            faithfulness_score=quality_signals.get("faithfulness_score"),
+            latency_stability=quality_signals.get("latency_stability"),
+            error_rate=quality_signals.get("error_rate"),
+            truncation_rate=quality_signals.get("truncation_rate"),
+        )
         rec["confidence_n"] = span_n
         rec["confidence_score"] = rec["confidence"]
-        rec["confidence_flags"] = confidence_flags
+        rec["confidence_flags"] = []
         rec["verdict"] = _derive_verdict_local(rec["confidence_rating"], span_n, quality_impact)
         rec["verdict_rationale"] = ""
 
@@ -812,3 +833,133 @@ def _check_model_overkill(
             "confidence": confidence,
             "confidence_span_n": n,
         })
+
+
+def _check_prompt_caching(
+    recs: list, agent_id: str, span_name: str, span_reqs: list[LLMRequest]
+) -> None:
+    """Recommend Anthropic prompt caching for spans with large, stable system prompts."""
+    if not span_reqs:
+        return
+    anthropic_reqs = [r for r in span_reqs if r.model and r.model.startswith("claude")]
+    if len(anthropic_reqs) < 5:
+        return
+    prompt_vals = [r.prompt_tokens for r in anthropic_reqs if r.prompt_tokens > 0]
+    if not prompt_vals:
+        return
+    avg_prompt = sum(prompt_vals) / len(prompt_vals)
+    if avg_prompt < 1000:
+        return
+    mean_p = avg_prompt
+    variance = sum((p - mean_p) ** 2 for p in prompt_vals) / max(len(prompt_vals) - 1, 1)
+    cv = (variance ** 0.5) / mean_p if mean_p > 0 else 1.0
+    if cv > 0.3:
+        return
+    cacheable_tokens = min(prompt_vals)
+    cacheable_fraction = cacheable_tokens / avg_prompt
+    model = next((r.model for r in anthropic_reqs), "")
+    pricing = MODEL_PRICING.get(model)
+    if not pricing:
+        for key, p in MODEL_PRICING.items():
+            if model.startswith(key):
+                pricing = p
+                break
+    if not pricing:
+        return
+    n = len(anthropic_reqs)
+    total_prompt_cost = sum(r.prompt_tokens * pricing["input"] for r in anthropic_reqs)
+    savings = total_prompt_cost * cacheable_fraction * 0.90
+    if savings <= 0:
+        return
+    total_cost = sum(r.cost_usd for r in anthropic_reqs)
+    monthly_current = _monthly_projection(total_cost)
+    monthly_savings = _monthly_projection(savings)
+    days = _days_spanned(anthropic_reqs)
+    confidence = _span_confidence(n, days, 1 - cv)
+    recs.append({
+        "span_name": span_name,
+        "rec_type": "prompt_caching",
+        "explanation": (
+            f"Span '{span_name}' sends avg {avg_prompt:.0f} prompt tokens/call with low variance "
+            f"(CV={cv:.2f}). Anthropic prompt caching saves 90% on the stable ~{cacheable_tokens:.0f} token base."
+        ),
+        "current_monthly_cost": round(monthly_current, 4),
+        "projected_monthly_cost": round(monthly_current - monthly_savings, 4),
+        "savings_per_month": round(monthly_savings, 4),
+        "confidence": confidence,
+        "confidence_span_n": n,
+        "quality_prediction": {
+            "latency_delta_pct": -5,
+            "schema_risk": "none",
+            "faithfulness_risk": "none",
+            "error_rate_delta": "none",
+            "truncation_delta": "none",
+            "basis": "Prompt caching uses identical content — zero quality impact. Anthropic serves cached tokens ~5% faster.",
+        },
+    })
+
+
+def _check_max_tokens_cap(
+    recs: list, agent_id: str, span_name: str, span_reqs: list[LLMRequest],
+    configured_max_tokens: int | None,
+) -> None:
+    """Recommend setting max_tokens when completion length varies wildly."""
+    if not span_reqs:
+        return
+    completions = sorted(r.completion_tokens for r in span_reqs if r.completion_tokens and r.completion_tokens > 0)
+    if len(completions) < 10:
+        return
+    p50 = completions[len(completions) // 2]
+    p95 = completions[min(int(len(completions) * 0.95), len(completions) - 1)]
+    if p95 < p50 * 2 or p95 < 200:
+        return
+    recommended_max = p95
+    if configured_max_tokens is not None and configured_max_tokens <= recommended_max * 1.2:
+        return
+    outlier_reqs = [r for r in span_reqs if r.completion_tokens and r.completion_tokens > recommended_max]
+    if not outlier_reqs:
+        return
+    outlier_fraction = len(outlier_reqs) / max(len(span_reqs), 1)
+    total_savings = 0.0
+    for r in outlier_reqs:
+        excess = r.completion_tokens - recommended_max
+        pricing = MODEL_PRICING.get(r.model)
+        if not pricing:
+            for key, p in MODEL_PRICING.items():
+                if r.model and r.model.startswith(key):
+                    pricing = p
+                    break
+        if pricing:
+            total_savings += excess * pricing["output"]
+    if total_savings <= 0:
+        return
+    total_cost = sum(r.cost_usd for r in span_reqs)
+    monthly_current = _monthly_projection(total_cost)
+    monthly_savings = _monthly_projection(total_savings)
+    n = len(span_reqs)
+    days = _days_spanned(span_reqs)
+    confidence = _span_confidence(n, days, min((p95 - p50) / max(p50, 1), 1.0))
+    recs.append({
+        "span_name": span_name,
+        "rec_type": "max_tokens_cap",
+        "explanation": (
+            f"Span '{span_name}' has no max_tokens cap. "
+            f"Completion length varies from p50={p50} to p95={p95} tokens — "
+            f"{int(outlier_fraction * 100)}% of calls exceed {recommended_max} tokens. "
+            f"Setting max_tokens={recommended_max} prevents runaway generation."
+        ),
+        "current_monthly_cost": round(monthly_current, 4),
+        "projected_monthly_cost": round(monthly_current - monthly_savings, 4),
+        "savings_per_month": round(monthly_savings, 4),
+        "confidence": confidence,
+        "confidence_span_n": n,
+        "recommended_max_tokens": recommended_max,
+        "quality_prediction": {
+            "latency_delta_pct": -int(outlier_fraction * 15),
+            "schema_risk": "low",
+            "faithfulness_risk": "low",
+            "error_rate_delta": "none",
+            "truncation_delta": "increase",
+            "basis": f"Capping at p95 ({int(outlier_fraction*100)}% of calls are outliers) prevents runaway generation. Low schema/faithfulness risk — only extreme-length responses are trimmed.",
+        },
+    })
