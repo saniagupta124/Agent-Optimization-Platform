@@ -195,11 +195,7 @@ def summarize_context(docs: list) -> str:
     )
     return response.choices[0].message.content`;
 
-  const claudeCodeBasicPrompt = `Before running this prompt:
-1. Install the SDK: pip install traeco-sdk  (https://pypi.org/project/traeco-sdk/1.0.0/)
-2. Set your Traeco key in your environment: export TRAECO_API_KEY=<your key from the Traeco dashboard>
-
-Add Traeco SDK tracing to my agent file. Do the following exactly:
+  const claudeCodeBasicPrompt = `Add Traeco SDK tracing to my agent file. Do the following exactly:
 
 1. At the top of the agent file, add:
    from traeco import init, wrap
@@ -357,6 +353,63 @@ can break down cost and token usage per feature in the dashboard. No logic is ch
                 <p className="text-xs mb-2" style={{ color: "#71717a" }}>
                   Adds <code style={{ color: "#a1a1aa" }}>init()</code> and <code style={{ color: "#a1a1aa" }}>wrap()</code> to your agent file. Run this first.
                 </p>
+
+                {/* Pre-requisites — shown above the copyable prompt, not inside it */}
+                <div
+                  className="mb-3 rounded-xl border px-4 py-3 space-y-2"
+                  style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#52525b" }}>
+                    Before running this prompt
+                  </p>
+
+                  {/* Step A: Install */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                        style={{ background: "rgba(27,168,111,0.18)", color: "#1BA86F", border: "1px solid rgba(27,168,111,0.25)" }}
+                      >1</span>
+                      <span className="text-xs" style={{ color: "#a1a1aa" }}>
+                        Install the SDK:{" "}
+                        <a
+                          href="https://pypi.org/project/traeco-sdk/1.0.0/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "#2de080", textDecoration: "underline", textUnderlineOffset: "2px" }}
+                        >
+                          traeco-sdk on PyPI
+                        </a>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <code className="text-xs px-2 py-0.5 rounded" style={{ background: "#0a0a0b", color: "#d4d4d8", fontFamily: "monospace" }}>
+                        pip install traeco-sdk
+                      </code>
+                      <CopyButton text="pip install traeco-sdk" />
+                    </div>
+                  </div>
+
+                  {/* Step B: Set env var */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+                        style={{ background: "rgba(27,168,111,0.18)", color: "#1BA86F", border: "1px solid rgba(27,168,111,0.25)" }}
+                      >2</span>
+                      <span className="text-xs" style={{ color: "#a1a1aa" }}>
+                        Set your Traeco API key as an environment variable
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <code className="text-xs px-2 py-0.5 rounded" style={{ background: "#0a0a0b", color: "#d4d4d8", fontFamily: "monospace" }}>
+                        export TRAECO_API_KEY=<span style={{ color: "#2de080" }}>&lt;your key&gt;</span>
+                      </code>
+                      <CopyButton text={`export TRAECO_API_KEY=${apiKey}`} />
+                    </div>
+                  </div>
+                </div>
+
                 <CodeBlock code={claudeCodeBasicPrompt} label="paste into Claude Code" />
               </div>
 
