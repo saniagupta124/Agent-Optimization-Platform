@@ -1,6 +1,24 @@
 import { TopChangeItem } from "./api";
 import type { Rec, Verdict, ConfidenceRating } from "./rec-types";
 
+// Per-rec-type realistic demo values for PortfolioRisk-GPT
+function _demoJudge(type: string): number {
+  const m: Record<string, number> = { model_swap: 21, model_overkill: 14, context_bloat: 6, redundant_calls: 0, retry_loop: 2, prompt_caching: 0, max_tokens_cap: -8 };
+  return m[type] ?? 0;
+}
+function _demoFaithfulness(type: string): number {
+  const m: Record<string, number> = { model_swap: 16, model_overkill: 11, context_bloat: -5, redundant_calls: 0, retry_loop: 3, prompt_caching: 0, max_tokens_cap: -6 };
+  return m[type] ?? 0;
+}
+function _demoSchema(type: string): number {
+  const m: Record<string, number> = { model_swap: -4, model_overkill: -2, context_bloat: 0, redundant_calls: 0, retry_loop: 0, prompt_caching: 0, max_tokens_cap: -3 };
+  return m[type] ?? 0;
+}
+function _demoLatency(type: string): number {
+  const m: Record<string, number> = { model_swap: 301, model_overkill: -180, context_bloat: -220, redundant_calls: -640, retry_loop: 145, prompt_caching: -85, max_tokens_cap: -190 };
+  return m[type] ?? 0;
+}
+
 // Quality eval pipeline doesn't exist yet — all quality fields are zeroed.
 // Confidence and verdict are derived deterministically from severity.
 
@@ -81,31 +99,30 @@ export function mapToRec(ch: TopChangeItem): Rec {
       monthly_ci_95_usd: [-(savings + ciSpread), -(savings - ciSpread)],
     },
 
-    // Quality deltas: wired from backend when available.
-    // PortfolioRisk-GPT demo fallbacks when backend hasn't propagated yet.
     delta_quality: {
+      // Backend returns 0-100 (50=tie). Convert to signed delta: +25 means 25% more prefer candidate.
       judge_preference_pct: ch.judge_preference_pct != null
-        ? Math.round((ch.judge_preference_pct - 0.5) * 100)
-        : ch.agent_name === "PortfolioRisk-GPT" ? 21 : 0,
+        ? Math.round(ch.judge_preference_pct - 50)
+        : ch.agent_name === "PortfolioRisk-GPT" ? _demoJudge(ch.type) : 0,
       faithfulness_pct: ch.judge_preference_pct != null
-        ? Math.round((ch.judge_preference_pct - 0.52) * 85)
-        : ch.agent_name === "PortfolioRisk-GPT" ? 16 : 0,
+        ? Math.round((ch.judge_preference_pct - 50) * 0.85)
+        : ch.agent_name === "PortfolioRisk-GPT" ? _demoFaithfulness(ch.type) : 0,
       structure_pct: ch.structure_conformance_pct != null
         ? Math.round(ch.structure_conformance_pct - 100)
-        : ch.agent_name === "PortfolioRisk-GPT" ? -4 : 0,
+        : ch.agent_name === "PortfolioRisk-GPT" ? _demoSchema(ch.type) : 0,
       latency_p95_ms: (ch.latency_p95_ms != null && ch.latency_p95_baseline_ms != null)
         ? Math.round(ch.latency_p95_ms - ch.latency_p95_baseline_ms)
-        : ch.agent_name === "PortfolioRisk-GPT" ? 412 : 0,
+        : ch.agent_name === "PortfolioRisk-GPT" ? _demoLatency(ch.type) : 0,
     },
     budget_eval: {
       judge_preference: "within",
       faithfulness: "within",
       structure: (ch.structure_conformance_pct != null && ch.structure_conformance_pct < 98) ||
-                 (ch.structure_conformance_pct == null && ch.agent_name === "PortfolioRisk-GPT")
+                 (ch.structure_conformance_pct == null && ch.agent_name === "PortfolioRisk-GPT" && _demoSchema(ch.type) < 0)
         ? "breach" : "within",
       latency_p95_ms: (ch.latency_p95_ms != null && ch.latency_p95_baseline_ms != null &&
                        ch.latency_p95_ms - ch.latency_p95_baseline_ms > 200) ||
-                      (ch.latency_p95_ms == null && ch.agent_name === "PortfolioRisk-GPT")
+                      (ch.latency_p95_ms == null && ch.agent_name === "PortfolioRisk-GPT" && _demoLatency(ch.type) > 200)
         ? "breach" : "within",
     },
 
@@ -117,5 +134,6 @@ export function mapToRec(ch: TopChangeItem): Rec {
     },
 
     rationale: ch.verdict_rationale || ch.description,
+    quality_prediction: (ch as any).quality_prediction,
   };
 }

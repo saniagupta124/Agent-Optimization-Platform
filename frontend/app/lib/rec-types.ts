@@ -8,7 +8,16 @@ export type Verdict =
   | "hold"
   | "insufficient_data";
 
-export type ConfidenceRating = "high" | "medium" | "low";
+export type ConfidenceRating = "high" | "medium" | "low" | "insufficient";
+
+export type QualityPrediction = {
+  latency_delta_pct: number;
+  schema_risk: "none" | "low" | "medium" | "high" | "unknown";
+  faithfulness_risk: "none" | "low" | "medium" | "high" | "unknown";
+  error_rate_delta: string;
+  truncation_delta: string;
+  basis: string;
+};
 
 export type RecStatus = "pending" | "accepted" | "rejected" | "deferred";
 
@@ -63,4 +72,5 @@ export type Rec = {
     flags: string[];
   };
   rationale: string;
+  quality_prediction?: QualityPrediction;
 };

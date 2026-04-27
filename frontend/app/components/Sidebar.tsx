@@ -63,22 +63,12 @@ export default function Sidebar() {
           style={{ cursor: collapsed ? "pointer" : "default" }}
           aria-label={collapsed ? "Expand sidebar" : undefined}
         >
-          <svg width="22" height="24" viewBox="0 0 52 56" fill="none">
-            <defs>
-              <radialGradient id="slg" cx="35%" cy="25%" r="75%">
-                <stop offset="0%" stopColor="#2bdb82"/>
-                <stop offset="45%" stopColor="#1BA86F"/>
-                <stop offset="100%" stopColor="#084830"/>
-              </radialGradient>
-            </defs>
-            <circle cx="16" cy="12" r="12" fill="url(#slg)"/>
-            <circle cx="37" cy="14" r="10" fill="url(#slg)"/>
-            <circle cx="11" cy="36" r="9" fill="url(#slg)"/>
-            <circle cx="34" cy="42" r="8" fill="url(#slg)"/>
-            <ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#slg)"/>
-          </svg>
+          {collapsed ? (
+            <img src="/traeco-icon.png" alt="Traeco" style={{ height: 28, width: "auto", objectFit: "contain" }} />
+          ) : (
+            <img src="/traeco-logo.png" alt="Traeco" style={{ height: 30, width: "auto", objectFit: "contain", maxWidth: 160 }} />
+          )}
         </button>
-        {!collapsed && <span className="tr-wordmark">traeco</span>}
         {!collapsed && (
           <button className="tr-collapse-btn" onClick={toggle} aria-label="Collapse sidebar">
             <svg width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">

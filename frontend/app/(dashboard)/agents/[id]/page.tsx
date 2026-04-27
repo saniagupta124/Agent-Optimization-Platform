@@ -147,66 +147,8 @@ export default function AgentDetailPage({
         <>
           <div className="tr-section-title" style={{ marginTop: 40 }}>Recommendations for this agent</div>
           {recs.map((r) => (
-            <DecisionCard key={r.num} rec={r} onStatusChange={onStatusChange} />
+            <DecisionCard key={r.num} rec={r} token={token} onStatusChange={onStatusChange} />
           ))}
-        </>
-      )}
-
-      {/* Span breakdown (trace table) */}
-      {dash && dash.by_span.length > 0 && (
-        <>
-          <div className="tr-section-title" style={{ marginTop: 40 }}>Span cost breakdown</div>
-          <div className="tr-table-wrap">
-            <table className="tr-table">
-              <thead>
-                <tr>
-                  <th>Step / span</th>
-                  <th className="r">Requests</th>
-                  <th className="r">Total cost</th>
-                  <th className="r">Avg / req</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dash.by_span.map((s) => (
-                  <tr key={s.span_name} style={{ cursor: "default" }}>
-                    <td>{s.span_name}</td>
-                    <td className="r">{s.request_count.toLocaleString()}</td>
-                    <td className="r">${s.total_cost.toFixed(4)}</td>
-                    <td className="r tr-latency">
-                      ${s.request_count > 0 ? (s.total_cost / s.request_count).toFixed(5) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {/* Model breakdown */}
-      {dash && dash.by_model.length > 0 && (
-        <>
-          <div className="tr-section-title">Model breakdown</div>
-          <div className="tr-table-wrap">
-            <table className="tr-table">
-              <thead>
-                <tr>
-                  <th>Model</th>
-                  <th className="r">Requests</th>
-                  <th className="r">Total cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dash.by_model.map((m) => (
-                  <tr key={m.model} style={{ cursor: "default" }}>
-                    <td>{m.model}</td>
-                    <td className="r">{m.request_count.toLocaleString()}</td>
-                    <td className="r">${m.total_cost.toFixed(4)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </>
       )}
 

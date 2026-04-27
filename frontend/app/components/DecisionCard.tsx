@@ -1,8 +1,10 @@
 "use client";
 
+"use client";
+
 import { useState, type CSSProperties } from "react";
 import { RejectModal, type RejectReasonCategory } from "./RejectModal";
-import type { BudgetEval, Rec, Verdict } from "../lib/rec-types";
+import type { BudgetEval, Rec, Verdict, QualityPrediction } from "../lib/rec-types";
 import { patchRecDecision } from "../lib/api";
 
 // Verdict metadata — single source of truth for colors + copy.
@@ -92,6 +94,61 @@ function dateShort(iso: string): string {
     d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
     " " +
     d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+  );
+}
+
+function LLMJudgeCol({ judgeScore, prediction }: { judgeScore: number; prediction?: QualityPrediction }) {
+  const [open, setOpen] = useState(false);
+  const hasScore = judgeScore !== 0;
+  const scoreColor = judgeScore > 5 ? "var(--green)" : judgeScore < -5 ? "var(--warning-high)" : "var(--fg2)";
+  return (
+    <div className="tr-decision-col">
+      <div className="tr-decision-col-label">LLM Judge</div>
+      {hasScore ? (
+        <>
+          <div className="tr-decision-hero" style={{ color: scoreColor, fontSize: "1.1rem" }}>
+            {judgeScore > 0 ? "+" : ""}{judgeScore}%
+          </div>
+          <div className="tr-decision-line-sub">
+            {judgeScore > 5 ? "prefer candidate" : judgeScore < -5 ? "prefer baseline" : "tied"}
+          </div>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            style={{ marginTop: 8, cursor: "pointer", background: "none", border: "none", padding: 0, color: "var(--fg2)", textDecoration: "underline", textUnderlineOffset: 3, fontSize: "11.5px", display: "flex", alignItems: "center", gap: 4 }}
+          >
+            More Info
+            <svg width={10} height={10} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {open && (
+            <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: 8 }}>
+              <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: "var(--fg1)" }}>
+                <strong>What this means: </strong>
+                {judgeScore > 5
+                  ? `${judgeScore}% more sampled responses preferred the recommended change. The new config produces better outputs on your real traffic.`
+                  : judgeScore < -5
+                  ? `${Math.abs(judgeScore)}% more responses preferred the current setup. This change may reduce output quality.`
+                  : "The recommended change and current setup produced outputs of similar quality."}
+              </p>
+              {prediction?.basis && (
+                <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5, color: "var(--fg2)" }}>{prediction.basis}</p>
+              )}
+              <div style={{ fontSize: 11, color: "var(--fg3)", display: "flex", flexDirection: "column", gap: 3 }}>
+                <span>Method: pairwise A/B, run twice with swapped order to cancel position bias</span>
+                <span>Judge model: Claude Haiku — runs on your API key, not Traeco servers</span>
+                <span>10% of live traffic sampled · prompts and outputs never leave your process</span>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="tr-decision-line-sub" style={{ fontStyle: "italic", color: "var(--fg4)" }}>Pending</div>
+          <div className="tr-decision-line-sub" style={{ opacity: 0.5, marginTop: 2 }}>runs automatically</div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -216,7 +273,7 @@ export function DecisionCard({
             <div className="tr-decision-col-label">Confidence</div>
             <div className={`tr-decision-conf conf-${c.rating}`}>
               <span className="tr-decision-conf-dot" />
-              {c.rating === "high" ? "High" : c.rating === "medium" ? "Medium" : "Low"}
+              {c.rating === "high" ? "High" : c.rating === "medium" ? "Medium" : c.rating === "insufficient" ? "Insufficient" : "Low"}
             </div>
             <div className="tr-decision-line-sub tr-decision-conf-stats">
               {c.sample_size > 0 ? `n=${c.sample_size}, ` : ""}CI ±{c.ci_half_width_pct.toFixed(1)}%
@@ -234,6 +291,9 @@ export function DecisionCard({
               </div>
             )}
           </div>
+
+          {/* LLM Judge column */}
+          <LLMJudgeCol judgeScore={q.judge_preference_pct} prediction={rec.quality_prediction} />
         </div>
 
         <div className="tr-decision-rationale">

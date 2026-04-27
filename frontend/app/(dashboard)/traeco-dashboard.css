@@ -672,7 +672,7 @@
 
 .traeco-dashboard .tr-decision-body {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   padding: 18px 22px;
 }
 .traeco-dashboard .tr-decision-col { padding: 0 20px; border-left: 1px solid var(--border-subtle); }
