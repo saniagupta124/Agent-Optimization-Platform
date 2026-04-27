@@ -40,7 +40,7 @@ function SignInForm() {
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "#262628", border: "1px solid #333336" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Traeco" width={24} height={24} style={{ objectFit: "contain" }} />
+          <img src="/traeco-icon.png" alt="Traeco" style={{ height: 28, width: "auto", objectFit: "contain" }} />
         </div>
         <h1 className="text-2xl font-semibold text-white" style={{ letterSpacing: "-0.02em" }}>Welcome back</h1>
         <p className="mt-1 text-sm text-[#71717A]">Sign in to Traeco</p>

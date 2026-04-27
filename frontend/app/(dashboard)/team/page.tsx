@@ -259,9 +259,7 @@ export default function TeamPage() {
         <div className="mb-8 rounded-2xl border border-emerald-900/40 bg-[#161617] p-5">
           <h2 className="text-sm font-semibold text-emerald-200">Invite teammates</h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Generates a single-use link. For deployed apps, set{" "}
-            <code className="rounded bg-[#242424] px-1 text-zinc-400">PUBLIC_APP_URL</code> on the API
-            so the URL is absolute, or copy the path below.
+            Generates a single-use invite link. Share it with your teammate to add them to the team.
           </p>
           {inviteErr && (
             <p className="mt-2 text-xs text-red-400">{inviteErr}</p>

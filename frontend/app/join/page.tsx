@@ -57,18 +57,7 @@ function JoinContent() {
       >
         {/* Logo */}
         <div className="mb-6 flex justify-center">
-          <svg width="20" height="22" viewBox="0 0 52 56" fill="none">
-            <defs><radialGradient id="lg0" cx="35%" cy="25%" r="75%">
-              <stop offset="0%" stopColor="#2bdb82"/>
-              <stop offset="45%" stopColor="#1BA86F"/>
-              <stop offset="100%" stopColor="#084830"/>
-            </radialGradient></defs>
-            <circle cx="16" cy="12" r="12" fill="url(#lg0)"/>
-            <circle cx="37" cy="14" r="10" fill="url(#lg0)"/>
-            <circle cx="11" cy="36" r="9" fill="url(#lg0)"/>
-            <circle cx="34" cy="42" r="8" fill="url(#lg0)"/>
-            <ellipse cx="24" cy="27" rx="11" ry="13" fill="url(#lg0)"/>
-          </svg>
+          <img src="/traeco-icon.png" alt="Traeco" style={{ height: 36, width: "auto", objectFit: "contain" }} />
         </div>
 
         {state === "loading" && (
