@@ -208,6 +208,38 @@ def _match_cluster(user_input: str, criteria_map: dict) -> str | None:
             best_hits, best_label = hits, label
     return best_label if best_hits > 0 else None
 
+def _extract_text(response: Any, provider: str) -> str:
+    """Extract text output from an LLM response. Used for auto-JSON detection."""
+    try:
+        if provider == "anthropic":
+            content = getattr(response, "content", None) or []
+            return content[0].text if content else ""
+        else:
+            choices = getattr(response, "choices", None) or []
+            msg = choices[0].message if choices else None
+            return getattr(msg, "content", "") or ""
+    except Exception:
+        return ""
+
+
+def _detect_structure(text: str) -> bool | None:
+    """
+    Auto-detect if output is valid JSON. Runs locally — never shipped.
+    Returns True (valid JSON), False (looks like JSON but invalid), None (plain text).
+    """
+    if not text:
+        return None
+    t = text.strip()
+    if not t or t[0] not in ("{", "["):
+        return None
+    try:
+        import json as _json
+        _json.loads(t)
+        return True
+    except Exception:
+        return False
+
+
 def _maybe_shadow_judge(messages: list, baseline_output: str, current_model: str, provider: str) -> None:
     global _last_seen_model
     if not _state.get("auto_judge"):
@@ -333,6 +365,7 @@ def _build_payload(
     latency_ms: int,
     status: str = "success",
     error: str = "",
+    structure_valid: bool | None = None,
 ) -> dict:
     cost = _local_cost(model, prompt_tokens, completion_tokens)
     payload: dict = {
@@ -349,6 +382,8 @@ def _build_payload(
         payload["cost_usd"] = cost
     if error:
         payload["error_detail"] = error
+    if structure_valid is not None:
+        payload["structure_valid"] = structure_valid
     return payload
 
 
@@ -396,6 +431,7 @@ class _WrappedCompletions:
             prompt_tokens=getattr(usage, "prompt_tokens", 0),
             completion_tokens=getattr(usage, "completion_tokens", 0),
             latency_ms=latency_ms,
+            structure_valid=_detect_structure(_extract_text(response, "openai")),
         ))
         _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "openai"), actual_model, "openai")
         return response
@@ -443,6 +479,7 @@ class _WrappedCompletions:
             prompt_tokens=getattr(usage, "prompt_tokens", 0),
             completion_tokens=getattr(usage, "completion_tokens", 0),
             latency_ms=latency_ms,
+            structure_valid=_detect_structure(_extract_text(response, "openai")),
         ))
         _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "openai"), actual_model, "openai")
         return response
@@ -553,6 +590,7 @@ class _WrappedAnthropicMessages:
             prompt_tokens=getattr(usage, "input_tokens", 0),
             completion_tokens=getattr(usage, "output_tokens", 0),
             latency_ms=latency_ms,
+            structure_valid=_detect_structure(_extract_text(response, "anthropic")),
         ))
         _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "anthropic"), actual_model, "anthropic")
         return response
@@ -581,6 +619,7 @@ class _WrappedAnthropicMessages:
             prompt_tokens=getattr(usage, "input_tokens", 0),
             completion_tokens=getattr(usage, "output_tokens", 0),
             latency_ms=latency_ms,
+            structure_valid=_detect_structure(_extract_text(response, "anthropic")),
         ))
         _maybe_shadow_judge(kwargs.get("messages", []), _extract_text(response, "anthropic"), actual_model, "anthropic")
         return response
@@ -670,6 +709,35 @@ def wrap(client: Any) -> Any:
 
 
 # ── span() decorator ─────────────────────────────────────────────────────────
+
+def mark_invalid(reason: str = "") -> None:
+    """
+    Mark the most recent LLM call as structurally invalid.
+    Call this after your output fails schema/format validation.
+
+    Example:
+        response = client.messages.create(...)
+        try:
+            MySchema.model_validate_json(response.content[0].text)
+        except ValidationError:
+            traeco.mark_invalid()
+    """
+    key = _state.get("api_key")
+    host = _state.get("host")
+    agent_name = _state.get("agent_name", "default")
+    if not key:
+        return
+    try:
+        with httpx.Client(timeout=5) as client:
+            client.post(
+                f"{host}/ingest/mark_invalid",
+                json={"agent_name": agent_name, "reason": reason},
+                headers={"X-Traeco-Key": key},
+            )
+    except Exception as exc:
+        if _state["debug"]:
+            print(f"[traeco] mark_invalid failed: {exc}")
+
 
 def run_eval(
     prompt: str,

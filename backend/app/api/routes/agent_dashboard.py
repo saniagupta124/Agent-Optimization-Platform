@@ -238,6 +238,121 @@ def _monthly_projection(cost_in_window: float, days: int = 30) -> float:
     return cost_in_window * (30 / max(days, 1))
 
 
+# Known speed multipliers: switching from key→value model gives this speedup factor
+_MODEL_SPEED_RATIO: dict[tuple[str, str], float] = {
+    ("gpt-4o", "gpt-4o-mini"):                           3.5,
+    ("gpt-4-turbo", "gpt-4o-mini"):                      4.0,
+    ("gpt-4", "gpt-4o-mini"):                            5.0,
+    ("claude-opus-4-6", "claude-haiku-4-5"):             4.0,
+    ("claude-sonnet-4-6", "claude-haiku-4-5"):           2.5,
+    ("claude-3-5-sonnet", "claude-3-haiku"):             2.0,
+    ("claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"): 2.0,
+    ("claude-3-opus", "claude-3-haiku"):                 4.0,
+}
+_CACHE_HIT_MS = 30  # typical in-memory/Redis cache lookup latency
+
+
+def _predict_quality_impact(
+    rec_type: str,
+    span_reqs: list,
+    savings_fraction: float,
+    current_model: str = "",
+    alt_model: str = "",
+    actual_prompt_reduction_pct: float | None = None,
+    waste_fraction: float = 0.0,
+) -> dict:
+    """Predict quality impact of implementing this recommendation from existing data."""
+    n = len(span_reqs)
+    avg_completion = sum(r.completion_tokens for r in span_reqs) / max(n, 1) if span_reqs else 0
+    avg_prompt = sum(r.prompt_tokens for r in span_reqs) / max(n, 1) if span_reqs else 0
+    lat_vals = [r.latency_ms for r in span_reqs if r.latency_ms]
+    avg_latency = sum(lat_vals) / len(lat_vals) if lat_vals else 0
+    has_data = n >= 5
+
+    if rec_type in ("model_swap", "model_overkill"):
+        speed_ratio = _MODEL_SPEED_RATIO.get((current_model, alt_model))
+        if speed_ratio:
+            latency_delta_pct = -int((1 - 1 / speed_ratio) * 100)
+        else:
+            latency_delta_pct = -min(60, int(savings_fraction * 65))
+        error_rate_delta = "+low risk"
+        truncation_delta = "none"
+        if not has_data:
+            schema_risk = "unknown"; faithfulness_risk = "unknown"
+            basis = f"Smaller model ~{abs(latency_delta_pct)}% faster (estimated from {int(savings_fraction*100)}% cost reduction). Schema/faithfulness risk unknown — no output data yet."
+        elif avg_completion > 300:
+            schema_risk = "medium"; faithfulness_risk = "medium"
+            basis = f"Smaller model ~{abs(latency_delta_pct)}% faster. Medium risk: avg {avg_completion:.0f} completion tokens/call — cheaper models less reliable on complex outputs."
+        elif avg_completion > 100:
+            schema_risk = "low"; faithfulness_risk = "low"
+            basis = f"Smaller model ~{abs(latency_delta_pct)}% faster. Low risk: avg {avg_completion:.0f} completion tokens/call is manageable."
+        else:
+            schema_risk = "none"; faithfulness_risk = "none"
+            basis = f"Smaller model ~{abs(latency_delta_pct)}% faster. Minimal risk: avg {avg_completion:.0f} completion tokens/call — short outputs well within cheap model capability."
+
+    elif rec_type == "context_bloat":
+        prompt_reduction = actual_prompt_reduction_pct if actual_prompt_reduction_pct is not None else 0.40
+        if has_data and avg_latency > 0 and avg_completion > 0:
+            input_time_ms = avg_prompt / 10.0
+            output_time_ms = avg_completion / 1.0
+            input_fraction = input_time_ms / max(input_time_ms + output_time_ms, 1)
+            latency_delta_pct = max(-35, -int(prompt_reduction * input_fraction * 100))
+        else:
+            latency_delta_pct = -int(prompt_reduction * 20)
+        schema_risk = "none"; error_rate_delta = "none"; truncation_delta = "decrease"
+        faithfulness_risk = "low" if (has_data and avg_prompt > 2000) else ("unknown" if not has_data else "none")
+        basis = (f"Windowing reduces prompt tokens ~{int(prompt_reduction*100)}%, saving ~{abs(latency_delta_pct)}% latency. "
+                 "Same model — output schema preserved. " +
+                 ("Risk: long conversations may lose earlier context." if avg_prompt > 2000 else ""))
+
+    elif rec_type == "redundant_calls":
+        if has_data and avg_latency > _CACHE_HIT_MS:
+            cache_speedup_pct = (avg_latency - _CACHE_HIT_MS) / avg_latency
+            latency_delta_pct = -int(savings_fraction * cache_speedup_pct * 100)
+        else:
+            latency_delta_pct = -int(savings_fraction * 40)
+        schema_risk = "none"; faithfulness_risk = "none"; error_rate_delta = "decrease"; truncation_delta = "none"
+        basis = (f"Cache hits return in ~{_CACHE_HIT_MS}ms vs {avg_latency:.0f}ms average. "
+                 f"{int(savings_fraction*100)}% of calls are redundant — caching saves ~{abs(latency_delta_pct)}% p95 latency.")
+
+    elif rec_type == "retry_loop":
+        backoff_ms = 1000
+        if has_data and avg_latency > 0:
+            latency_delta_pct = min(40, int(waste_fraction * backoff_ms / avg_latency * 100))
+        else:
+            latency_delta_pct = min(40, int(waste_fraction * 30))
+        latency_delta_pct = max(latency_delta_pct, 5)
+        schema_risk = "none"; faithfulness_risk = "none"; error_rate_delta = "decrease"; truncation_delta = "none"
+        basis = (f"Backoff adds ~{latency_delta_pct}% to p95 latency on retry paths. "
+                 "No schema/faithfulness impact. Error rate improves: transient failures retried gracefully.")
+
+    elif rec_type == "prompt_caching":
+        latency_delta_pct = -5
+        schema_risk = "none"; faithfulness_risk = "none"; error_rate_delta = "none"; truncation_delta = "none"
+        basis = "Prompt caching uses identical content — zero quality impact. Anthropic serves cached tokens ~5% faster."
+
+    elif rec_type == "max_tokens_cap":
+        outlier_fraction = savings_fraction
+        latency_delta_pct = max(-15, -int(outlier_fraction * 15))
+        schema_risk = "low"; faithfulness_risk = "low"; error_rate_delta = "none"; truncation_delta = "increase"
+        basis = (f"Capping at p95 ({int(outlier_fraction*100)}% of calls are outliers) prevents runaway generation. "
+                 "Low schema/faithfulness risk — only extreme-length responses trimmed. Truncation rate increases intentionally.")
+
+    else:
+        latency_delta_pct = 0
+        schema_risk = "none"; faithfulness_risk = "none"; error_rate_delta = "none"; truncation_delta = "none"
+        basis = "Quality impact not yet characterised for this recommendation type."
+
+    return {
+        "latency_delta_pct": latency_delta_pct,
+        "schema_risk": schema_risk,
+        "faithfulness_risk": faithfulness_risk,
+        "error_rate_delta": error_rate_delta,
+        "truncation_delta": truncation_delta,
+        "basis": basis,
+    }
+
+
 def _days_spanned(reqs: list) -> int:
     return len({r.timestamp.date() for r in reqs}) if reqs else 0
 
@@ -546,7 +661,9 @@ def get_rec_decisions(
 class EvalBody(BaseModel):
     baseline_model: str
     candidate_model: str
-    preference_pct: float  # 0–100, preference for candidate over baseline
+    preference_pct: float
+    span_name: str = ""
+    rec_type: str = ""
 
 
 @router.post("/agents/{agent_id_or_name}/eval")
@@ -564,10 +681,76 @@ def store_eval(
         baseline_model=body.baseline_model,
         candidate_model=body.candidate_model,
         preference_pct=body.preference_pct,
+        span_name=body.span_name,
+        rec_type=body.rec_type,
     )
     db.add(row)
     db.commit()
     return {"agent_id": agent.id, "preference_pct": body.preference_pct}
+
+
+# ── GET/PATCH /agents/{agent_id}/eval-clusters ───────────────────────────────
+
+_DEMO_CLUSTERS = [
+    {"cluster_label": "billing / cancellation", "cluster_size": 247, "example_input": "How do I cancel my subscription?", "auto_draft_criteria": "Cite the cancellation policy, give 2-step instructions, no pushy retention language"},
+    {"cluster_label": "technical troubleshooting", "cluster_size": 189, "example_input": "The API keeps returning 429 errors", "auto_draft_criteria": "Give a numbered steps solution, check if solved, offer to escalate"},
+    {"cluster_label": "account / login", "cluster_size": 143, "example_input": "I can't log into my account", "auto_draft_criteria": "Verify identity, give reset steps, confirm access restored"},
+    {"cluster_label": "pricing / plan", "cluster_size": 98, "example_input": "What's included in the Pro plan?", "auto_draft_criteria": "List key features clearly, mention price, include upgrade CTA only once"},
+    {"cluster_label": "out-of-scope / unrelated", "cluster_size": 34, "example_input": "Can you write me a poem?", "auto_draft_criteria": None},
+    {"cluster_label": "feature request", "cluster_size": 27, "example_input": "Can you add dark mode?", "auto_draft_criteria": "Acknowledge request, explain current status, offer workaround if available"},
+]
+
+
+class CriteriaUpdateBody(BaseModel):
+    good_answer_criteria: str | None = None
+    skip_criteria: bool = False
+
+
+@router.get("/agents/{agent_id_or_name}/eval-clusters")
+def get_eval_clusters(
+    agent_id_or_name: str,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    from app.db.models import EvalCluster
+    user = _resolve_user(request, db)
+    agent = _resolve_agent(db, user, agent_id_or_name)
+    clusters = db.query(EvalCluster).filter(EvalCluster.agent_id == agent.id).order_by(EvalCluster.sort_order).all()
+    if not clusters:
+        for i, demo in enumerate(_DEMO_CLUSTERS):
+            row = EvalCluster(agent_id=agent.id, cluster_label=demo["cluster_label"], cluster_size=demo["cluster_size"], example_input=demo.get("example_input"), auto_draft_criteria=demo.get("auto_draft_criteria"), sort_order=i)
+            db.add(row)
+        db.commit()
+        clusters = db.query(EvalCluster).filter(EvalCluster.agent_id == agent.id).order_by(EvalCluster.sort_order).all()
+    criteria_set = sum(1 for c in clusters if c.skip_criteria or (c.good_answer_criteria and c.good_answer_criteria.strip()))
+    return {
+        "agent_id": agent.id, "agent_name": agent.name,
+        "clusters": [{"id": c.id, "cluster_label": c.cluster_label, "cluster_size": c.cluster_size, "example_input": c.example_input, "auto_draft_criteria": c.auto_draft_criteria, "good_answer_criteria": c.good_answer_criteria, "skip_criteria": c.skip_criteria, "sort_order": c.sort_order} for c in clusters],
+        "total_clusters": len(clusters), "criteria_set": criteria_set, "rubric_active": criteria_set >= 5,
+    }
+
+
+@router.patch("/agents/{agent_id_or_name}/eval-clusters/{cluster_id}")
+def update_eval_cluster(
+    agent_id_or_name: str,
+    cluster_id: str,
+    body: CriteriaUpdateBody,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    from app.db.models import EvalCluster
+    user = _resolve_user(request, db)
+    agent = _resolve_agent(db, user, agent_id_or_name)
+    cluster = db.query(EvalCluster).filter(EvalCluster.id == cluster_id, EvalCluster.agent_id == agent.id).first()
+    if not cluster:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+    cluster.good_answer_criteria = body.good_answer_criteria
+    cluster.skip_criteria = body.skip_criteria
+    cluster.updated_at = datetime.utcnow()
+    db.commit()
+    all_clusters = db.query(EvalCluster).filter(EvalCluster.agent_id == agent.id).all()
+    criteria_set = sum(1 for c in all_clusters if c.skip_criteria or (c.good_answer_criteria and c.good_answer_criteria.strip()))
+    return {"id": cluster.id, "good_answer_criteria": cluster.good_answer_criteria, "skip_criteria": cluster.skip_criteria, "rubric_active": criteria_set >= 5}
 
 
 # ── POST /traces/{trace_id}/structure ────────────────────────────────────────
@@ -637,6 +820,7 @@ def _check_model_swap(
         monthly_savings = monthly_current - monthly_alt
         confidence = min(95, 60 + int(savings / max(current_cost, 0.001) * 35))
 
+        savings_frac = savings / max(current_cost, 1e-9)
         recs.append({
             "span_name": span_name,
             "rec_type": "model_swap",
@@ -648,6 +832,10 @@ def _check_model_swap(
             "projected_monthly_cost": round(monthly_alt, 4),
             "savings_per_month": round(monthly_savings, 4),
             "confidence": confidence,
+            "confidence_span_n": len(model_reqs),
+            "baseline_model": model,
+            "candidate_model": alt,
+            "quality_prediction": _predict_quality_impact("model_swap", model_reqs, savings_frac, current_model=model, alt_model=alt),
         })
 
 
@@ -684,6 +872,8 @@ def _check_retry_loop(
         "projected_monthly_cost": round(monthly_current - monthly_saved, 4),
         "savings_per_month": round(monthly_saved, 4),
         "confidence": confidence,
+        "confidence_span_n": len(span_reqs),
+        "quality_prediction": _predict_quality_impact("retry_loop", span_reqs, waste_fraction, waste_fraction=waste_fraction),
     })
 
 
@@ -706,9 +896,16 @@ def _check_context_bloat(
         return
 
     total_cost = sum(r.cost_usd for r in span_reqs)
+    avg_prompt = sum(r.prompt_tokens for r in span_reqs) / max(len(span_reqs), 1)
+    early_cutoff = max(1, len(ordered) // 5)
+    early_prompts = [r.prompt_tokens for r in ordered[:early_cutoff] if r.prompt_tokens > 0]
+    if early_prompts:
+        stable_prompt = sum(early_prompts) / len(early_prompts)
+        actual_reduction = max(0.0, min((avg_prompt - stable_prompt) / max(avg_prompt, 1), 0.70))
+    else:
+        actual_reduction = 0.40
     monthly_current = _monthly_projection(total_cost)
-    # Windowing could reduce prompt tokens by ~40% on average
-    monthly_after = monthly_current * 0.60
+    monthly_after = monthly_current * (1 - actual_reduction)
     monthly_savings = monthly_current - monthly_after
 
     n = len(span_reqs)
@@ -721,13 +918,14 @@ def _check_context_bloat(
         "rec_type": "context_bloat",
         "explanation": (
             f"Span '{span_name}' shows prompt tokens growing >20% per call in "
-            f"{growing}/{len(growths)} steps. Implement conversation windowing to cap context size."
+            f"{growing}/{len(growths)} steps. Windowing to early session size reduces prompt by {int(actual_reduction*100)}%."
         ),
         "current_monthly_cost": round(monthly_current, 4),
         "projected_monthly_cost": round(monthly_after, 4),
         "savings_per_month": round(monthly_savings, 4),
         "confidence": confidence,
         "confidence_span_n": n,
+        "quality_prediction": _predict_quality_impact("context_bloat", span_reqs, actual_reduction, actual_prompt_reduction_pct=actual_reduction),
     })
 
 
@@ -777,6 +975,7 @@ def _check_redundant_calls(
         "savings_per_month": round(monthly_savings, 4),
         "confidence": confidence,
         "confidence_span_n": n,
+        "quality_prediction": _predict_quality_impact("redundant_calls", span_reqs, savings_fraction),
     })
 
 
@@ -832,6 +1031,9 @@ def _check_model_overkill(
             "savings_per_month": round(monthly_savings, 4),
             "confidence": confidence,
             "confidence_span_n": n,
+            "baseline_model": model,
+            "candidate_model": alt,
+            "quality_prediction": _predict_quality_impact("model_overkill", model_reqs, savings_frac, current_model=model, alt_model=alt),
         })
 
 

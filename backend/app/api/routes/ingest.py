@@ -67,6 +67,7 @@ class SdkTraceIn(BaseModel):
     status: str = "success"
     cost_usd: float | None = None
     environment: str = "production"
+    structure_valid: bool | None = None
 
     def resolved_agent_name(self) -> str:
         return self.workflow_name or self.agent_name
@@ -117,8 +118,38 @@ def ingest_trace(
         feature_tag=payload.resolved_feature_tag(),
         environment=payload.environment,
         endpoint_route=payload.endpoint_route,
+        structure_valid=payload.structure_valid,
     )
     db.add(record)
     db.commit()
     db.refresh(record)
     return SdkTraceOut(id=record.id, agent_id=agent.id, cost_usd=record.cost_usd, total_tokens=record.total_tokens)
+
+
+class MarkInvalidPayload(BaseModel):
+    agent_name: str
+    reason: str = ""
+
+
+@router.post("/mark_invalid")
+def mark_invalid(
+    payload: MarkInvalidPayload,
+    x_traeco_key: str = Header(..., alias="X-Traeco-Key"),
+    db: Session = Depends(get_db),
+):
+    """Mark the most recent request for this agent as structurally invalid."""
+    user = _resolve_user(db, x_traeco_key)
+    agent = db.query(Agent).filter(Agent.user_id == user.id, Agent.name == payload.agent_name).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    latest = (
+        db.query(Request)
+        .filter(Request.agent_id == agent.id)
+        .order_by(Request.timestamp.desc())
+        .first()
+    )
+    if not latest:
+        raise HTTPException(status_code=404, detail="No requests found for this agent")
+    latest.structure_valid = False
+    db.commit()
+    return {"trace_id": latest.id, "structure_valid": False}
