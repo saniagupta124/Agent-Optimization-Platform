@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 import { previewTeamInvite, acceptTeamInvite } from "../lib/api";
 
 type State = "loading" | "preview" | "accepting" | "done" | "error" | "invalid";
 
-export default function JoinPage() {
+function JoinContent() {
   const { data: session, status } = useSession();
   const token = (session as any)?.accessToken as string | undefined;
   const searchParams = useSearchParams();
@@ -130,5 +130,19 @@ export default function JoinPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center px-4" style={{ background: "#1B1B1D" }}>
+        <div className="w-full max-w-sm rounded-2xl border p-8 text-center" style={{ background: "#18181B", borderColor: "#2a2a2a" }}>
+          <p className="text-sm text-zinc-500">Loading…</p>
+        </div>
+      </div>
+    }>
+      <JoinContent />
+    </Suspense>
   );
 }
